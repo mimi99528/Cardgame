@@ -1,0 +1,118 @@
+[
+  {
+    "id": 1,
+    "name": "火球术",
+    "category": "combat",
+    "type": "atk_mag",
+    "description": "对敌人造成10点魔法伤害",
+    "rarity": "COMMON",
+    "ap_cost": 2,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "amount": 10
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 3,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 1
+    },
+    "target_type": "enemy"
+  },
+  {
+    "id": 2,
+    "name": "格挡",
+    "category": "combat",
+    "type": "blk",
+    "description": "获得5点格挡",
+    "rarity": "COMMON",
+    "ap_cost": 1,
+    "effects": [
+      {
+        "type": "self_block",
+        "amount": 5
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 1,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 1
+    },
+    "target_type": "self"
+  },
+  {
+    "id": 3,
+    "name": "治疗术",
+    "category": "combat",
+    "type": "hel",
+    "description": "恢复8点生命值",
+    "rarity": "UNCOMMON",
+    "ap_cost": 2,
+    "effects": [
+      {
+        "type": "self_heal",
+        "amount": 8
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 1,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 1
+    },
+    "target_type": "ally"
+  },
+  {
+    "id": 4,
+    "name": "毒刃",
+    "category": "combat",
+    "type": "atk_phy",
+    "description": "对敌人造成6点物理伤害并施加2层中毒",
+    "rarity": "UNCOMMON",
+    "ap_cost": 2,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "amount": 6
+      },
+      {
+        "type": "emy_debuff",
+        "buff_type": "pot",
+        "stacks": 2,
+        "duration": -1
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 2,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 1
+    },
+    "target_type": "enemy"
+  },
+  {
+    "id": 5,
+    "name": "群体治疗",
+    "category": "combat",
+    "type": "hel",
+    "description": "为所有友军恢复5点生命值",
+    "rarity": "RARE",
+    "ap_cost": 3,
+    "effects": [
+      {
+        "type": "self_heal",
+        "amount": 5
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 1,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 2
+    },
+    "target_type": "all_allies"
+  }
+]

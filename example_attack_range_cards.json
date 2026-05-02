@@ -1,0 +1,217 @@
+[
+  {
+    "id": 1,
+    "name": "剑刃斩击",
+    "category": "combat",
+    "type": "atk_phy",
+    "description": "使用剑刃进行近战攻击",
+    "rarity": "COMMON",
+    "ap_cost": 1,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "amount": 12
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 1,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 1
+    }
+  },
+  {
+    "id": 2,
+    "name": "长矛突刺",
+    "category": "combat",
+    "type": "atk_phy",
+    "description": "使用长矛进行中距离直线攻击",
+    "rarity": "UNCOMMON",
+    "ap_cost": 2,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "amount": 18
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 2,
+    "atk_rnge": {
+      "type": "line",
+      "length": 3,
+      "width": 1
+    }
+  },
+  {
+    "id": 3,
+    "name": "精准射击",
+    "category": "combat",
+    "type": "atk_phy",
+    "description": "远程弓箭精准射击",
+    "rarity": "COMMON",
+    "ap_cost": 1,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "amount": 15
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 4,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 1
+    }
+  },
+  {
+    "id": 4,
+    "name": "火球术",
+    "category": "combat",
+    "type": "atk_mag",
+    "description": "发射火球造成范围爆炸伤害",
+    "rarity": "RARE",
+    "ap_cost": 3,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "amount": 20
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 5,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 2
+    }
+  },
+  {
+    "id": 5,
+    "name": "闪电链",
+    "category": "combat",
+    "type": "atk_mag",
+    "description": "连锁闪电攻击多个敌人",
+    "rarity": "LEGENDARY",
+    "ap_cost": 4,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "amount": 15
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 6,
+    "atk_rnge": {
+      "type": "chain",
+      "max_targets": 3,
+      "max_distance": 4
+    }
+  },
+  {
+    "id": 6,
+    "name": "地震术",
+    "category": "combat",
+    "type": "atk_mag",
+    "description": "引发地震造成大范围伤害",
+    "rarity": "LEGENDARY",
+    "ap_cost": 5,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "amount": 25
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 3,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 3
+    }
+  },
+  {
+    "id": 7,
+    "name": "自我治疗",
+    "category": "combat",
+    "type": "hel",
+    "description": "恢复自身生命值",
+    "rarity": "COMMON",
+    "ap_cost": 2,
+    "effects": [
+      {
+        "type": "self_heal",
+        "amount": 25
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 0,
+    "atk_rnge": {
+      "type": "self",
+      "radius": 0
+    }
+  },
+  {
+    "id": 8,
+    "name": "群体治疗",
+    "category": "combat",
+    "type": "hel",
+    "description": "治疗周围友方单位",
+    "rarity": "RARE",
+    "ap_cost": 4,
+    "effects": [
+      {
+        "type": "self_heal",
+        "amount": 15
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 0,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 2
+    }
+  },
+  {
+    "id": 9,
+    "name": "龙息",
+    "category": "combat",
+    "type": "atk_mag",
+    "description": "喷吐火焰锥形攻击",
+    "rarity": "LEGENDARY",
+    "ap_cost": 4,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "amount": 22
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 2,
+    "atk_rnge": {
+      "type": "cone",
+      "angle": 90,
+      "distance": 4
+    }
+  },
+  {
+    "id": 10,
+    "name": "毒雾",
+    "category": "combat",
+    "type": "buf",
+    "description": "在区域内释放毒雾",
+    "rarity": "RARE",
+    "ap_cost": 3,
+    "effects": [
+      {
+        "type": "emy_debuff",
+        "buff_type": "pot",
+        "stacks": 2,
+        "duration": -1
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 3,
+    "atk_rnge": {
+      "type": "circle",
+      "radius": 2
+    }
+  }
+]

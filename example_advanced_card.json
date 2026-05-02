@@ -1,0 +1,35 @@
+{
+  "id": 100,
+  "name": "毒刃突袭",
+  "category": "combat",
+  "type": "atk_phy",
+  "description": "造成30点伤害，施加2层中毒并恢复10点生命",
+  "rarity": "RARE",
+  "ap_cost": 3,
+  "effects": [
+    {
+      "type": "emy_dmg",
+      "amount": 30
+    },
+    {
+      "type": "emy_debuff",
+      "buff_type": "pot",
+      "stacks": 2,
+      "duration": 3
+    },
+    {
+      "type": "self_heal",
+      "amount": 10
+    }
+  ],
+  "play_conditions": [
+    {
+      "type": "min_ap",
+      "value": 3
+    },
+    {
+      "type": "enemy_hp_below",
+      "percentage": 60
+    }
+  ]
+}
