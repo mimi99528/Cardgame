@@ -133,23 +133,28 @@ class BattleSystem:
             for effect in effects:
                 self.battle_log.add(effect)
     
-    def play_card(self, card: Card, target: Entity) -> bool:
-        """玩家打出卡牌"""
+    def play_card(self, card: Card, target: Entity) -> tuple:
+        """玩家打出卡牌
+        
+        Returns:
+            tuple: (success: bool, is_permanent: bool)
+        """
         current = self.current_entity
         if not current or not self.is_player_turn or self.battle_finished:
-            return False
+            return False, False
         
         if current.control_type != ControlType.PLAYER:
-            return False
+            return False, False
         
-        if current.play_card(card, target):
+        success, is_permanent = current.play_card(card, target)
+        if success:
             self.battle_log.add(f"{current.name}使用了 {card.name}")
             
             # 检查战斗是否结束
             self._check_battle_end()
-            return True
+            return True, is_permanent
         
-        return False
+        return False, False
     
     def end_current_entity_turn(self):
         """结束当前实体的回合"""
@@ -236,29 +241,200 @@ class BattleSystem:
         target = self._choose_ai_target(ai_entity)
         
         if target:
-            # 打出卡牌
-            if ai_entity.play_card(card, target):
-                self.battle_log.add(f"{ai_entity.name}使用了 {card.name}")
-                self._check_battle_end()
+            # 检查是否在卡牌的有效范围内
+            distance = self._calculate_distance(ai_entity.position, target.position)
+            max_range = self._get_card_range(card)
+            
+            # 如果不在范围内，先尝试移动
+            if distance > max_range and ai_entity.md > 0:
+                moved = self._ai_move_towards_target(ai_entity, target, max_range)
+                
+                if not moved:
+                    # 无法移动，移除这张卡
+                    ai_entity.hand.remove(card)
+                    return
+                else:
+                    # 移动成功，重新检查距离并尝试出牌
+                    distance = self._calculate_distance(ai_entity.position, target.position)
+                    max_range = self._get_card_range(card)
+                    
+                    if distance <= max_range:
+                        # 移动后在范围内，立即出牌
+                        success, _ = ai_entity.play_card(card, target)
+                        if success:
+                            self.battle_log.add(f"{ai_entity.name}使用了 {card.name}")
+                            self._check_battle_end()
+                    # 无论是否出牌，都结束本回合（MD已用完）
+                    self.ai_playing = False
+                    self.end_current_entity_turn()
+                    return
+            
+            # 再次检查距离
+            distance = self._calculate_distance(ai_entity.position, target.position)
+            max_range = self._get_card_range(card)
+            
+            if distance <= max_range:
+                # 打出卡牌
+                success, _ = ai_entity.play_card(card, target)
+                if success:
+                    self.battle_log.add(f"{ai_entity.name}使用了 {card.name}")
+                    self._check_battle_end()
+            else:
+                # 仍然不在范围内，保留卡牌到下回合
+                self.ai_playing = False
+                self.end_current_entity_turn()
         else:
             # 没有目标，移除这张卡
             ai_entity.hand.remove(card)
     
     def _choose_ai_target(self, ai_entity: Entity) -> Optional[Entity]:
-        """AI选择目标"""
+        """AI选择目标 - 优先选择最近的敌方单位"""
         # 判断AI属于哪一方
         is_player_side = ai_entity in self.player_team
         
         # 选择对立方的存活实体
         if is_player_side:
+            # AI队友的目标：所有敌人
             targets = [e for e in self.enemy_team if e.is_alive()]
         else:
+            # 敌人的目标：玩家队伍的所有成员（包括玩家和队友）
             targets = [e for e in self.player_team if e.is_alive()]
         
-        if targets:
-            import random
-            return random.choice(targets)
-        return None
+        if not targets:
+            return None
+        
+        # 选择距离最近的目标
+        closest_target = None
+        min_distance = float('inf')
+        
+        for target in targets:
+            distance = self._calculate_distance(ai_entity.position, target.position)
+            if distance < min_distance:
+                min_distance = distance
+                closest_target = target
+        
+        return closest_target
+    
+    def _calculate_distance(self, pos1: Tuple[int, int], pos2: Tuple[int, int]) -> int:
+        """计算两个位置之间的曼哈顿距离"""
+        return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+    
+    def _get_card_range(self, card: Card) -> int:
+        """根据卡牌类型获取有效距离"""
+        # 如果有atk_dis属性，使用它
+        if hasattr(card, 'atk_dis') and card.atk_dis:
+            return card.atk_dis
+        
+        # 否则根据卡牌类型返回默认值
+        default_range = 3
+        
+        if card.card_type.value in ["atk_phy", "atk_mag"]:
+            return 5
+        elif card.card_type.value == "blk":
+            return 0
+        elif card.card_type.value == "hel":
+            return 3
+        else:
+            return default_range
+    
+    def _ai_move_towards_target(self, ai_entity: Entity, target: Entity, required_range: int) -> bool:
+        """
+        AI尝试向目标移动，直到进入卡牌范围
+        
+        Args:
+            ai_entity: AI实体
+            target: 目标实体
+            required_range: 需要的距离范围
+        
+        Returns:
+            是否成功移动
+        """
+        from tile_map import TileMap
+        
+        current_distance = self._calculate_distance(ai_entity.position, target.position)
+        
+        # 如果已经在范围内，不需要移动
+        if current_distance <= required_range:
+            return True
+        
+        # 创建一个临时地图用于路径查找
+        tile_map = TileMap(width=20, height=15)
+        
+        # 获取所有其他实体的位置
+        all_entities = self.player_team + self.enemy_team
+        other_positions = [e.position for e in all_entities if e != ai_entity and e.is_alive()]
+        
+        # 尝试找到一个合适的位置（在required_range内且MD足够）
+        best_position = None
+        min_md_cost = float('inf')
+        
+        # 搜索目标周围的位置
+        for dy in range(-required_range, required_range + 1):
+            for dx in range(-required_range, required_range + 1):
+                test_x = target.position[0] + dx
+                test_y = target.position[1] + dy
+                
+                # 检查边界
+                if test_x < 0 or test_x >= tile_map.width or test_y < 0 or test_y >= tile_map.height:
+                    continue
+                
+                # 检查距离是否在范围内
+                distance = abs(dx) + abs(dy)
+                if distance > required_range or distance == 0:
+                    continue
+                
+                # 检查是否有其他实体
+                if (test_x, test_y) in other_positions:
+                    continue
+                
+                # 尝试找路径
+                path = tile_map.find_path_astar(ai_entity.position, (test_x, test_y), other_positions)
+                if path:
+                    # 计算MD消耗
+                    md_cost = tile_map.calculate_path_md_cost(path, other_positions)
+                    
+                    # 检查MD是否足够，并选择消耗最小的位置
+                    if md_cost <= ai_entity.md and md_cost < min_md_cost:
+                        min_md_cost = md_cost
+                        best_position = (test_x, test_y)
+        
+        # 如果找到了合适的位置，执行移动
+        if best_position:
+            success = self.move_entity(ai_entity, best_position, tile_map)
+            if success:
+                self.battle_log.add(f"{ai_entity.name}移动到({best_position[0]}, {best_position[1]})以接近目标")
+                return True
+        else:
+            # 如果没有找到范围内的位置，尝试尽可能靠近
+            # 找一个最近的可达位置
+            closest_pos = None
+            closest_dist = float('inf')
+            
+            for y in range(tile_map.height):
+                for x in range(tile_map.width):
+                    if (x, y) in other_positions:
+                        continue
+                    
+                    tile = tile_map.get_tile(x, y)
+                    if not tile or not tile.is_walkable:
+                        continue
+                    
+                    path = tile_map.find_path_astar(ai_entity.position, (x, y), other_positions)
+                    if path:
+                        md_cost = tile_map.calculate_path_md_cost(path, other_positions)
+                        if md_cost <= ai_entity.md:
+                            dist_to_target = self._calculate_distance((x, y), target.position)
+                            if dist_to_target < closest_dist:
+                                closest_dist = dist_to_target
+                                closest_pos = (x, y)
+            
+            if closest_pos:
+                success = self.move_entity(ai_entity, closest_pos, tile_map)
+                if success:
+                    self.battle_log.add(f"{ai_entity.name}移动到({closest_pos[0]}, {closest_pos[1]})以接近目标")
+                    return True
+        
+        return False
     
     def _enemy_turn(self):
         """敌人回合（旧版兼容，已废弃）"""

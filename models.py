@@ -94,7 +94,8 @@ class Entity:
         stats: Optional[Stats] = None,
         control_type: 'ControlType' = None,
         position: Optional[Tuple[int, int]] = None,
-        max_md: int = 30  # 默认移动距离30尺（6格）
+        max_md: int = 30,  # 默认移动距离30尺（6格）
+        permanent_cards: Optional[List['Card']] = None  # 常驻卡牌列表
     ):
         # 基础属性
         self.name = name
@@ -112,6 +113,11 @@ class Entity:
         self.hand_size = hand_size
         self.hand: List[Card] = []
         self.deck: List[Card] = []
+        
+        # 常驻卡牌（不参与抽牌）
+        self.permanent_cards: List[Card] = permanent_cards or []
+        for card in self.permanent_cards:
+            card.owner = self
         
         # 装备
         self.equipment = equipment
@@ -144,23 +150,56 @@ class Entity:
         self.block = 0
         self.buffs.clear()
         self.hand.clear()
+        # 将常驻卡牌加入手牌
+        for card in self.permanent_cards:
+            if card not in self.hand:
+                self.hand.append(card)
         return self
     
     def draw_hand(self):
-        """抽手牌"""
-        available_cards = [c for c in self.deck if c not in self.hand]
-        if len(available_cards) >= self.hand_size:
-            self.hand = random.sample(available_cards, self.hand_size)
+        """抽手牌（不包括常驻卡牌）"""
+        # 先保留常驻卡牌
+        permanent_in_hand = [card for card in self.hand if card in self.permanent_cards]
+        
+        # 从卡组中抽取非常驻卡牌
+        available_cards = [c for c in self.deck if c not in self.permanent_cards]
+        
+        # 计算需要抽取的数量（总手牌数 - 常驻卡牌数）
+        # 常驻卡牌不占用普通手牌上限
+        cards_to_draw = self.hand_size - len(permanent_in_hand)
+        
+        if cards_to_draw <= 0:
+            # 如果常驻卡牌已经填满或超过手牌数，只保留常驻卡牌
+            self.hand = permanent_in_hand[:self.hand_size]
+        elif len(available_cards) >= cards_to_draw:
+            # 抽取足够的卡牌
+            drawn_cards = random.sample(available_cards, cards_to_draw)
+            self.hand = permanent_in_hand + drawn_cards
         else:
-            self.hand = available_cards[:]
+            # 如果卡组不够，抽所有可用的
+            self.hand = permanent_in_hand + available_cards
+        
+        # 确保所有常驻卡牌都在手牌中（即使超过hand_size）
+        for perm_card in self.permanent_cards:
+            if perm_card not in self.hand:
+                # 直接添加常驻卡牌，不占用普通手牌空间
+                self.hand.append(perm_card)
     
-    def play_card(self, card: 'Card', target: 'Entity') -> bool:
-        """打出卡牌"""
+    def play_card(self, card: 'Card', target: 'Entity') -> tuple:
+        """
+        打出卡牌
+        
+        Returns:
+            tuple: (success: bool, is_permanent: bool)
+        """
         if card not in self.hand:
-            return False
+            return False, False
         
         if self.ap < card.ap_cost:
-            return False
+            return False, False
+        
+        # 检查是否是常驻卡牌
+        is_permanent = card in self.permanent_cards
         
         # 扣除AP
         self.ap -= card.ap_cost
@@ -171,7 +210,13 @@ class Entity:
         # 应用卡牌效果
         card.apply_effects(target)
         
-        return True
+        # 如果是常驻卡牌，立即重新加入手牌（会自动触发上升动画）
+        if is_permanent:
+            self.hand.append(card)
+            # 返回一个标记，表示这是常驻卡牌被重新加入
+            return True, True
+        
+        return True, False
     
     def take_damage(self, damage: int):
         """受到伤害"""
@@ -248,7 +293,8 @@ class Card:
         rarity: Rarity = Rarity.COMMON,
         atk_dis: int = 1,
         atk_rnge: Optional[Dict[str, any]] = None,
-        target_type: TargetType = TargetType.ENEMY
+        target_type: TargetType = TargetType.ENEMY,
+        is_movement: bool = False  # 是否为移动卡牌
     ):
         self.name = name
         self.card_type = card_type
@@ -260,6 +306,7 @@ class Card:
         self.atk_dis = atk_dis  # 攻击距离，默认为1（近战）
         self.atk_rnge = atk_rnge or {"type": "circle", "radius": 1}  # 攻击范围，默认为半径1的圆形
         self.target_type = target_type  # 目标类型，默认为敌人
+        self.is_movement = is_movement  # 是否为移动卡牌
     
     def apply_effects(self, target: Entity):
         """应用卡牌效果"""
@@ -324,7 +371,8 @@ class Card:
             rarity=self.rarity,
             atk_dis=self.atk_dis,
             atk_rnge=deepcopy(self.atk_rnge),
-            target_type=self.target_type
+            target_type=self.target_type,
+            is_movement=self.is_movement
         )
         return new_card
     

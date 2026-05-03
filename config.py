@@ -32,6 +32,7 @@ class CardType(Enum):
     SKILL = "skl"                # 技能
     PASSIVE = "pas"              # 被动
     BUFF = "buf"                 # 增益/减益
+    MOVE = "move"                # 移动
 
 
 # 卡牌类型显示名称
@@ -43,6 +44,7 @@ CARD_TYPE_NAMES = {
     CardType.SKILL: "技能",
     CardType.PASSIVE: "被动",
     CardType.BUFF: "增益",
+    CardType.MOVE: "移动",
 }
 
 
@@ -54,6 +56,7 @@ class TargetType(Enum):
     ANY = "any"             # 任意目标
     ALL_ENEMIES = "all_enemies"     # 所有敌人
     ALL_ALLIES = "all_allies"       # 所有友军
+    ALL = "all"             # 全部（可用于移动等通用场景）
 
 
 # Buff/Debuff 类型

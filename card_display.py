@@ -3,7 +3,8 @@
 负责卡牌的绘制和显示逻辑
 """
 import arcade
-from typing import Dict, Optional
+import time
+from typing import Dict, Optional, List
 from models import Card, Entity
 from battle_system import BattleSystem
 from config import CONSTANTS, CARD_TYPE_NAMES, RARITY_COLORS
@@ -22,12 +23,27 @@ class CardDisplay:
         self.ui_renderer = ui_renderer
         self.card_positions: Dict[Card, tuple] = {}
         self.hovered_card: Optional[Card] = None
+        self.dragged_card: Optional[Card] = None  # 正在拖动的卡牌
+        self.drag_start_pos: Optional[tuple] = None  # 拖动起始位置
+        self.drag_current_pos: Optional[tuple] = None  # 拖动当前位置（鼠标位置）
+        
+        # 动画相关
+        self.rising_cards: Dict[Card, dict] = {}  # 正在上升的卡牌 {card: {'start_time': float, 'duration': float}}
+        
+        # 卡牌显示位置控制（统一管理卡牌的位置和动画）
+        self.card_display_posis: Dict[Card, dict] = {}  # {card: {'target_y': float, 'current_y': float, 'animating': bool, 'anim_start_time': float, 'anim_duration': float}}
     
     def draw_hand(self, battle: BattleSystem):
         """绘制手牌（根据当前行动的实体）"""
         current_entity = battle.current_entity
         if not current_entity:
             return
+        
+        # 更新动画状态
+        self.update_animations()
+        
+        # 清理不在手牌中的卡牌位置数据
+        self.cleanup_card_positions(current_entity.hand)
         
         # 如果是AI控制的实体，只显示手牌数量
         if current_entity.control_type.value == "ai":
@@ -48,8 +64,33 @@ class CardDisplay:
         base_y = 60
         
         for i, card in enumerate(hand):
+            # 跳过正在拖动的卡牌（不绘制在手牌中）
+            if card == self.dragged_card:
+                continue
+            
             x = start_x + i * (card_width + spacing) + card_width / 2
-            y = base_y
+            base_y = 60
+            
+            # 初始化或更新卡牌显示位置
+            if card not in self.card_display_posis:
+                # 新卡牌，设置初始位置为目标位置
+                self.card_display_posis[card] = {
+                    'target_y': base_y,
+                    'current_y': base_y,
+                    'animating': False,
+                    'anim_start_time': 0,
+                    'anim_duration': 0
+                }
+            else:
+                # 更新目标位置
+                self.card_display_posis[card]['target_y'] = base_y
+            
+            # 更新动画状态
+            self._update_card_animation(card)
+            
+            # 使用当前动画位置
+            y = self.card_display_posis[card]['current_y']
+            # print(card, y)
             
             # 保存基础位置（不含悬停偏移）用于点击检测
             self.card_positions[card] = (x, y)
@@ -61,7 +102,10 @@ class CardDisplay:
             
             # 绘制卡牌
             self._draw_card(card, x, draw_y, card_width, card_height)
-    
+        
+        # 绘制拖动中的卡牌（跟随鼠标）
+        if self.dragged_card and self.drag_current_pos:
+            self._draw_dragged_card(self.dragged_card, self.drag_current_pos[0], self.drag_current_pos[1])
     def _draw_card(self, card: Card, x, y, width, height):
         """绘制单张卡牌"""
         # 卡牌背景
@@ -329,6 +373,205 @@ class CardDisplay:
         
         return None
     
+    def start_drag(self, x: float, y: float) -> Optional[Card]:
+        """开始拖动卡牌"""
+        card = self.check_click(x, y)
+        if card:
+            self.dragged_card = card
+            self.drag_start_pos = (x, y)
+        return card
+    
+    def update_drag(self, x: float, y: float):
+        """更新拖动位置"""
+        if self.dragged_card:
+            self.drag_current_pos = (x, y)
+    
+    def end_drag(self, x: float, y: float) -> Optional[Card]:
+        """结束拖动，返回拖动的卡牌（如果有）"""
+        card = self.dragged_card
+        self.dragged_card = None
+        self.drag_start_pos = None
+        self.drag_current_pos = None  # 清除拖动位置
+        return card
+    
+    def is_dragging(self) -> bool:
+        """检查是否正在拖动"""
+        return self.dragged_card is not None
+    
+    def clear_drag(self):
+        """清除拖动状态"""
+        self.dragged_card = None
+        self.drag_start_pos = None
+        self.drag_current_pos = None  # 清除拖动位置
+    
+    def _update_card_animation(self, card: Card):
+        """
+        更新单个卡牌的动画状态
+        
+        Args:
+            card: 卡牌对象
+        """
+        if card not in self.card_display_posis:
+            return
+        
+        pos_data = self.card_display_posis[card]
+        
+        if not pos_data['animating']:
+            # 没有动画，直接设置为目标位置
+            pos_data['current_y'] = pos_data['target_y']
+            return
+        
+        # 计算动画进度
+        current_time = time.time()
+        elapsed = current_time - pos_data['anim_start_time']
+        
+        if elapsed >= pos_data['anim_duration']:
+            # 动画完成
+            pos_data['current_y'] = pos_data['target_y']
+            pos_data['animating'] = False
+            return
+        
+        # 计算进度 (0.0 - 1.0)
+        progress = elapsed / pos_data['anim_duration']
+        
+        # 使用缓动函数（ease-out）
+        ease_progress = 1 - (1 - progress) ** 3  # cubic ease-out
+        
+        # 插值计算当前位置
+        pos_data['current_y'] = (
+            pos_data['target_y'] + 
+            (pos_data.get('start_y', pos_data['target_y']) - pos_data['target_y']) * (1 - ease_progress)
+        )
+    
+    def start_rising_animation(self, card: Card, duration: float = 0.5):
+        """
+        启动卡牌上升动画
+        
+        Args:
+            card: 要播放动画的卡牌
+            duration: 动画持续时间（秒）
+        """
+        # 计算起始位置（从屏幕下方）
+        start_y_position = -CONSTANTS.WINDOW_HEIGHT * 0.5
+        
+        # 获取或创建卡牌位置数据
+        if card not in self.card_display_posis:
+            self.card_display_posis[card] = {
+                'target_y': 60,  # 默认目标位置
+                'current_y': start_y_position,  # 从屏幕下方开始
+                'animating': True,
+                'anim_start_time': time.time(),
+                'anim_duration': duration,
+                'start_y': start_y_position
+            }
+        else:
+            # 设置动画参数
+            pos_data = self.card_display_posis[card]
+            # 关键修复：无论卡牌当前在哪里，都从屏幕下方开始动画
+            pos_data['start_y'] = start_y_position
+            pos_data['current_y'] = start_y_position  # 重置当前位置到下方
+            pos_data['target_y'] = 60  # 确保目标位置正确
+            pos_data['animating'] = True
+            pos_data['anim_start_time'] = time.time()
+            pos_data['anim_duration'] = duration
+    
+    def update_animations(self):
+        """更新所有动画状态"""
+        # 清理已完成的动画
+        cards_to_clean = []
+        for card, pos_data in self.card_display_posis.items():
+            if pos_data['animating']:
+                current_time = time.time()
+                elapsed = current_time - pos_data['anim_start_time']
+                if elapsed >= pos_data['anim_duration']:
+                    pos_data['current_y'] = pos_data['target_y']
+                    pos_data['animating'] = False
+                    cards_to_clean.append(card)
+        
+        # 移除不在手牌中的卡牌位置数据
+        # （这个需要在外部调用，传入当前手牌列表）
+    
+    def cleanup_card_positions(self, current_hand: List[Card]):
+        """
+        清理不在当前手牌中的卡牌位置数据
+        
+        Args:
+            current_hand: 当前手牌列表
+        """
+        cards_to_remove = [card for card in self.card_display_posis if card not in current_hand]
+        for card in cards_to_remove:
+            del self.card_display_posis[card]
+    
     def clear_positions(self):
         """清空卡牌位置缓存"""
         self.card_positions.clear()
+    
+    def _draw_dragged_card(self, card: Card, x: float, y: float):
+        """
+        绘制拖动中的卡牌（跟随鼠标的小卡牌）
+        
+        Args:
+            card: 正在拖动的卡牌
+            x, y: 鼠标当前位置
+        """
+        # 缩小版的卡牌尺寸
+        drag_width = CONSTANTS.CARD_WIDTH * 0.6  # 60% 大小
+        drag_height = CONSTANTS.CARD_HEIGHT * 0.6
+        
+        # 卡牌背景（使用稀有度颜色）
+        rarity_color = RARITY_COLORS.get(card.rarity, arcade.color.WHITE)
+        arcade.draw_lrbt_rectangle_filled(
+            x - drag_width / 2, x + drag_width / 2,
+            y - drag_height / 2, y + drag_height / 2,
+            rarity_color
+        )
+        
+        # 卡牌边框
+        rarity_colors_list = [arcade.color.BLACK, arcade.color.SKY_BLUE, 
+                              arcade.color.INDIGO, arcade.color.GOLD]
+        border_color = rarity_colors_list[card.rarity.value] if hasattr(card.rarity, 'value') else arcade.color.BLACK
+        arcade.draw_lrbt_rectangle_outline(
+            x - drag_width / 2, x + drag_width / 2,
+            y - drag_height / 2, y + drag_height / 2,
+            border_color, 8
+        )
+        
+        # 半透明遮罩效果（表示正在拖动）
+        overlay_color = (255, 255, 255, 100)
+        arcade.draw_lrbt_rectangle_filled(
+            x - drag_width / 2, x + drag_width / 2,
+            y - drag_height / 2, y + drag_height / 2,
+            overlay_color
+        )
+        
+        # 卡牌名称（简化版）
+        self.ui_renderer.draw_text(
+            card.name,
+            x, y,
+            arcade.color.WHITE,
+            int(self.ui_renderer.title_font_size * 0.8),
+            anchor_x="center", anchor_y="center", bold=True
+        )
+        
+        # AP消耗指示器（右上角）
+        ap_x = x + drag_width / 2 - 10
+        ap_y = y + drag_height / 2 - 10
+        
+        texture = self.ui_renderer.ap_32_texture if hasattr(self.ui_renderer, 'ap_32_texture') else None
+        
+        if texture:
+            arcade.draw_texture_rect(
+                texture,
+                arcade.XYWH(ap_x - 8, ap_y - 8, 16, 16)
+            )
+        else:
+            arcade.draw_circle_filled(ap_x, ap_y, 6, arcade.color.BLUE)
+            arcade.draw_circle_outline(ap_x, ap_y, 6, arcade.color.WHITE, 2)
+        
+        self.ui_renderer.draw_text(
+            str(card.ap_cost),
+            ap_x, ap_y,
+            arcade.color.WHITE,
+            int(self.ui_renderer.number_font_size * 0.7),
+            anchor_x="center", anchor_y="center", bold=True
+        )

@@ -86,6 +86,29 @@ def create_card_database():
             rarity=Rarity.RARE,
             target_type=TargetType.SELF
         ),
+        
+        # 移动卡牌
+        "move_basic": Card(
+            name="基础移动",
+            card_type=CardType.MOVE,
+            ap_cost=1,
+            effects={},
+            description="消耗1AP，使用MD进行移动。点击后显示可移动范围，悬停显示路径，再次点击目标位置移动",
+            rarity=Rarity.COMMON,
+            target_type=TargetType.ALL,
+            is_movement=True
+        ),
+        
+        "move_dash": Card(
+            name="冲刺",
+            card_type=CardType.MOVE,
+            ap_cost=2,
+            effects={},
+            description="快速移动，本回合MD消耗减半（效果待实现）",
+            rarity=Rarity.UNCOMMON,
+            target_type=TargetType.ALL,
+            is_movement=True
+        ),
     }
     
     return cards
@@ -179,7 +202,7 @@ def create_player_character():
     weapons_db = create_weapon_database()
     armors_db = create_armor_database()
     
-    # 构建卡组
+    # 构建卡组（不包括常驻卡牌）
     deck = [
         cards_db["basic_attack"].copy(),
         cards_db["basic_attack"].copy(),
@@ -191,6 +214,11 @@ def create_player_character():
         cards_db["poison"].copy(),
         cards_db["poison"].copy(),
         cards_db["poison"].copy(),
+    ]
+    
+    # 常驻卡牌（不参与抽牌，每回合自动在手牌中）
+    permanent_cards = [
+        cards_db["move_basic"].copy(),  # 移动卡牌作为常驻牌
     ]
     
     # 装备
@@ -218,7 +246,8 @@ def create_player_character():
         hand_size=4,
         stats=stats,
         control_type=ControlType.PLAYER,
-        position=(2, 7)
+        position=(2, 7),
+        permanent_cards=permanent_cards  # 传入常驻卡牌
     )
     
     return player

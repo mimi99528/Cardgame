@@ -17,7 +17,7 @@ class Tile:
     color: Tuple[int, int, int]  # RGB颜色
     terrain_type: str = 'normal'  # 地形类型: 'normal'(普通), 'difficult'(困难), 'obstacle'(障碍)
     is_walkable: bool = True  # 是否可通行
-    md_cost: int = 1  # 移动到此格消耗的MD（默认1，困难地形为2）
+    md_cost: int = 5  # 移动到此格消耗的MD（默认5，困难地形为10）
 
 
 class TileMap:
@@ -39,6 +39,8 @@ class TileMap:
             'highlight': (255, 255, 0),       # 黄色（高亮）
             'difficult': (210, 180, 140),     # 褐色（困难地形）
             'obstacle': (105, 105, 105),      # 灰色（障碍物）
+            'path': (255, 215, 0),            # 金色（路径）
+            'move_range': (100, 149, 237),    # 矢车菊蓝（移动范围）
         }
         
         # 初始化地图
@@ -57,12 +59,12 @@ class TileMap:
                     color = self.colors['grass_light']
                     terrain_type = 'normal'
                     is_walkable = True
-                    md_cost = 1
+                    md_cost = 5
                 else:
                     color = self.colors['grass_dark']
                     terrain_type = 'normal'
                     is_walkable = True
-                    md_cost = 1
+                    md_cost = 5
                 
                 # 添加一些障碍物和困难地形作为示例
                 # 障碍物示例
@@ -76,7 +78,7 @@ class TileMap:
                     color = self.colors['difficult']
                     terrain_type = 'difficult'
                     is_walkable = True
-                    md_cost = 2
+                    md_cost = 10
                 
                 tile = Tile(
                     x=x,
@@ -144,6 +146,28 @@ class TileMap:
                     tile = self.get_tile(x, y)
                     if tile and 0 <= y < len(self.original_colors) and 0 <= x < len(self.original_colors[y]):
                         tile.color = self.original_colors[y][x]
+    
+    def highlight_move_range(self, start_x: int, start_y: int, valid_moves: List[Tuple[int, int]]):
+        """高亮显示移动范围"""
+        # 先重置所有高亮
+        self.reset_highlights()
+        
+        # 高亮可移动的位置
+        for x, y in valid_moves:
+            tile = self.get_tile(x, y)
+            if tile:
+                tile.color = self.colors['move_range']
+    
+    def highlight_path(self, path: List[Tuple[int, int]]):
+        """高亮显示路径"""
+        # 先重置所有高亮
+        self.reset_highlights()
+        
+        # 高亮路径上的瓦片
+        for x, y in path:
+            tile = self.get_tile(x, y)
+            if tile:
+                tile.color = self.colors['path']
     
     def reset_highlights(self):
         """重置所有高亮"""
@@ -220,10 +244,11 @@ class TileMap:
                 # 检查是否有其他实体（障碍物）
                 if neighbor in entities_positions:
                     # 如果是队友且目标是队友位置，允许最后一步
-                    if is_ally and neighbor == end:
-                        pass  # 允许移动到队友位置
-                    else:
-                        continue  # 不能通过其他实体
+                    # if is_ally and neighbor == end:
+                    #     pass  # 允许移动到队友位置
+                    # else:
+                    #     continue  # 不能通过其他实体
+                    continue
                 
                 # 计算移动成本
                 move_cost = neighbor_tile.md_cost

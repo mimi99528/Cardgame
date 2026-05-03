@@ -98,6 +98,10 @@ class CardView(arcade.View):
             self.map_offset_x, self.map_offset_y,
             self.entity_positions
         )
+        
+        # 如果正在拖动，更新拖动状态
+        if self.card_display.is_dragging():
+            self.card_display.update_drag(x, y)
     
     def on_mouse_press(self, x, y, button, modifiers):
         """鼠标点击事件"""
@@ -105,6 +109,17 @@ class CardView(arcade.View):
             x, y, button, modifiers,
             self.map_offset_x, self.map_offset_y
         )
+    
+    def on_mouse_release(self, x, y, button, modifiers):
+        """鼠标释放事件（用于拖动）"""
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            # 如果正在拖动，处理拖动结束
+            if self.card_display.is_dragging():
+                self.input_handler.on_mouse_press(
+                    x, y, button, modifiers,
+                    self.map_offset_x, self.map_offset_y
+                )
+                self.card_display.clear_drag()
     
     def on_key_press(self, key, modifiers):
         """键盘按键事件"""
@@ -116,5 +131,8 @@ class CardView(arcade.View):
         """每帧更新（用于AI逻辑）"""
         # 更新AI出牌逻辑
         self.battle.update_ai()
+        
+        # 更新卡牌动画
+        self.card_display.update_animations()
     
 
