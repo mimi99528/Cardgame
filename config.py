@@ -64,6 +64,13 @@ class BuffType(Enum):
     POISON = "pot"      # 中毒
 
 
+# 战斗日志级别
+class LogLevel(Enum):
+    SIMPLE = "simple"       # 简单模式：只显示谁打出了什么牌
+    NORMAL = "normal"       # 普通模式：不显示判定细节，只显示结果
+    VERBOSE = "verbose"     # 详细模式：显示所有细节
+
+
 # 游戏常量
 @dataclass
 class GameConstants:
@@ -90,6 +97,17 @@ class GameConstants:
     # 动画
     CARD_HOVER_OFFSET: int = 60  # 卡牌悬停上移距离
     ANIMATION_SPEED: float = 0.1  # 动画速度
+    
+    # 背包系统
+    INVENTORY_WIDTH: int = 8      # 背包网格宽度
+    INVENTORY_HEIGHT: int = 6     # 背包网格高度
+    INVENTORY_MAX_VOLUME: int = 48  # 最大体积（格子数）
+    INVENTORY_MAX_WEIGHT: float = 50.0  # 最大重量
+    INVENTORY_SLOT_SIZE: int = 50  # 背包格子大小（像素）
+    INVENTORY_PADDING: int = 10   # 背包内边距
+    
+    # 战斗日志级别
+    LOG_LEVEL: LogLevel = LogLevel.NORMAL  # 默认日志级别
 
 
 # 实例化常量

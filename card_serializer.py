@@ -4,12 +4,26 @@
 """
 import json
 from typing import Dict, List, Any, Optional
-from models import Card
+from models import Card, Weapon, Armor
 from config import CardType, Rarity, TargetType
 
 
 class CardSerializer:
     """卡牌序列化器 - 负责卡牌的序列化和反序列化"""
+    
+    @staticmethod
+    def is_equipment_card(data: Dict[str, Any]) -> bool:
+        """
+        判断是否为装备卡牌
+        
+        Args:
+            data: 卡牌数据字典
+            
+        Returns:
+            是否为装备卡牌
+        """
+        return (data.get("category") == "item" and 
+                data.get("type") == "equipment")
     
     @staticmethod
     def _convert_effects_to_list(effects_dict: Dict[str, any]) -> List[Dict[str, Any]]:
@@ -22,6 +36,10 @@ class CardSerializer:
         Returns:
             结构化效果列表
         """
+        # 如果已经是列表格式，直接返回
+        if isinstance(effects_dict, list):
+            return effects_dict
+        
         effects_list = []
         
         for key, value in effects_dict.items():
@@ -115,7 +133,12 @@ class CardSerializer:
             
             # 敌方伤害
             if effect_type == "emy_dmg":
-                effects_dict["hp"] = -effect.get("amount", 0)
+                # 优先使用dice表达式，否则使用amount
+                if "dice" in effect:
+                    # 对于dice表达式，我们暂时存储为特殊标记
+                    effects_dict["hp_dice"] = effect["dice"]
+                elif "amount" in effect:
+                    effects_dict["hp"] = -effect.get("amount", 0)
             
             # 自我治疗
             elif effect_type == "self_heal":
@@ -123,7 +146,11 @@ class CardSerializer:
             
             # 自我格挡
             elif effect_type == "self_block":
-                effects_dict["block"] = effect.get("amount", 0)
+                # 优先使用dice表达式，否则使用amount
+                if "dice" in effect:
+                    effects_dict["block_dice"] = effect["dice"]
+                elif "amount" in effect:
+                    effects_dict["block"] = effect.get("amount", 0)
             
             # 敌方Debuff
             elif effect_type == "emy_debuff":
@@ -195,6 +222,10 @@ class CardSerializer:
             ValueError: 当数据无效时
             KeyError: 当缺少必要字段时
         """
+        # 检查是否为装备卡牌
+        if CardSerializer.is_equipment_card(data):
+            return CardSerializer._dict_to_equipment(data)
+        
         # 验证必要字段
         required_fields = ["name", "type", "description", "ap_cost"]
         for field in required_fields:
@@ -235,10 +266,69 @@ class CardSerializer:
             rarity=rarity,
             atk_dis=data.get("atk_dis", 1),  # 默认攻击距离为1（近战）
             atk_rnge=data.get("atk_rnge", {"type": "circle", "radius": 1}),  # 默认攻击范围为半径1的圆形
-            target_type=TargetType(data.get("target_type", "enemy"))  # 默认目标类型为敌人
+            target_type=TargetType(data.get("target_type", "enemy")),  # 默认目标类型为敌人
+            is_movement=data.get("is_movement", False)
         )
         
         return card
+    
+    @staticmethod
+    def _dict_to_equipment(data: Dict[str, Any]):
+        """
+        从字典创建装备对象（武器或防具）
+        
+        Args:
+            data: 包含装备信息的字典
+            
+        Returns:
+            Weapon 或 Armor 对象
+        """
+        # 验证必要字段
+        required_fields = ["name", "description", "equipment_type"]
+        for field in required_fields:
+            if field not in data:
+                raise KeyError(f"缺少必要字段: {field}")
+        
+        # 转换稀有度
+        rarity = Rarity.COMMON
+        if "rarity" in data:
+            try:
+                rarity = Rarity[data["rarity"]]
+            except KeyError:
+                raise ValueError(f"无效的稀有度: {data['rarity']}")
+        
+        equipment_type = data["equipment_type"]
+        equipment_stats = data.get("equipment_stats", {})
+        
+        if equipment_type == "weapon":
+            # 创建武器
+            weapon = Weapon(
+                name=data["name"],
+                description=data["description"],
+                rarity=rarity,
+                physical_bonus=equipment_stats.get("physical_bonus", 0),
+                magical_bonus=equipment_stats.get("magical_bonus", 0),
+                attack_modifier=equipment_stats.get("attack_modifier", 0),
+                provided_cards=equipment_stats.get("provided_cards", [])
+            )
+            return weapon
+        
+        elif equipment_type == "armor":
+            # 创建防具
+            armor = Armor(
+                name=data["name"],
+                description=data["description"],
+                rarity=rarity,
+                block_value=equipment_stats.get("block_value", 0),
+                block_dice=equipment_stats.get("block_dice", ""),
+                block_per_turn=equipment_stats.get("block_per_turn", 0),
+                ap_bonus=equipment_stats.get("ap_bonus", 0),
+                provided_cards=equipment_stats.get("provided_cards", [])
+            )
+            return armor
+        
+        else:
+            raise ValueError(f"未知的装备类型: {equipment_type}")
     
     @staticmethod
     def cards_to_json(cards: List[Card], indent: int = 2, start_id: int = 1) -> str:
@@ -300,6 +390,74 @@ class CardSerializer:
         with open(filepath, 'r', encoding='utf-8') as f:
             json_str = f.read()
         return CardSerializer.json_to_cards(json_str)
+    
+    @staticmethod
+    def equipment_to_dict(equipment, equipment_id: int = None) -> Dict[str, Any]:
+        """
+        将装备对象转换为字典
+        
+        Args:
+            equipment: Weapon 或 Armor 对象
+            equipment_id: 装备ID
+            
+        Returns:
+            包含装备信息的字典
+        """
+        from models import Weapon, Armor
+        
+        base_dict = {
+            "id": equipment_id if equipment_id is not None else id(equipment),
+            "name": equipment.name,
+            "category": "item",
+            "type": "equipment",
+            "description": equipment.description,
+            "rarity": equipment.rarity.name,
+            "ap_cost": 0,  # 装备不消耗AP
+            "effects": [],
+            "play_conditions": []
+        }
+        
+        if isinstance(equipment, Weapon):
+            base_dict["equipment_type"] = "weapon"
+            base_dict["equipment_stats"] = {
+                "physical_bonus": equipment.physical_bonus,
+                "magical_bonus": equipment.magical_bonus,
+                "attack_modifier": equipment.attack_modifier,
+                "provided_cards": equipment.provided_cards
+            }
+        elif isinstance(equipment, Armor):
+            base_dict["equipment_type"] = "armor"
+            base_dict["equipment_stats"] = {
+                "block_value": equipment.block_value,
+                "block_dice": equipment.block_dice,
+                "block_per_turn": equipment.block_per_turn,
+                "ap_bonus": equipment.ap_bonus,
+                "provided_cards": equipment.provided_cards
+            }
+        
+        return base_dict
+    
+    @staticmethod
+    def load_equipments_from_file(filepath: str):
+        """
+        从JSON文件加载装备列表
+        
+        Args:
+            filepath: 文件路径
+            
+        Returns:
+            装备列表（Weapon和Armor对象）
+        """
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data_list = json.load(f)
+        
+        equipments = []
+        for data in data_list:
+            if CardSerializer.is_equipment_card(data):
+                equipment = CardSerializer._dict_to_equipment(data)
+                equipments.append(equipment)
+        
+        return equipments
 
 
 # ==================== 扩展功能：支持复杂条件和效果 ====================

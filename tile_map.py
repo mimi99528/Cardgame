@@ -1,9 +1,11 @@
 """
 瓦片地图系统模块
-负责生成和管理瓦片地图
+负责生成和管理瓦片地图（Arcade 引擎版本）
+支持拖动和缩放功能
 """
 import random
 import heapq
+import arcade
 from typing import List, Tuple, Optional, Dict
 from dataclasses import dataclass
 
@@ -21,13 +23,28 @@ class Tile:
 
 
 class TileMap:
-    """瓦片地图类"""
+    """瓦片地图类（Arcade 增强版）"""
     
     def __init__(self, width: int = 20, height: int = 15):
         self.width = width
         self.height = height
         self.tiles: List[List[Tile]] = []
         self.tile_size = 40  # 每个瓦片的像素大小
+        
+        # 相机和视图控制
+        self.camera: Optional[arcade.Camera] = None
+        self.gui_camera: Optional[arcade.Camera] = None
+        self.view_scale = 1.0  # 缩放比例
+        self.min_scale = 0.5   # 最小缩放
+        self.max_scale = 2.0   # 最大缩放
+        self.scroll_speed = 20  # 拖动速度
+        
+        # 拖动相关
+        self.is_dragging = False
+        self.drag_start_x = 0
+        self.drag_start_y = 0
+        self.camera_center_x = 0
+        self.camera_center_y = 0
         
         # 定义颜色
         self.colors = {
@@ -46,6 +63,25 @@ class TileMap:
         # 初始化地图
         self._generate_map()
         self._save_original_colors()  # 保存原始颜色
+    
+    def setup_cameras(self, window_width: int, window_height: int):
+        """设置相机系统"""
+        # 使用 Camera2D 类（Arcade 的正确 API）
+        self.camera = arcade.Camera2D()
+        self.gui_camera = arcade.Camera2D()
+        
+        # 初始化相机位置到地图中心
+        map_pixel_width = self.width * self.tile_size
+        map_pixel_height = self.height * self.tile_size
+        self.camera_center_x = map_pixel_width / 2
+        self.camera_center_y = map_pixel_height / 2
+        
+        # 设置相机初始位置和缩放
+        self.camera.position = (self.camera_center_x, self.camera_center_y)
+        self.camera.zoom = self.view_scale
+        
+        self.gui_camera.position = (window_width / 2, window_height / 2)
+        self.gui_camera.zoom = 1.0
     
     def _generate_map(self):
         """生成随机地图"""
@@ -101,6 +137,118 @@ class TileMap:
                 color_row.append(tile.color)
             self.original_colors.append(color_row)
     
+    def _update_camera(self):
+        """更新相机位置和缩放"""
+        if self.camera:
+            # Camera2D 直接使用位置和缩放属性
+            self.camera.position = (self.camera_center_x, self.camera_center_y)
+            self.camera.zoom = self.view_scale
+    
+    def on_mouse_drag(self, x: int, y: int, dx: int, dy: int, 
+                     window_width: int, window_height: int):
+        """
+        处理鼠标拖动事件
+        
+        Args:
+            x, y: 当前鼠标位置
+            dx, dy: 鼠标移动增量
+            window_width, window_height: 窗口尺寸
+        """
+        if not self.camera:
+            return
+        
+        # 根据拖动距离移动相机
+        # 注意：dx, dy 是屏幕坐标的增量，需要转换为世界坐标
+        self.camera_center_x -= dx / self.view_scale
+        self.camera_center_y -= dy / self.view_scale
+        
+        # 限制相机范围（不让地图完全移出视野）
+        map_pixel_width = self.width * self.tile_size
+        map_pixel_height = self.height * self.tile_size
+        
+        # 允许一定的边界外移（20%的地图尺寸）
+        margin_x = map_pixel_width * 0.2
+        margin_y = map_pixel_height * 0.2
+        
+        self.camera_center_x = max(-margin_x, min(map_pixel_width + margin_x, self.camera_center_x))
+        self.camera_center_y = max(-margin_y, min(map_pixel_height + margin_y, self.camera_center_y))
+        
+        self._update_camera()
+    
+    def on_mouse_scroll(self, scroll_x: int, scroll_y: int):
+        """
+        处理鼠标滚轮事件（缩放）
+        
+        Args:
+            scroll_x: 水平滚动量（通常不使用）
+            scroll_y: 垂直滚动量（正数向上滚动=放大，负数向下滚动=缩小）
+        """
+        if scroll_y > 0:
+            # 向上滚动 - 放大
+            self.view_scale = min(self.max_scale, self.view_scale * 1.1)
+        elif scroll_y < 0:
+            # 向下滚动 - 缩小
+            self.view_scale = max(self.min_scale, self.view_scale / 1.1)
+        
+        self._update_camera()
+    
+    def screen_to_world(self, screen_x: float, screen_y: float, 
+                       window_width: float, window_height: float) -> Tuple[float, float]:
+        """
+        将屏幕坐标转换为世界坐标
+        
+        Args:
+            screen_x, screen_y: 屏幕坐标
+            window_width, window_height: 窗口尺寸
+        
+        Returns:
+            世界坐标 (world_x, world_y)
+        """
+        if not self.camera:
+            return screen_x, screen_y
+        
+        # Camera2D 提供了方便的转换方法
+        # 使用 camera.viewport_to_world 方法
+        try:
+            # Arcade Camera2D 的转换方法
+            world_pos = self.camera.viewport_to_world((screen_x, screen_y))
+            return world_pos.x, world_pos.y
+        except AttributeError:
+            # 如果方法不存在，手动计算
+            cam_x, cam_y = self.camera.position
+            world_x = cam_x + (screen_x - window_width / 2) / self.view_scale
+            world_y = cam_y + (screen_y - window_height / 2) / self.view_scale
+            return world_x, world_y
+    
+    def world_to_grid(self, world_x: float, world_y: float) -> Tuple[int, int]:
+        """
+        将世界坐标转换为网格坐标
+        
+        Args:
+            world_x, world_y: 世界坐标
+        
+        Returns:
+            网格坐标 (grid_x, grid_y)
+        """
+        grid_x = int(world_x / self.tile_size)
+        grid_y = int(world_y / self.tile_size)
+        return grid_x, grid_y
+    
+    def screen_to_grid(self, screen_x: float, screen_y: float,
+                      window_width: float, window_height: float) -> Tuple[int, int]:
+        """
+        将屏幕坐标直接转换为网格坐标
+        
+        Args:
+            screen_x, screen_y: 屏幕坐标
+            window_width, window_height: 窗口尺寸
+        
+        Returns:
+            网格坐标 (grid_x, grid_y)
+        """
+        world_x, world_y = self.screen_to_world(screen_x, screen_y, window_width, window_height)
+        return self.world_to_grid(world_x, world_y)
+    
     def get_tile(self, x: int, y: int) -> Optional[Tile]:
         """获取指定位置的瓦片"""
         if 0 <= x < self.width and 0 <= y < self.height:
@@ -108,7 +256,15 @@ class TileMap:
         return None
     
     def get_tile_at_pixel(self, pixel_x: float, pixel_y: float) -> Optional[Tile]:
-        """根据像素坐标获取瓦片"""
+        """
+        根据像素坐标获取瓦片（世界坐标）
+        
+        Args:
+            pixel_x, pixel_y: 世界坐标的像素位置
+        
+        Returns:
+            Tile 对象或 None
+        """
         grid_x = int(pixel_x / self.tile_size)
         grid_y = int(pixel_y / self.tile_size)
         return self.get_tile(grid_x, grid_y)

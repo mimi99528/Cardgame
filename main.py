@@ -22,13 +22,19 @@ def demo_serialization():
     # 创建卡牌数据库
     cards_db = create_card_database()
     
-    # 选择几张卡牌进行演示
-    demo_cards = [
-        cards_db["basic_attack"],
-        cards_db["fireball"],
-        cards_db["heal"],
-        cards_db["shield"]
-    ]
+    if not cards_db:
+        print("警告：卡牌数据库为空，跳过序列化演示")
+        return
+    
+    # 选择几张卡牌进行演示（使用JSON中的卡牌名称）
+    demo_cards = []
+    for card_name in ["刺击", "劈砍", "治疗", "格挡"]:
+        if card_name in cards_db:
+            demo_cards.append(cards_db[card_name])
+    
+    if not demo_cards:
+        print("警告：没有找到可用的卡牌，跳过序列化演示")
+        return
     
     print(f"\n选择了 {len(demo_cards)} 张卡牌进行序列化演示:")
     for card in demo_cards:

@@ -99,15 +99,21 @@ class UIRenderer:
     
     def draw_tile_map(self, tile_map: TileMap, map_offset_x: float, map_offset_y: float,
                      battle: BattleSystem, entity_positions: Dict[Entity, tuple]):
-        """绘制瓦片地图和实体"""
-        # 绘制所有瓦片
+        """
+        绘制瓦片地图和实体
+        
+        Args:
+            tile_map: 瓦片地图对象
+            map_offset_x, map_offset_y: 地图偏移量（已废弃，保留兼容性）
+            battle: 战斗系统
+            entity_positions: 实体位置字典
+        """
+        # 绘制所有瓦片（直接使用世界坐标，不再需要偏移量）
         for y in range(tile_map.height):
             for x in range(tile_map.width):
                 tile = tile_map.get_tile(x, y)
                 if tile:
                     pixel_x, pixel_y = tile_map.get_tile_pixel_pos(x, y)
-                    pixel_x += map_offset_x
-                    pixel_y += map_offset_y
                     half_size = tile_map.tile_size / 2
                     
                     arcade.draw_lrbt_rectangle_filled(
@@ -129,8 +135,6 @@ class UIRenderer:
         for entity in battle.player_team:
             if entity.is_alive():
                 entity_x, entity_y = tile_map.get_tile_pixel_pos(*entity.position)
-                entity_x += map_offset_x
-                entity_y += map_offset_y
                 entity_positions[entity] = (entity_x, entity_y)
                 
                 color = arcade.color.BLUE if entity.control_type.value == "player" else arcade.color.CYAN
@@ -141,8 +145,6 @@ class UIRenderer:
         for entity in battle.enemy_team:
             if entity.is_alive():
                 entity_x, entity_y = tile_map.get_tile_pixel_pos(*entity.position)
-                entity_x += map_offset_x
-                entity_y += map_offset_y
                 entity_positions[entity] = (entity_x, entity_y)
                 
                 arcade.draw_circle_filled(entity_x, entity_y, 15, arcade.color.RED)
@@ -387,6 +389,73 @@ class UIRenderer:
             arcade.color.DARK_GRAY, self.text_font_size,
             anchor_x="left", anchor_y="center"
         )
+        
+        # 绘制装备信息
+        if hasattr(entity, 'equipment_manager'):
+            from equipment_manager import EquipmentSlot
+            equip_mgr = entity.equipment_manager
+            weapon = equip_mgr.get_equipped_item(EquipmentSlot.WEAPON)
+            armor = equip_mgr.get_equipped_item(EquipmentSlot.BODY)
+            
+            equipment_y = info_y + info_height - 210
+            
+            if weapon:
+                self.draw_text(
+                    f"武器: {weapon.name}",
+                    info_x + 10, equipment_y,
+                    arcade.color.ORANGE, self.text_font_size,
+                    anchor_x="left", anchor_y="center"
+                )
+                equipment_y -= 20
+            
+            if armor:
+                self.draw_text(
+                    f"防具: {armor.name}",
+                    info_x + 10, equipment_y,
+                    arcade.color.BLUE, self.text_font_size,
+                    anchor_x="left", anchor_y="center"
+                )
+        
+        # 绘制Buff图标
+        if entity.buffs:
+            buff_start_y = info_y + 10
+            buff_icon_size = 24
+            buff_spacing = 30
+            
+            for i, (buff_key, buff) in enumerate(entity.buffs.items()):
+                buff_x = info_x + 10 + i * buff_spacing
+                
+                # 绘制AP图标作为buff图标（暂时使用ap_16.png）
+                if self.ap_16_texture:
+                    arcade.draw_texture_rect(
+                        self.ap_16_texture,
+                        arcade.XYWH(
+                            buff_x,
+                            buff_start_y,
+                            buff_icon_size,
+                            buff_icon_size
+                        )
+                    )
+                else:
+                    # 如果没有纹理，绘制圆形
+                    arcade.draw_circle_filled(
+                        buff_x + buff_icon_size // 2,
+                        buff_start_y + buff_icon_size // 2,
+                        buff_icon_size // 2,
+                        arcade.color.PURPLE
+                    )
+                
+                # 显示层数
+                self.draw_text(
+                    str(buff.stacks),
+                    buff_x + buff_icon_size // 2,
+                    buff_start_y + buff_icon_size // 2,
+                    arcade.color.WHITE,
+                    10,
+                    anchor_x="center",
+                    anchor_y="center",
+                    bold=True
+                )
     
     def draw_battle_end_message(self, battle: BattleSystem):
         """绘制战斗结束消息"""

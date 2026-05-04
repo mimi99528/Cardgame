@@ -16,22 +16,22 @@ class CardDisplay:
     def __init__(self, ui_renderer):
         """
         初始化卡牌显示器
-        
+            
         Args:
-            ui_renderer: UIRenderer实例，用于文本绘制
+            ui_renderer: UIRenderer实例,用于文本绘制
         """
         self.ui_renderer = ui_renderer
-        self.card_positions: Dict[Card, tuple] = {}
+        self.card_positions: Dict[int, tuple] = {}  # 使用id(card)作为键
         self.hovered_card: Optional[Card] = None
         self.dragged_card: Optional[Card] = None  # 正在拖动的卡牌
         self.drag_start_pos: Optional[tuple] = None  # 拖动起始位置
-        self.drag_current_pos: Optional[tuple] = None  # 拖动当前位置（鼠标位置）
-        
+        self.drag_current_pos: Optional[tuple] = None  # 拖动当前位置(鼠标位置)
+            
         # 动画相关
-        self.rising_cards: Dict[Card, dict] = {}  # 正在上升的卡牌 {card: {'start_time': float, 'duration': float}}
-        
-        # 卡牌显示位置控制（统一管理卡牌的位置和动画）
-        self.card_display_posis: Dict[Card, dict] = {}  # {card: {'target_y': float, 'current_y': float, 'animating': bool, 'anim_start_time': float, 'anim_duration': float}}
+        self.rising_cards: Dict[int, dict] = {}  # 正在上升的卡牌 {id(card): {'start_time': float, 'duration': float}}
+            
+        # 卡牌显示位置控制(统一管理卡牌的位置和动画)
+        self.card_display_posis: Dict[int, dict] = {}  # {id(card): {'target_y': float, 'current_y': float, 'animating': bool, 'anim_start_time': float, 'anim_duration': float}}
     
     def draw_hand(self, battle: BattleSystem):
         """绘制手牌（根据当前行动的实体）"""
@@ -64,42 +64,48 @@ class CardDisplay:
         base_y = 60
         
         for i, card in enumerate(hand):
-            # 跳过正在拖动的卡牌（不绘制在手牌中）
+            # 跳过正在拖动的卡牌(不绘制在手牌中)
             if card == self.dragged_card:
                 continue
-            
+                    
             x = start_x + i * (card_width + spacing) + card_width / 2
             base_y = 60
-            
+                    
+            # 使用卡牌的唯一ID作为键
+            card_id = id(card)
+                    
             # 初始化或更新卡牌显示位置
-            if card not in self.card_display_posis:
-                # 新卡牌，设置初始位置为目标位置
-                self.card_display_posis[card] = {
+            if card_id not in self.card_display_posis:
+                # 新卡牌,设置初始位置为目标位置
+                self.card_display_posis[card_id] = {
                     'target_y': base_y,
                     'current_y': base_y,
                     'animating': False,
                     'anim_start_time': 0,
-                    'anim_duration': 0
+                    'anim_duration': 0,
+                    'card_ref': card  # 保存卡牌引用
                 }
             else:
                 # 更新目标位置
-                self.card_display_posis[card]['target_y'] = base_y
-            
+                self.card_display_posis[card_id]['target_y'] = base_y
+                # 确保卡牌引用正确
+                self.card_display_posis[card_id]['card_ref'] = card
+                    
             # 更新动画状态
-            self._update_card_animation(card)
-            
+            self._update_card_animation(card_id)
+                    
             # 使用当前动画位置
-            y = self.card_display_posis[card]['current_y']
+            y = self.card_display_posis[card_id]['current_y']
             # print(card, y)
-            
-            # 保存基础位置（不含悬停偏移）用于点击检测
-            self.card_positions[card] = (x, y)
-            
-            # 如果卡牌被悬停，上移（仅用于绘制）
+                    
+            # 保存基础位置(不含悬停偏移)用于点击检测
+            self.card_positions[card_id] = (x, y)
+                    
+            # 如果卡牌被悬停,上移(仅用于绘制)
             draw_y = y
-            if card == self.hovered_card:
+            if id(card) == id(self.hovered_card):
                 draw_y += CONSTANTS.CARD_HOVER_OFFSET
-            
+                    
             # 绘制卡牌
             self._draw_card(card, x, draw_y, card_width, card_height)
         
@@ -125,6 +131,22 @@ class CardDisplay:
             y - height / 2, y + height / 2,
             border_color, 10
         )
+        
+        # 卡牌图片（使用card_test.png）
+        card_test_texture = self.ui_renderer.card_test_texture if hasattr(self.ui_renderer, 'card_test_texture') else None
+        if card_test_texture:
+            # 在卡牌中央绘制卡图，留出边距
+            image_width = width * 0.7
+            image_height = height * 0.45
+            arcade.draw_texture_rect(
+                card_test_texture,
+                arcade.XYWH(
+                    x - image_width / 2,
+                    y + 10 - image_height / 2,
+                    image_width,
+                    image_height
+                )
+            )
         
         # 卡牌名称背景
         name_bg_y_bottom = y - height / 2 + 110
@@ -175,7 +197,7 @@ class CardDisplay:
         self._draw_effect_values(card, x, y, width, height)
         
         # 如果是悬停状态，显示描述
-        if card == self.hovered_card:
+        if id(card) == id(self.hovered_card):
             self._draw_card_description(card, x, y, width, height)
     
     def _draw_ap_cost(self, card: Card, x, y, width, height):
@@ -284,14 +306,121 @@ class CardDisplay:
             overlay_color
         )
         
+        # 构建描述文本
+        description_lines = [card.description]
+        
+        # 添加预期效果数值
+        expected_values = self._calculate_expected_values(card)
+        if expected_values:
+            description_lines.append("")  # 空行
+            description_lines.append("预期效果:")
+            for value_desc in expected_values:
+                description_lines.append(f"  • {value_desc}")
+        
+        # 合并文本
+        full_description = "\n".join(description_lines)
+        
         self.ui_renderer.draw_text(
-            card.description,
+            full_description,
             x, y - 18,
             arcade.color.WHITE,
             self.ui_renderer.text_font_size,
             anchor_x="center", anchor_y="center",
             multiline=True, width=width - 30
         )
+    
+    def _calculate_expected_values(self, card: Card) -> list:
+        """
+        计算卡牌的预期效果数值
+        
+        Returns:
+            描述列表，如 ["伤害: 15-20", "格挡: 10"]
+        """
+        expected = []
+        
+        # 处理结构化效果列表
+        if isinstance(card.effects, list):
+            for effect in card.effects:
+                effect_type = effect.get("type", "")
+                
+                # 伤害效果
+                if effect_type == "emy_dmg":
+                    dice_expr = effect.get("dice", "")
+                    if dice_expr:
+                        # 解析骰子表达式
+                        try:
+                            parts = dice_expr.lower().split('d')
+                            if len(parts) == 2:
+                                num_dice = int(parts[0])
+                                sides = int(parts[1])
+                                min_damage = num_dice * 1
+                                max_damage = num_dice * sides
+                                expected.append(f"伤害: {min_damage}-{max_damage} ({dice_expr})")
+                        except:
+                            pass
+                
+                # 治疗效果
+                elif effect_type == "self_heal":
+                    amount = effect.get("amount", 0)
+                    expected.append(f"治疗: {amount}")
+                
+                # 格挡效果
+                elif effect_type == "self_block":
+                    dice_expr = effect.get("dice", "")
+                    if dice_expr:
+                        try:
+                            parts = dice_expr.lower().split('d')
+                            if len(parts) == 2:
+                                num_dice = int(parts[0])
+                                sides = int(parts[1])
+                                min_block = num_dice * 1
+                                max_block = num_dice * sides
+                                expected.append(f"格挡: {min_block}-{max_block} ({dice_expr})")
+                        except:
+                            pass
+                    else:
+                        amount = effect.get("amount", 0)
+                        expected.append(f"格挡: {amount}")
+        
+        # 兼容旧版字典格式
+        elif isinstance(card.effects, dict):
+            if "hp" in card.effects:
+                damage = abs(card.effects["hp"])
+                expected.append(f"伤害: {damage}")
+            
+            if "hp_dice" in card.effects:
+                # 新版骰子表达式
+                dice_expr = card.effects["hp_dice"]
+                try:
+                    parts = dice_expr.lower().split('d')
+                    if len(parts) == 2:
+                        num_dice = int(parts[0])
+                        sides = int(parts[1])
+                        min_damage = num_dice * 1
+                        max_damage = num_dice * sides
+                        expected.append(f"伤害: {min_damage}-{max_damage} ({dice_expr})")
+                except:
+                    pass
+            
+            if "block" in card.effects:
+                block = card.effects["block"]
+                expected.append(f"格挡: {block}")
+            
+            if "block_dice" in card.effects:
+                # 新版骰子表达式
+                dice_expr = card.effects["block_dice"]
+                try:
+                    parts = dice_expr.lower().split('d')
+                    if len(parts) == 2:
+                        num_dice = int(parts[0])
+                        sides = int(parts[1])
+                        min_block = num_dice * 1
+                        max_block = num_dice * sides
+                        expected.append(f"格挡: {min_block}-{max_block} ({dice_expr})")
+                except:
+                    pass
+        
+        return expected
     
     def _draw_ai_hand_count(self, entity: Entity):
         """绘制AI手牌数量（用黑框表示）"""
@@ -340,13 +469,20 @@ class CardDisplay:
         old_hovered = self.hovered_card
         self.hovered_card = None
         
-        for card, (card_x, card_y) in list(self.card_positions.items()):
+        for card_id, (card_x, card_y) in list(self.card_positions.items()):
+            # 从card_display_posis获取卡牌引用
+            if card_id not in self.card_display_posis:
+                continue
+            card = self.card_display_posis[card_id].get('card_ref')
+            if card is None:
+                continue
+            
             half_width = CONSTANTS.CARD_WIDTH / 2
             half_height = CONSTANTS.CARD_HEIGHT / 2
             
             # 考虑悬停偏移
             check_y = card_y
-            if card == old_hovered:
+            if id(card) == id(old_hovered):
                 check_y += CONSTANTS.CARD_HOVER_OFFSET
             
             if (card_x - half_width <= x <= card_x + half_width and
@@ -358,13 +494,20 @@ class CardDisplay:
     
     def check_click(self, x: float, y: float) -> Optional[Card]:
         """检查是否点击了卡牌"""
-        for card, (card_x, card_y) in self.card_positions.items():
+        for card_id, (card_x, card_y) in self.card_positions.items():
+            # 从card_display_posis获取卡牌引用
+            if card_id not in self.card_display_posis:
+                continue
+            card = self.card_display_posis[card_id].get('card_ref')
+            if card is None:
+                continue
+            
             half_width = CONSTANTS.CARD_WIDTH / 2
             half_height = CONSTANTS.CARD_HEIGHT / 2
             
             # 考虑悬停偏移
             check_y = card_y
-            if card == self.hovered_card:
+            if id(card) == id(self.hovered_card):
                 check_y += CONSTANTS.CARD_HOVER_OFFSET
             
             if (card_x - half_width <= x <= card_x + half_width and
@@ -379,6 +522,7 @@ class CardDisplay:
         if card:
             self.dragged_card = card
             self.drag_start_pos = (x, y)
+            self.drag_current_pos = (x, y)  # 关键修复：立即设置当前位置
         return card
     
     def update_drag(self, x: float, y: float):
@@ -404,39 +548,39 @@ class CardDisplay:
         self.drag_start_pos = None
         self.drag_current_pos = None  # 清除拖动位置
     
-    def _update_card_animation(self, card: Card):
+    def _update_card_animation(self, card_id: int):
         """
         更新单个卡牌的动画状态
-        
+            
         Args:
-            card: 卡牌对象
+            card_id: 卡牌的唯一ID
         """
-        if card not in self.card_display_posis:
+        if card_id not in self.card_display_posis:
             return
-        
-        pos_data = self.card_display_posis[card]
-        
+            
+        pos_data = self.card_display_posis[card_id]
+            
         if not pos_data['animating']:
-            # 没有动画，直接设置为目标位置
+            # 没有动画,直接设置为目标位置
             pos_data['current_y'] = pos_data['target_y']
             return
-        
+            
         # 计算动画进度
         current_time = time.time()
         elapsed = current_time - pos_data['anim_start_time']
-        
+            
         if elapsed >= pos_data['anim_duration']:
             # 动画完成
             pos_data['current_y'] = pos_data['target_y']
             pos_data['animating'] = False
             return
-        
+            
         # 计算进度 (0.0 - 1.0)
         progress = elapsed / pos_data['anim_duration']
-        
-        # 使用缓动函数（ease-out）
+            
+        # 使用缓动函数(ease-out)
         ease_progress = 1 - (1 - progress) ** 3  # cubic ease-out
-        
+            
         # 插值计算当前位置
         pos_data['current_y'] = (
             pos_data['target_y'] + 
@@ -446,50 +590,55 @@ class CardDisplay:
     def start_rising_animation(self, card: Card, duration: float = 0.5):
         """
         启动卡牌上升动画
-        
+            
         Args:
             card: 要播放动画的卡牌
-            duration: 动画持续时间（秒）
+            duration: 动画持续时间(秒)
         """
-        # 计算起始位置（从屏幕下方）
+        # 计算起始位置(从屏幕下方)
         start_y_position = -CONSTANTS.WINDOW_HEIGHT * 0.5
-        
+            
+        # 使用卡牌的唯一ID
+        card_id = id(card)
+            
         # 获取或创建卡牌位置数据
-        if card not in self.card_display_posis:
-            self.card_display_posis[card] = {
+        if card_id not in self.card_display_posis:
+            self.card_display_posis[card_id] = {
                 'target_y': 60,  # 默认目标位置
                 'current_y': start_y_position,  # 从屏幕下方开始
                 'animating': True,
                 'anim_start_time': time.time(),
                 'anim_duration': duration,
-                'start_y': start_y_position
+                'start_y': start_y_position,
+                'card_ref': card  # 保存卡牌引用
             }
         else:
             # 设置动画参数
-            pos_data = self.card_display_posis[card]
-            # 关键修复：无论卡牌当前在哪里，都从屏幕下方开始动画
+            pos_data = self.card_display_posis[card_id]
+            # 关键修复:无论卡牌当前在哪里,都从屏幕下方开始动画
             pos_data['start_y'] = start_y_position
             pos_data['current_y'] = start_y_position  # 重置当前位置到下方
             pos_data['target_y'] = 60  # 确保目标位置正确
             pos_data['animating'] = True
             pos_data['anim_start_time'] = time.time()
             pos_data['anim_duration'] = duration
+            pos_data['card_ref'] = card  # 更新卡牌引用
     
     def update_animations(self):
         """更新所有动画状态"""
         # 清理已完成的动画
         cards_to_clean = []
-        for card, pos_data in self.card_display_posis.items():
+        for card_id, pos_data in self.card_display_posis.items():
             if pos_data['animating']:
                 current_time = time.time()
                 elapsed = current_time - pos_data['anim_start_time']
                 if elapsed >= pos_data['anim_duration']:
                     pos_data['current_y'] = pos_data['target_y']
                     pos_data['animating'] = False
-                    cards_to_clean.append(card)
-        
+                    cards_to_clean.append(card_id)
+            
         # 移除不在手牌中的卡牌位置数据
-        # （这个需要在外部调用，传入当前手牌列表）
+        # (这个需要在外部调用,传入当前手牌列表)
     
     def cleanup_card_positions(self, current_hand: List[Card]):
         """
@@ -498,13 +647,43 @@ class CardDisplay:
         Args:
             current_hand: 当前手牌列表
         """
-        cards_to_remove = [card for card in self.card_display_posis if card not in current_hand]
-        for card in cards_to_remove:
-            del self.card_display_posis[card]
+        # 获取当前手牌中所有卡牌的ID
+        current_hand_ids = set(id(card) for card in current_hand)
+        
+        # 清理不在当前手牌中的卡牌
+        cards_to_remove = [card_id for card_id in self.card_display_posis if card_id not in current_hand_ids]
+        for card_id in cards_to_remove:
+            del self.card_display_posis[card_id]
     
     def clear_positions(self):
         """清空卡牌位置缓存"""
         self.card_positions.clear()
+    
+    def clear_all_card_references(self):
+        """
+        彻底清除所有卡牌相关的引用和状态
+        在回合切换时调用，确保旧卡牌对象被完全清理
+        """
+        # 清除所有卡牌位置缓存
+        self.card_positions.clear()
+        
+        # 清除所有卡牌显示位置和动画状态
+        self.card_display_posis.clear()
+        
+        # 清除悬停状态
+        self.hovered_card = None
+        
+        # 清除拖动状态
+        self.dragged_card = None
+        self.drag_start_pos = None
+        self.drag_current_pos = None
+        
+        # 清除上升动画状态
+        self.rising_cards.clear()
+        
+        # 强制垃圾回收（可选）
+        import gc
+        gc.collect()
     
     def _draw_dragged_card(self, card: Card, x: float, y: float):
         """

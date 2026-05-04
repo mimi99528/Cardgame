@@ -15,9 +15,29 @@ class BattleLog:
     """战斗日志"""
     entries: List[str] = field(default_factory=list)
     
-    def add(self, message: str):
-        """添加日志条目"""
-        self.entries.append(message)
+    def add(self, message: str, level: int = 0):
+        """
+        添加日志条目
+        
+        Args:
+            message: 日志消息
+            level: 日志级别 (0=所有级别都显示, 1=normal及以上, 2=仅verbose)
+        """
+        from config import CONSTANTS
+        log_level = CONSTANTS.LOG_LEVEL
+        
+        # 根据日志级别决定是否记录
+        if log_level.value == "simple":
+            # simple模式只记录level=0的消息
+            if level == 0:
+                self.entries.append(message)
+        elif log_level.value == "normal":
+            # normal模式记录level=0和level=1的消息
+            if level <= 1:
+                self.entries.append(message)
+        else:  # verbose
+            # verbose模式记录所有消息
+            self.entries.append(message)
     
     def get_last_entries(self, count: int = 10) -> List[str]:
         """获取最近的日志条目"""
@@ -79,6 +99,11 @@ class BattleSystem:
         self.current_round = 0
         self.battle_finished = False
         
+        # 锁定所有实体的装备（战斗中不能更换）
+        for entity in self.player_team + self.enemy_team:
+            if hasattr(entity, 'equipment_manager'):
+                entity.equipment_manager.in_combat = True
+        
         # 构建行动顺序列表（所有队友和敌人交替行动）
         self._build_action_order()
         
@@ -109,13 +134,28 @@ class BattleSystem:
         for entity in self.player_team + self.enemy_team:
             armor = entity.equipment.get("armor")
             if armor:
-                entity.add_block(armor.block_value)
+                # 使用新的骰子格挡系统
+                if hasattr(armor, 'block_dice') and armor.block_dice:
+                    block_amount = armor.roll_block()
+                    entity.add_block(block_amount)
+                elif hasattr(armor, 'block_value') and armor.block_value > 0:
+                    # 兼容旧系统
+                    entity.add_block(armor.block_value)
+                
+                # 每回合再生的格挡值（圆盾效果）
+                if hasattr(armor, 'block_per_turn') and armor.block_per_turn > 0:
+                    regen_block = armor.block_per_turn
+                    entity.add_block(regen_block)
         
         # 处理Buff效果
         self._process_all_buffs()
         
         # 重置行动索引
         self.current_entity_index = 0
+        
+        # 清除所有拖动状态（防止引用已不存在的卡牌）
+        if hasattr(self, 'card_view') and self.card_view:
+            self.card_view.input_handler.clear_drag_states()
         
         # 检查第一个实体是否是玩家控制
         if self.all_entities:
@@ -148,7 +188,8 @@ class BattleSystem:
         
         success, is_permanent = current.play_card(card, target)
         if success:
-            self.battle_log.add(f"{current.name}使用了 {card.name}")
+            # 添加基本日志（level 0）
+            self.battle_log.add(f"{current.name}使用了 {card.name}", level=0)
             
             # 检查战斗是否结束
             self._check_battle_end()
@@ -450,10 +491,21 @@ class BattleSystem:
             self.battle_finished = True
             self.winner = self.enemy_team
             self.battle_log.add("\n战斗结束！敌人获胜！")
+            
+            # 解锁所有实体的装备
+            for entity in self.player_team + self.enemy_team:
+                if hasattr(entity, 'equipment_manager'):
+                    entity.equipment_manager.in_combat = False
+                    
         elif not enemy_alive:
             self.battle_finished = True
             self.winner = self.player_team
             self.battle_log.add(f"\n战斗结束！{self.player.name}获胜！")
+            
+            # 解锁所有实体的装备
+            for entity in self.player_team + self.enemy_team:
+                if hasattr(entity, 'equipment_manager'):
+                    entity.equipment_manager.in_combat = False
     
     def skip_turn(self):
         """跳过当前回合"""

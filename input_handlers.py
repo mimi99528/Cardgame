@@ -13,7 +13,7 @@ from tile_map import TileMap
 class InputHandler:
     """输入处理器 - 处理鼠标和键盘事件"""
     
-    def __init__(self, battle: BattleSystem, tile_map: TileMap, card_display):
+    def __init__(self, battle: BattleSystem, tile_map: TileMap, card_display, inventory_renderer=None, equipment_renderer=None):
         """
         初始化输入处理器
         
@@ -21,10 +21,14 @@ class InputHandler:
             battle: 战斗系统实例
             tile_map: 瓦片地图实例
             card_display: 卡牌显示器实例
+            inventory_renderer: 背包渲染器实例（可选）
+            equipment_renderer: 装备渲染器实例（可选）
         """
         self.battle = battle
         self.tile_map = tile_map
         self.card_display = card_display
+        self.inventory_renderer = inventory_renderer
+        self.equipment_renderer = equipment_renderer
         
         # 状态变量
         self.hovered_entity: Optional[Entity] = None
@@ -43,33 +47,53 @@ class InputHandler:
     
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float,
                        map_offset_x: float, map_offset_y: float,
-                       entity_positions):
+                       entity_positions, window_width: float = None, window_height: float = None):
         """
         处理鼠标移动事件
         
         Args:
-            x, y: 鼠标坐标
+            x, y: 鼠标坐标（屏幕坐标）
             dx, dy: 鼠标移动增量
-            map_offset_x, map_offset_y: 地图偏移量
+            map_offset_x, map_offset_y: 地图偏移量（已废弃，保留兼容性）
             entity_positions: 实体位置映射字典
+            window_width, window_height: 窗口尺寸（用于坐标转换）
         """
+        # 如果装备界面打开，更新装备界面的悬停状态
+        if self.equipment_renderer and self.equipment_renderer.is_visible():
+            self.equipment_renderer.update_hover(x, y)
+            return
+        
+        # 如果背包界面打开，更新背包的悬停状态
+        if self.inventory_renderer and self.inventory_renderer.is_visible():
+            self.inventory_renderer.update_hover(x, y)
+            return
+        
         # 检查卡牌悬停（如果不在拖动模式）
         if not self.drag_mode:
             self.card_display.check_hover(x, y)
         
         # 如果在移动卡牌模式，显示路径
         if self.movement_mode and self.current_move_path:
-            adjusted_x = x - map_offset_x
-            adjusted_y = y - map_offset_y
-            tile = self.tile_map.get_tile_at_pixel(adjusted_x, adjusted_y)
+            # 使用相机系统转换坐标
+            if window_width and window_height:
+                grid_x, grid_y = self.tile_map.screen_to_grid(x, y, window_width, window_height)
+            else:
+                # 向后兼容：如果没有提供窗口尺寸，使用旧方法
+                adjusted_x = x - map_offset_x
+                adjusted_y = y - map_offset_y
+                tile = self.tile_map.get_tile_at_pixel(adjusted_x, adjusted_y)
+                if tile:
+                    grid_x, grid_y = tile.x, tile.y
+                else:
+                    return
             
-            if tile and (tile.x, tile.y) in self.valid_move_positions:
+            if (grid_x, grid_y) in self.valid_move_positions:
                 # 计算从当前位置到悬停位置的路径
                 current_entity = self.battle.current_entity
                 if current_entity:
                     path = self.tile_map.find_path_astar(
                         current_entity.position, 
-                        (tile.x, tile.y),
+                        (grid_x, grid_y),
                         [e.position for e in self.battle.player_team + self.battle.enemy_team 
                          if e.is_alive() and e != current_entity]
                     )
@@ -83,27 +107,49 @@ class InputHandler:
         
         # 检查实体悬停
         self.hovered_entity = None
-        adjusted_x = x - map_offset_x
-        adjusted_y = y - map_offset_y
-        tile = self.tile_map.get_tile_at_pixel(adjusted_x, adjusted_y)
         
-        if tile:
-            for entity in self.battle.player_team + self.battle.enemy_team:
-                if entity.position == (tile.x, tile.y) and entity.is_alive():
-                    self.hovered_entity = entity
-                    break
+        # 使用相机系统转换坐标
+        if window_width and window_height:
+            grid_x, grid_y = self.tile_map.screen_to_grid(x, y, window_width, window_height)
+        else:
+            # 向后兼容
+            adjusted_x = x - map_offset_x
+            adjusted_y = y - map_offset_y
+            tile = self.tile_map.get_tile_at_pixel(adjusted_x, adjusted_y)
+            if tile:
+                grid_x, grid_y = tile.x, tile.y
+            else:
+                return
+        
+        # 检查是否有实体在该位置
+        for entity in self.battle.player_team + self.battle.enemy_team:
+            if entity.position == (grid_x, grid_y) and entity.is_alive():
+                self.hovered_entity = entity
+                break
     
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int,
-                      map_offset_x: float, map_offset_y: float):
+                      map_offset_x: float, map_offset_y: float,
+                      window_width: float = None, window_height: float = None):
         """
         处理鼠标点击事件
         
         Args:
-            x, y: 鼠标坐标
+            x, y: 鼠标坐标（屏幕坐标）
             button: 鼠标按钮
             modifiers: 修饰键
-            map_offset_x, map_offset_y: 地图偏移量
+            map_offset_x, map_offset_y: 地图偏移量（已废弃，保留兼容性）
+            window_width, window_height: 窗口尺寸（用于坐标转换）
         """
+        # 如果装备界面打开，处理装备界面的点击
+        if self.equipment_renderer and self.equipment_renderer.is_visible():
+            self._handle_equipment_interface_click(x, y, button)
+            return
+        
+        # 如果背包界面打开，处理背包的点击
+        if self.inventory_renderer and self.inventory_renderer.is_visible():
+            self._handle_inventory_interface_click(x, y, button)
+            return
+        
         if button != arcade.MOUSE_BUTTON_LEFT:
             return
         
@@ -114,7 +160,7 @@ class InputHandler:
         
         # 如果在拖动模式，处理拖动结束
         if self.drag_mode and self.dragged_card_for_target:
-            self._handle_drag_end(x, y, map_offset_x, map_offset_y)
+            self._handle_drag_end(x, y, map_offset_x, map_offset_y, window_width, window_height)
             return
         
         # 检查是否点击了卡牌
@@ -123,6 +169,12 @@ class InputHandler:
         if card_clicked:
             # 如果是有目标的卡牌，启动拖动
             if card_clicked.target_type in [TargetType.ENEMY, TargetType.ALLY, TargetType.ANY]:
+                # 检查是否处于移动模式
+                if self.movement_mode:
+                    print("当前处于移动模式，无法拖动卡牌")
+                    return
+                
+                # 启动拖动（不在这里验证，在拖动结束时验证）
                 self.card_display.start_drag(x, y)
                 self.drag_mode = True
                 self.dragged_card_for_target = card_clicked
@@ -132,14 +184,21 @@ class InputHandler:
                 self._handle_card_click(card_clicked, current_entity)
         else:
             # 检查是否点击了瓦片地图区域
-            self._handle_tile_click(x, y, map_offset_x, map_offset_y, current_entity)
+            self._handle_tile_click(x, y, map_offset_x, map_offset_y, current_entity, window_width, window_height)
     
     def _handle_card_click(self, card: Card, current_entity: Entity):
         """处理卡牌点击（非拖动情况）"""
         # 如果是移动卡牌
         if card.is_movement:
-            self._handle_movement_card(card, current_entity)
-            return
+            # 如果已经在移动模式中，点击移动卡牌应该退出
+            if self.movement_mode:
+                print("点击移动卡牌，退出移动模式")
+                self._exit_movement_mode()
+                return
+            else:
+                # 否则进入移动模式
+                self._handle_movement_card(card, current_entity)
+                return
         
         self.selected_card = card
         print(f"选择了卡牌: {card.name}")
@@ -247,24 +306,44 @@ class InputHandler:
         self.current_move_path = None
         self.tile_map.reset_highlights()
     
-    def _handle_drag_end(self, x: float, y: float, map_offset_x: float, map_offset_y: float):
+    def _handle_drag_end(self, x: float, y: float, map_offset_x: float, map_offset_y: float,
+                        window_width: float = None, window_height: float = None):
         """处理拖动结束"""
         if not self.dragged_card_for_target:
             self.drag_mode = False
             return
         
-        # 计算鼠标位置对应的瓦片
-        adjusted_x = x - map_offset_x
-        adjusted_y = y - map_offset_y
-        tile = self.tile_map.get_tile_at_pixel(adjusted_x, adjusted_y)
+        # 验证卡牌是否仍然在当前实体的手牌中
+        current_entity = self.battle.current_entity
+        if not current_entity or self.dragged_card_for_target not in current_entity.hand:
+            print("卡牌已不在手牌中，取消出牌")
+            self.drag_mode = False
+            self.dragged_card_for_target = None
+            return
         
+        # 计算鼠标位置对应的瓦片（使用相机系统）
+        if window_width and window_height:
+            grid_x, grid_y = self.tile_map.screen_to_grid(x, y, window_width, window_height)
+        else:
+            # 向后兼容
+            adjusted_x = x - map_offset_x
+            adjusted_y = y - map_offset_y
+            tile = self.tile_map.get_tile_at_pixel(adjusted_x, adjusted_y)
+            if tile:
+                grid_x, grid_y = tile.x, tile.y
+            else:
+                print("拖动到无效位置，取消出牌")
+                self.drag_mode = False
+                self.dragged_card_for_target = None
+                return
+        
+        tile = self.tile_map.get_tile(grid_x, grid_y)
         if not tile:
             print("拖动到无效位置，取消出牌")
             self.drag_mode = False
             self.dragged_card_for_target = None
             return
         
-        current_entity = self.battle.current_entity
         if not current_entity:
             self.drag_mode = False
             self.dragged_card_for_target = None
@@ -273,15 +352,15 @@ class InputHandler:
         card = self.dragged_card_for_target
         
         # 根据卡牌目标类型确定目标实体
-        target_entity = self._find_target_entity(tile.x, tile.y, current_entity)
+        target_entity = self._find_target_entity(grid_x, grid_y, current_entity)
         
         if target_entity:
             # 检查距离
-            distance = abs(tile.x - current_entity.position[0]) + abs(tile.y - current_entity.position[1])
+            distance = abs(grid_x - current_entity.position[0]) + abs(grid_y - current_entity.position[1])
             max_distance = self._get_card_range(card)
             
             if distance <= max_distance:
-                print(f"拖动打出卡牌 {card.name} 攻击位置 ({tile.x}, {tile.y})")
+                print(f"拖动打出卡牌 {card.name} 攻击位置 ({grid_x}, {grid_y})")
                 success, is_permanent = self.battle.play_card(card, target_entity)
                 if success:
                     print("卡牌使用成功！")
@@ -298,31 +377,42 @@ class InputHandler:
         self.dragged_card_for_target = None
     
     def _handle_tile_click(self, x: float, y: float, map_offset_x: float, 
-                          map_offset_y: float, current_entity: Entity):
+                          map_offset_y: float, current_entity: Entity,
+                          window_width: float = None, window_height: float = None):
         """处理瓦片点击"""
-        adjusted_x = x - map_offset_x
-        adjusted_y = y - map_offset_y
-        tile = self.tile_map.get_tile_at_pixel(adjusted_x, adjusted_y)
+        # 使用相机系统转换坐标
+        if window_width and window_height:
+            grid_x, grid_y = self.tile_map.screen_to_grid(x, y, window_width, window_height)
+        else:
+            # 向后兼容
+            adjusted_x = x - map_offset_x
+            adjusted_y = y - map_offset_y
+            tile = self.tile_map.get_tile_at_pixel(adjusted_x, adjusted_y)
+            if tile:
+                grid_x, grid_y = tile.x, tile.y
+            else:
+                return
         
+        tile = self.tile_map.get_tile(grid_x, grid_y)
         if not tile:
             return
         
         # 如果在移动模式，执行移动
         if self.movement_mode:
-            self._handle_movement_card_target(tile.x, tile.y)
+            self._handle_movement_card_target(grid_x, grid_y)
             return
         
         if self.target_selection_mode:
             # 第二次点击，确定目标
-            self._handle_target_selection(tile.x, tile.y)
+            self._handle_target_selection(grid_x, grid_y)
             self.target_selection_mode = False
             self.first_click_pos = None
             self.tile_map.reset_highlights()
         else:
             # 第一次点击，进入目标选择模式或移动
-            self.first_click_pos = (tile.x, tile.y)
+            self.first_click_pos = (grid_x, grid_y)
             self.target_selection_mode = True
-            self.tile_map.highlight_range(tile.x, tile.y, 3)
+            self.tile_map.highlight_range(grid_x, grid_y, 3)
     
     def _handle_target_selection(self, target_x: int, target_y: int):
         """处理目标选择"""
@@ -444,8 +534,19 @@ class InputHandler:
             key: 按下的键
             modifiers: 修饰键
         """
+        # 调试信息：显示按键信息
+        # print(f"按键: {key} (B键={arcade.key.B}, ESC={arcade.key.ESCAPE}, SPACE={arcade.key.SPACE})")
+        
         if key == arcade.key.ESCAPE:
-            if self.battle.battle_finished:
+            # 如果背包打开，先关闭背包
+            if self.inventory_renderer and self.inventory_renderer.is_visible():
+                self.inventory_renderer.close_inventory()
+                return False
+            # 如果装备界面打开，关闭装备界面
+            elif self.equipment_renderer and self.equipment_renderer.is_visible():
+                self.equipment_renderer.close()
+                return False
+            elif self.battle.battle_finished:
                 # 返回True表示应该关闭窗口
                 return True
         
@@ -453,4 +554,138 @@ class InputHandler:
             if not self.battle.battle_finished and self.battle.is_player_turn:
                 self.battle.skip_turn()
         
+        elif key == arcade.key.B:
+            # B键打开/关闭背包
+            if self.inventory_renderer:
+                if not self.battle.current_entity:
+                    print("警告：当前没有活动实体，无法打开背包")
+                    return False
+                
+                player = self.battle.current_entity
+                if not hasattr(player, 'inventory'):
+                    print("警告：当前实体没有背包系统")
+                    return False
+                
+                was_visible = self.inventory_renderer.is_visible()
+                self.inventory_renderer.toggle_inventory(player.inventory)
+                is_visible = self.inventory_renderer.is_visible()
+                
+                if is_visible and not was_visible:
+                    print(f"背包已打开 - {player.name}")
+                    info = player.inventory.get_usage_info()
+                    print(f"  体积: {info['volume_used']}/{info['volume_max']}")
+                    print(f"  重量: {info['weight_used']:.1f}/{info['weight_max']:.1f}")
+                    print(f"  物品数: {info['item_count']}")
+                elif not is_visible and was_visible:
+                    print("背包已关闭")
+            else:
+                print("错误：背包渲染器未初始化")
+        
+        elif key == arcade.key.TAB:
+            # Tab键打开/关闭装备界面
+            if self.equipment_renderer:
+                if not self.battle.current_entity:
+                    print("警告：当前没有活动实体，无法打开装备界面")
+                    return False
+                
+                player = self.battle.current_entity
+                
+                was_visible = self.equipment_renderer.is_visible()
+                self.equipment_renderer.toggle_visibility(player)
+                is_visible = self.equipment_renderer.is_visible()
+                
+                if is_visible and not was_visible:
+                    print(f"装备界面已打开 - {player.name}")
+                elif not is_visible and was_visible:
+                    print("装备界面已关闭")
+            else:
+                print("错误：装备渲染器未初始化")
+        
         return False
+    
+    def clear_drag_states(self):
+        """清除所有拖动相关状态（用于回合切换时）"""
+        self.drag_mode = False
+        self.dragged_card_for_target = None
+        self.selected_card = None
+        self.target_selection_mode = False
+        self.movement_mode = False
+        self.valid_move_positions = []
+        self.current_move_path = None
+        # 彻底清除卡牌显示器中的所有卡牌引用
+        self.card_display.clear_all_card_references()
+    
+    def _handle_equipment_interface_click(self, x: float, y: float, button: int):
+        """处理装备界面的点击"""
+        from equipment_manager import EquipmentSlot
+        from inventory import ItemType
+        
+        if not self.equipment_renderer or not self.battle.current_entity:
+            return
+        
+        entity = self.battle.current_entity
+        equip_mgr = entity.equipment_manager
+        
+        # 右键点击：卸下装备
+        if button == arcade.MOUSE_BUTTON_RIGHT:
+            slot = self.equipment_renderer.get_slot_at_pos(x, y)
+            if slot:
+                success, message, old_item = equip_mgr.unequip_item(slot)
+                print(message)
+                
+                # 如果有卸下的物品，放回背包
+                if old_item and hasattr(entity, 'inventory'):
+                    entity.inventory.add_item(old_item)
+                    print(f"已将 {old_item.name} 放回背包")
+            return
+        
+        # 左键点击：装备物品
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            # 检查是否点击了背包中的物品
+            item_index = self.equipment_renderer.get_inventory_item_at_pos(x, y)
+            if item_index is not None and hasattr(entity, 'inventory'):
+                inventory = entity.inventory
+                equippable_items = [
+                    item for item in inventory.items 
+                    if item.item_type in [ItemType.WEAPON, ItemType.ARMOR]
+                ]
+                
+                if 0 <= item_index < len(equippable_items):
+                    item = equippable_items[item_index]
+                    
+                    # 根据物品类型确定槽位
+                    if item.item_type == ItemType.WEAPON:
+                        target_slot = EquipmentSlot.WEAPON
+                    elif item.item_type == ItemType.ARMOR:
+                        target_slot = EquipmentSlot.BODY
+                    else:
+                        return
+                    
+                    # 尝试装备（传入entity用于AP检查）
+                    success, message, old_item = equip_mgr.swap_equipment(item, target_slot, entity)
+                    print(message)
+                    
+                    if success:
+                        # 从背包中移除物品
+                        inventory.remove_item(item)
+                        
+                        # 如果有旧装备，放回背包
+                        if old_item:
+                            inventory.add_item(old_item)
+                            print(f"已将 {old_item.name} 放回背包")
+            
+            # 检查是否点击了装备槽位（卸下装备）
+            slot = self.equipment_renderer.get_slot_at_pos(x, y)
+            if slot:
+                success, message, old_item = equip_mgr.unequip_item(slot)
+                print(message)
+                
+                # 如果有卸下的物品，放回背包
+                if old_item and hasattr(entity, 'inventory'):
+                    entity.inventory.add_item(old_item)
+                    print(f"已将 {old_item.name} 放回背包")
+    
+    def _handle_inventory_interface_click(self, x: float, y: float, button: int):
+        """处理背包界面的点击"""
+        # 目前背包界面只支持查看，后续可以添加拖拽等功能
+        pass
