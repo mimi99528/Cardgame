@@ -133,6 +133,15 @@ class BattleSystem:
         self.current_round += 1
         self.battle_log.add(f"\n=== 第 {self.current_round} 回合 ===")
         
+        # 触发回合开始事件
+        from event_system import trigger_event, GameEventType
+        trigger_event(
+            GameEventType.TURN_START,
+            source=self,
+            target=None,
+            data={"round": self.current_round}
+        )
+
         # 重置AP和MD
         for entity in self.player_team + self.enemy_team:
             entity.ap = entity.max_ap
@@ -243,6 +252,14 @@ class BattleSystem:
         self.current_entity_index += 1
         
         # 检查是否所有实体都行动完毕
+            # 触发回合结束事件（所有实体行动完毕）
+            from event_system import trigger_event, GameEventType
+            trigger_event(
+                GameEventType.TURN_END,
+                source=self,
+                target=None,
+                data={"round": self.current_round}
+            )
         if self.current_entity_index >= len(self.all_entities):
             # 开始新回合
             if not self.battle_finished:
