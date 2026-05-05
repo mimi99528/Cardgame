@@ -43,23 +43,37 @@ class AttackResult:
                 f"  额外效果: {', '.join(self.extra_effects) if self.extra_effects else '无'}")
 
 
-def calculate_attack_difficulty(attacker, weapon=None) -> int:
+def calculate_attack_difficulty(attacker, target, weapon=None) -> int:
     """
     计算攻击的难度值(DN)
     
     Args:
         attacker: 攻击者实体
+        target: 目标实体（防御方）
         weapon: 使用的武器（可选）
     
     Returns:
         难度值(DN)
     """
-    # 基础DN设为10，可以根据实际情况调整
+    # 基础DN设为10
     base_dn = 10
     
-    # 如果有武器，可以调整DN
+    # 如果有武器，可以降低DN（武器加值使攻击更容易命中）
     if weapon and hasattr(weapon, 'attack_modifier'):
         base_dn -= weapon.attack_modifier
+    
+    # 考虑防御方的属性加成
+    # 防御方的敏捷可以提供闪避加成，提高DN
+    if target and hasattr(target, 'stats'):
+        # 敏捷修正：每2点敏捷提供1点DN加成
+        dexterity_mod = target.stats.get_modifier('dexterity')
+        base_dn += dexterity_mod
+        
+        # 如果防御方有护甲，护甲的AC也可以提高DN
+        armor = target.equipment.get("armor") if hasattr(target, 'equipment') else None
+        if armor and hasattr(armor, 'calculate_ac_bonus'):
+            ac_bonus = armor.calculate_ac_bonus(target.stats)
+            base_dn += ac_bonus
     
     return base_dn
 
@@ -77,8 +91,8 @@ def perform_attack_check(attacker, target, base_damage: int, weapon=None) -> Att
     Returns:
         AttackResult 对象
     """
-    # 计算DN
-    difficulty = calculate_attack_difficulty(attacker, weapon)
+    # 计算DN（考虑防御方属性）
+    difficulty = calculate_attack_difficulty(attacker, target, weapon)
     
     # 计算加值（来自武器和属性）
     modifier = 0

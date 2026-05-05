@@ -414,19 +414,18 @@ def create_enemy():
     weapons_db = create_weapon_database()
     armors_db = create_armor_database()
     
-    # 敌人卡组
+    # 敌人卡组 - 至少10张
     deck = []
     if "刺击" in cards_db:
-        deck.extend([cards_db["刺击"].copy() for _ in range(4)])
+        deck.extend([cards_db["刺击"].copy() for _ in range(5)])
+    if "劈砍" in cards_db:
+        deck.extend([cards_db["劈砍"].copy() for _ in range(3)])
+    if "格挡" in cards_db:
+        deck.extend([cards_db["格挡"].copy() for _ in range(2)])
     
-    # 如果卡组为空，使用默认卡牌
-    if not deck:
-        deck = [
-            Card("普攻", CardType.ATTACK_PHYSICAL, 1, {"hp": -10}, "基础攻击", Rarity.COMMON),
-            Card("普攻", CardType.ATTACK_PHYSICAL, 1, {"hp": -10}, "基础攻击", Rarity.COMMON),
-            Card("普攻", CardType.ATTACK_PHYSICAL, 1, {"hp": -10}, "基础攻击", Rarity.COMMON),
-            Card("普攻", CardType.ATTACK_PHYSICAL, 1, {"hp": -10}, "基础攻击", Rarity.COMMON),
-        ]
+    # 如果卡组不足10张，补充默认卡牌
+    while len(deck) < 10:
+        deck.append(Card("普攻", CardType.ATTACK_PHYSICAL, 1, {"hp": -10}, "基础攻击", Rarity.COMMON))
     
     # 装备（使用EquipmentManager管理）
     equipment = {
@@ -440,7 +439,7 @@ def create_enemy():
         max_ap=3,
         equipment=equipment,
         cards=deck,
-        hand_size=4,
+        hand_size=7,  # 手牌上限7张（不含常驻牌）
         control_type=ControlType.AI,
         position=(17, 7)
     )
@@ -456,23 +455,20 @@ def create_ally_ai():
     weapons_db = create_weapon_database()
     armors_db = create_armor_database()
     
-    # AI队友卡组
+    # AI队友卡组 - 至少10张
     deck = []
     if "刺击" in cards_db:
-        deck.extend([cards_db["刺击"].copy() for _ in range(2)])
+        deck.extend([cards_db["刺击"].copy() for _ in range(4)])
+    if "劈砍" in cards_db:
+        deck.extend([cards_db["劈砍"].copy() for _ in range(2)])
     if "格挡" in cards_db:
-        deck.append(cards_db["格挡"].copy())
+        deck.extend([cards_db["格挡"].copy() for _ in range(2)])
     if "治疗" in cards_db:
-        deck.append(cards_db["治疗"].copy())
+        deck.extend([cards_db["治疗"].copy() for _ in range(2)])
     
-    # 如果卡组为空，使用默认卡牌
-    if not deck:
-        deck = [
-            Card("普攻", CardType.ATTACK_PHYSICAL, 1, {"hp": -10}, "基础攻击", Rarity.COMMON),
-            Card("普攻", CardType.ATTACK_PHYSICAL, 1, {"hp": -10}, "基础攻击", Rarity.COMMON),
-            Card("格挡", CardType.BLOCK, 1, {"block": 25}, "防御", Rarity.COMMON, target_type=TargetType.SELF),
-            Card("治疗", CardType.HEAL, 2, {"hp": 30}, "治疗", Rarity.UNCOMMON, target_type=TargetType.SELF),
-        ]
+    # 如果卡组不足10张，补充默认卡牌
+    while len(deck) < 10:
+        deck.append(Card("普攻", CardType.ATTACK_PHYSICAL, 1, {"hp": -10}, "基础攻击", Rarity.COMMON))
     
     # 装备（使用EquipmentManager管理）
     equipment = {
@@ -486,7 +482,7 @@ def create_ally_ai():
         max_ap=3,
         equipment=equipment,
         cards=deck,
-        hand_size=4,
+        hand_size=7,  # 手牌上限7张（不含常驻牌）
         control_type=ControlType.AI,
         position=(4, 7)
     )
@@ -502,23 +498,20 @@ def create_enemy_2():
     weapons_db = create_weapon_database()
     armors_db = create_armor_database()
     
-    # 敌人卡组
+    # 敌人卡组 - 至少10张
     deck = []
     if "劈砍" in cards_db:
-        deck.extend([cards_db["劈砍"].copy() for _ in range(2)])
-    if "格挡" in cards_db:
-        deck.append(cards_db["格挡"].copy())
+        deck.extend([cards_db["劈砍"].copy() for _ in range(3)])
     if "刺击" in cards_db:
-        deck.append(cards_db["刺击"].copy())
+        deck.extend([cards_db["刺击"].copy() for _ in range(3)])
+    if "格挡" in cards_db:
+        deck.extend([cards_db["格挡"].copy() for _ in range(2)])
+    if "治疗" in cards_db:
+        deck.extend([cards_db["治疗"].copy() for _ in range(2)])
     
-    # 如果卡组为空，使用默认卡牌
-    if not deck:
-        deck = [
-            Card("火球术", CardType.ATTACK_MAGICAL, 2, {"hp": -20}, "魔法攻击", Rarity.UNCOMMON),
-            Card("火球术", CardType.ATTACK_MAGICAL, 2, {"hp": -20}, "魔法攻击", Rarity.UNCOMMON),
-            Card("护盾", CardType.BLOCK, 2, {"block": 40}, "防御", Rarity.RARE, target_type=TargetType.SELF),
-            Card("普攻", CardType.ATTACK_PHYSICAL, 1, {"hp": -10}, "基础攻击", Rarity.COMMON),
-        ]
+    # 如果卡组不足10张，补充默认卡牌
+    while len(deck) < 10:
+        deck.append(Card("火球术", CardType.ATTACK_MAGICAL, 2, {"hp": -20}, "魔法攻击", Rarity.UNCOMMON))
     
     # 装备（使用EquipmentManager管理）
     equipment = {
@@ -532,7 +525,7 @@ def create_enemy_2():
         max_ap=4,
         equipment=equipment,
         cards=deck,
-        hand_size=4,
+        hand_size=7,  # 手牌上限7张（不含常驻牌）
         control_type=ControlType.AI,
         position=(15, 5)
     )

@@ -13,33 +13,38 @@ from config import CONSTANTS
 @dataclass
 class BattleLog:
     """战斗日志"""
-    entries: List[str] = field(default_factory=list)
+    entries: List[Tuple[str, int, str]] = field(default_factory=list)  # (message, level, color_key)
     
-    def add(self, message: str, level: int = 0):
+    def add(self, message: str, level: int = 0, color_key: str = "normal"):
         """
         添加日志条目
         
         Args:
             message: 日志消息
             level: 日志级别 (0=所有级别都显示, 1=normal及以上, 2=仅verbose)
+            color_key: 颜色键值 ("critical_success", "success", "partial_success", "failure", "critical_failure", "normal")
         """
         from config import CONSTANTS
         log_level = CONSTANTS.LOG_LEVEL
-        
+        print(message, )
         # 根据日志级别决定是否记录
+        should_add = False
         if log_level.value == "simple":
             # simple模式只记录level=0的消息
             if level == 0:
-                self.entries.append(message)
+                should_add = True
         elif log_level.value == "normal":
             # normal模式记录level=0和level=1的消息
             if level <= 1:
-                self.entries.append(message)
+                should_add = True
         else:  # verbose
             # verbose模式记录所有消息
-            self.entries.append(message)
+            should_add = True
+        
+        if should_add:
+            self.entries.append((message, level, color_key))
     
-    def get_last_entries(self, count: int = 10) -> List[str]:
+    def get_last_entries(self, count: int = 10) -> List[Tuple[str, int, str]]:
         """获取最近的日志条目"""
         return self.entries[-count:]
     
@@ -48,15 +53,17 @@ class BattleLog:
         self.entries.clear()
     
     def __str__(self):
-        return "\n".join(self.entries[-20:])  # 只返回最近20条
+        # 返回最近20条日志的消息部分（不含颜色和级别）
+        return "\n".join([entry[0] for entry in self.entries[-20:]])
 
 
 class BattleSystem:
     """战斗系统管理器"""
     
-    def __init__(self, player_team: List[Entity], enemy_team: List[Entity]):
+    def __init__(self, player_team: List[Entity], enemy_team: List[Entity], tile_map=None):
         self.player_team = player_team
         self.enemy_team = enemy_team
+        self.tile_map = tile_map  # 保存真实的地图引用
         
         # 重置所有实体状态
         for entity in player_team + enemy_team:
@@ -126,9 +133,18 @@ class BattleSystem:
             entity.ap = entity.max_ap
             entity.md = entity.max_md
         
-        # 抽牌
-        for entity in self.player_team + self.enemy_team:
-            entity.draw_hand()
+        # 抽牌（第1回合已经在reset_for_battle中抽过初始手牌了）
+        if self.current_round > 1:
+            for entity in self.player_team + self.enemy_team:
+                old_hand_size = len(entity.hand)
+                entity.draw_hand()
+                new_hand_size = len(entity.hand)
+                # 显示实际抽取的卡牌数量（新抽的）
+                drawn_count = new_hand_size - old_hand_size
+                if drawn_count > 0:
+                    self.battle_log.add(f"{entity.name}抽牌: {old_hand_size} -> {new_hand_size}张 (抽{drawn_count}张)", level=2)
+                else:
+                    self.battle_log.add(f"{entity.name}手牌: {old_hand_size} -> {new_hand_size}张", level=2)
         
         # 装备提供格挡
         for entity in self.player_team + self.enemy_team:
@@ -181,21 +197,28 @@ class BattleSystem:
         """
         current = self.current_entity
         if not current or not self.is_player_turn or self.battle_finished:
-            return False, False
+            return False, False, []
         
         if current.control_type != ControlType.PLAYER:
-            return False, False
+            return False, False, []
         
-        success, is_permanent = current.play_card(card, target)
+        success, is_permanent, log_entries = current.play_card(card, target)
         if success:
-            # 添加基本日志（level 0）
-            self.battle_log.add(f"{current.name}使用了 {card.name}", level=0)
+            # 将日志条目添加到战斗日志
+            for entry in log_entries:
+                if isinstance(entry, tuple):
+                    # 新格式: (message, level, color_key)
+                    message, level, color_key = entry
+                    self.battle_log.add(message, level=level, color_key=color_key)
+                else:
+                    # 旧格式: 字符串
+                    self.battle_log.add(entry, level=0)
             
             # 检查战斗是否结束
             self._check_battle_end()
-            return True, is_permanent
+            return True, is_permanent, log_entries
         
-        return False, False
+        return False, False, []
     
     def end_current_entity_turn(self):
         """结束当前实体的回合"""
@@ -239,6 +262,7 @@ class BattleSystem:
         self.ai_playing = True
         self.last_ai_play_time = time.time()
         self.battle_log.add(f"{current.name}回合开始")
+        self.battle_log.add(f"{current.name}状态 - AP:{current.ap}/{current.max_ap}, MD:{current.md}/{current.max_md}, 手牌数:{len(current.hand)}", level=2)
         
         # AI抽牌（已经在begin_round中完成）
     
@@ -268,7 +292,16 @@ class BattleSystem:
         # 选择一张能支付的卡牌
         playable_cards = [c for c in ai_entity.hand if c.ap_cost <= ai_entity.ap]
         
+        self.battle_log.add(f"{ai_entity.name}检查出牌 - 手牌:{len(ai_entity.hand)}张, AP:{ai_entity.ap}, 可出:{len(playable_cards)}张", level=2)
+        
         if not playable_cards:
+            # 没有可出的牌，检查是否还有手牌
+            if not ai_entity.hand:
+                self.battle_log.add(f"{ai_entity.name}手牌为空，结束回合")
+            else:
+                # 打印所有手牌的AP消耗
+                card_info = ", ".join([f"{c.name}({c.ap_cost}AP)" for c in ai_entity.hand])
+                self.battle_log.add(f"{ai_entity.name}没有足够AP出牌（AP:{ai_entity.ap}），手牌: [{card_info}]，结束回合")
             # 没有可出的牌，结束回合
             self.ai_playing = False
             self.end_current_entity_turn()
@@ -277,6 +310,7 @@ class BattleSystem:
         # 简单AI：随机选择一张卡牌
         import random
         card = random.choice(playable_cards)
+        self.battle_log.add(f"{ai_entity.name}选择卡牌: {card.name} (AP消耗:{card.ap_cost})", level=2)
         
         # 选择目标（优先攻击敌方存活的实体）
         target = self._choose_ai_target(ai_entity)
@@ -286,26 +320,43 @@ class BattleSystem:
             distance = self._calculate_distance(ai_entity.position, target.position)
             max_range = self._get_card_range(card)
             
+            self.battle_log.add(f"{ai_entity.name}准备出牌 - 目标:{target.name}, 距离:{distance}, 卡牌范围:{max_range}", level=2)
+            
             # 如果不在范围内，先尝试移动
             if distance > max_range and ai_entity.md > 0:
                 moved = self._ai_move_towards_target(ai_entity, target, max_range)
                 
                 if not moved:
-                    # 无法移动，移除这张卡
+                    # 无法移动，移除这张卡，但继续尝试其他卡牌
                     ai_entity.hand.remove(card)
+                    # 不结束回合，让update_ai下次调用时继续出牌
                     return
                 else:
                     # 移动成功，重新检查距离并尝试出牌
                     distance = self._calculate_distance(ai_entity.position, target.position)
                     max_range = self._get_card_range(card)
                     
+                    self.battle_log.add(f"{ai_entity.name}移动后检查 - 距离:{distance}, 卡牌范围:{max_range}", level=2)
+                    
                     if distance <= max_range:
                         # 移动后在范围内，立即出牌
-                        success, _ = ai_entity.play_card(card, target)
+                        success, _, log_entries = ai_entity.play_card(card, target)
                         if success:
-                            self.battle_log.add(f"{ai_entity.name}使用了 {card.name}")
+                            # 添加AI卡牌使用日志
+                            for entry in log_entries:
+                                if isinstance(entry, tuple):
+                                    message, level, color_key = entry
+                                    self.battle_log.add(message, level=level, color_key=color_key)
+                                else:
+                                    self.battle_log.add(entry, level=0)
                             self._check_battle_end()
-                    # 无论是否出牌，都结束本回合（MD已用完）
+                            # 出牌成功，不结束回合，让AI可以继续出牌
+                            return
+                        else:
+                            # 出牌失败，移除这张卡
+                            ai_entity.hand.remove(card)
+                            self.battle_log.add(f"{ai_entity.name}出牌失败，移除卡牌", level=2)
+                    # 移动后仍然无法出牌，保留卡牌，结束本回合
                     self.ai_playing = False
                     self.end_current_entity_turn()
                     return
@@ -316,17 +367,30 @@ class BattleSystem:
             
             if distance <= max_range:
                 # 打出卡牌
-                success, _ = ai_entity.play_card(card, target)
+                success, _, log_entries = ai_entity.play_card(card, target)
                 if success:
-                    self.battle_log.add(f"{ai_entity.name}使用了 {card.name}")
+                    # 添加AI卡牌使用日志
+                    for entry in log_entries:
+                        if isinstance(entry, tuple):
+                            message, level, color_key = entry
+                            self.battle_log.add(message, level=level, color_key=color_key)
+                        else:
+                            self.battle_log.add(entry, level=0)
                     self._check_battle_end()
+                    # 出牌成功，不结束回合，让AI可以继续出牌
+                    return
+                else:
+                    # 出牌失败，移除这张卡，继续尝试其他卡牌
+                    ai_entity.hand.remove(card)
+                    return
             else:
-                # 仍然不在范围内，保留卡牌到下回合
+                # 仍然不在范围内，保留卡牌到下回合，结束回合
                 self.ai_playing = False
                 self.end_current_entity_turn()
         else:
-            # 没有目标，移除这张卡
+            # 没有目标，移除这张卡，但继续尝试其他卡牌
             ai_entity.hand.remove(card)
+            # 不结束回合，让update_ai下次调用时继续出牌
     
     def _choose_ai_target(self, ai_entity: Entity) -> Optional[Entity]:
         """AI选择目标 - 优先选择最近的敌方单位"""
@@ -390,16 +454,17 @@ class BattleSystem:
         Returns:
             是否成功移动
         """
-        from tile_map import TileMap
+        # 使用真实的地图，如果没有则创建临时地图
+        tile_map = self.tile_map
+        if not tile_map:
+            from tile_map import TileMap
+            tile_map = TileMap(width=20, height=15)
         
         current_distance = self._calculate_distance(ai_entity.position, target.position)
         
         # 如果已经在范围内，不需要移动
         if current_distance <= required_range:
             return True
-        
-        # 创建一个临时地图用于路径查找
-        tile_map = TileMap(width=20, height=15)
         
         # 获取所有其他实体的位置
         all_entities = self.player_team + self.enemy_team

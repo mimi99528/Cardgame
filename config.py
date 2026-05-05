@@ -107,7 +107,7 @@ class GameConstants:
     INVENTORY_PADDING: int = 10   # 背包内边距
     
     # 战斗日志级别
-    LOG_LEVEL: LogLevel = LogLevel.NORMAL  # 默认日志级别
+    LOG_LEVEL: LogLevel = LogLevel.VERBOSE  # 默认日志级别
 
 
 # 实例化常量

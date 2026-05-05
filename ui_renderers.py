@@ -292,24 +292,37 @@ class UIRenderer:
         )
         
         # 日志内容
-        log_text = str(battle.battle_log)
-        if log_text:
-            lines = log_text.split('\n')
+        log_entries = battle.battle_log.get_last_entries(10)
+        if log_entries:
             y_offset = log_y + log_height - 40
             line_height = 15
             
-            for line in lines[-10:]:
+            # 定义颜色映射
+            color_map = {
+                "critical_success": (0, 100, 200),      # 大成功 - 深蓝色
+                "success": (0, 180, 0),                 # 成功 - 亮绿色
+                "partial_success": (200, 200, 0),       # 半成功 - 黄色
+                "failure": (220, 140, 0),               # 失败 - 橙色
+                "critical_failure": (220, 0, 0),        # 大失败 - 红色
+                "normal": (50, 50, 50)                  # 普通 - 深灰色（更清晰）
+            }
+            
+            for entry in reversed(log_entries):
                 if y_offset < log_y + 10:
                     break
-                if line.startswith("==="):
+                
+                message, level, color_key = entry
+                
+                # 确定颜色
+                if message.startswith("==="):
                     color = arcade.color.DARK_BLUE
                     bold = True
                 else:
-                    color = arcade.color.BLACK
+                    color = color_map.get(color_key, arcade.color.BLACK)
                     bold = False
                 
                 self.draw_text(
-                    line, log_x + 8, y_offset,
+                    message, log_x + 8, y_offset,
                     color, self.text_font_size,
                     anchor_x="left", anchor_y="top", bold=bold
                 )

@@ -206,7 +206,7 @@ class InputHandler:
         # 如果卡牌目标是自身，直接使用
         if card.target_type == TargetType.SELF:
             print(f"对自身使用卡牌 {card.name}")
-            success, is_permanent = self.battle.play_card(card, current_entity)
+            success, is_permanent, log_entries = self.battle.play_card(card, current_entity)
             if success:
                 print("卡牌使用成功！")
                 # 如果是常驻卡牌，启动上升动画
@@ -361,7 +361,7 @@ class InputHandler:
             
             if distance <= max_distance:
                 print(f"拖动打出卡牌 {card.name} 攻击位置 ({grid_x}, {grid_y})")
-                success, is_permanent = self.battle.play_card(card, target_entity)
+                success, is_permanent, log_entries = self.battle.play_card(card, target_entity)
                 if success:
                     print("卡牌使用成功！")
                     # 如果是常驻卡牌，启动上升动画
@@ -438,7 +438,7 @@ class InputHandler:
             target_entity = self._find_target_entity(target_x, target_y, current_entity)
             
             if target_entity:
-                success, is_permanent = self.battle.play_card(self.selected_card, target_entity)
+                success, is_permanent, log_entries = self.battle.play_card(self.selected_card, target_entity)
                 if success:
                     print("卡牌使用成功！")
                     # 如果是常驻卡牌，启动上升动画
