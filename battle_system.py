@@ -137,6 +137,11 @@ class BattleSystem:
         for entity in self.player_team + self.enemy_team:
             entity.ap = entity.max_ap
             entity.md = entity.max_md
+            
+            # 每回合恢复MP（心智调整值+1）
+            intelligence_modifier = entity.stats.get_modifier('intelligence')
+            mp_regen = intelligence_modifier + 1
+            entity.mp = min(entity.mp + mp_regen, entity.max_mp)
         
         # 抽牌（第1回合已经在reset_for_battle中抽过初始手牌了）
         if self.current_round > 1:
@@ -318,7 +323,7 @@ class BattleSystem:
         self.battle_log.add(f"{ai_entity.name}选择卡牌: {card.name} (AP消耗:{card.ap_cost})", level=2)
         
         # 选择目标（优先攻击敌方存活的实体）
-        target = self._choose_ai_target(ai_entity)
+        target = self._choose_ai_target(ai_entity, card)
         
         if target:
             # 检查是否在卡牌的有效范围内
@@ -397,8 +402,14 @@ class BattleSystem:
             ai_entity.hand.remove(card)
             # 不结束回合，让update_ai下次调用时继续出牌
     
-    def _choose_ai_target(self, ai_entity: Entity) -> Optional[Entity]:
-        """AI选择目标 - 优先选择最近的敌方单位"""
+    def _choose_ai_target(self, ai_entity: Entity, card: Card = None) -> Optional[Entity]:
+        """
+        AI选择目标 - 优先选择最近的敌方单位
+        
+        Args:
+            ai_entity: AI实体
+            card: 当前考虑的卡牌（可选），用于考虑攻击范围
+        """
         # 判断AI属于哪一方
         is_player_side = ai_entity in self.player_team
         
@@ -413,7 +424,29 @@ class BattleSystem:
         if not targets:
             return None
         
-        # 选择距离最近的目标
+        # 如果提供了卡牌，考虑攻击范围形状
+        if card:
+            attack_range_shape = self.get_card_attack_range_shape(card)
+            range_type = attack_range_shape.get("type", "circle")
+            
+            # 对于不同的攻击范围类型，可能需要不同的目标选择策略
+            if range_type == "line":
+                # 直线攻击：优先选择正前方的目标
+                direction = attack_range_shape.get("direction", "forward")
+                length = attack_range_shape.get("length", 3)
+                return self._find_target_in_line(ai_entity, targets, direction, length)
+            elif range_type == "cone":
+                # 锥形攻击：优先选择锥形范围内的目标
+                direction = attack_range_shape.get("direction", "forward")
+                angle = attack_range_shape.get("angle", 90)
+                length = attack_range_shape.get("length", 3)
+                return self._find_target_in_cone(ai_entity, targets, direction, angle, length)
+            elif range_type == "chain":
+                # 链式攻击：优先选择最近的目标
+                pass  # 使用默认的最近目标逻辑
+            # 圆形范围使用默认逻辑
+        
+        # 默认逻辑：选择距离最近的目标
         closest_target = None
         min_distance = float('inf')
         
@@ -424,6 +457,47 @@ class BattleSystem:
                 closest_target = target
         
         return closest_target
+    
+    def _find_target_in_line(self, ai_entity: Entity, targets: list, direction: str, length: int) -> Optional[Entity]:
+        """在直线范围内查找目标"""
+        # 根据方向确定搜索区域
+        for target in targets:
+            dx = target.position[0] - ai_entity.position[0]
+            dy = target.position[1] - ai_entity.position[1]
+            
+            # 检查是否在直线上
+            if direction == "forward" and dx == 0 and 0 < dy <= length:
+                return target
+            elif direction == "backward" and dx == 0 and -length <= dy < 0:
+                return target
+            elif direction == "left" and dy == 0 and -length <= dx < 0:
+                return target
+            elif direction == "right" and dy == 0 and 0 < dx <= length:
+                return target
+        
+        # 如果直线上没有目标，返回None
+        return None
+    
+    def _find_target_in_cone(self, ai_entity: Entity, targets: list, direction: str, angle: int, length: int) -> Optional[Entity]:
+        """在锥形范围内查找目标（简化实现）"""
+        # 简化处理：检查目标是否在矩形区域内
+        half_width = max(1, length // 2)
+        
+        for target in targets:
+            dx = target.position[0] - ai_entity.position[0]
+            dy = target.position[1] - ai_entity.position[1]
+            
+            # 检查是否在锥形范围内（简化为矩形）
+            if direction == "forward" and dx == 0 and 0 < dy <= length:
+                return target
+            elif direction == "backward" and dx == 0 and -length <= dy < 0:
+                return target
+            elif direction == "left" and dy == 0 and -length <= dx < 0:
+                return target
+            elif direction == "right" and dy == 0 and 0 < dx <= length:
+                return target
+        
+        return None
     
     def _calculate_distance(self, pos1: Tuple[int, int], pos2: Tuple[int, int]) -> int:
         """计算两个位置之间的曼哈顿距离"""
@@ -446,6 +520,22 @@ class BattleSystem:
             return 3
         else:
             return default_range
+    
+    def get_card_attack_range_shape(self, card: Card) -> dict:
+        """
+        获取卡牌的攻击范围形状配置
+        
+        Args:
+            card: 卡牌对象
+            
+        Returns:
+            攻击范围形状配置字典，包含type和相应参数
+        """
+        if hasattr(card, 'atk_rnge') and card.atk_rnge:
+            return card.atk_rnge
+        
+        # 默认返回圆形范围，半径为1
+        return {"type": "circle", "radius": 1}
     
     def _ai_move_towards_target(self, ai_entity: Entity, target: Entity, required_range: int) -> bool:
         """

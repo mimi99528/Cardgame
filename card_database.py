@@ -272,6 +272,39 @@ def create_armor_database():
     return default_armors
 
 
+# ==================== 饰品数据库 ====================
+
+def create_accessory_database():
+    """创建饰品数据库 - 从JSON文件读取"""
+    from card_serializer import CardSerializer
+    from models import Accessory
+    
+    # 尝试从JSON文件加载装备
+    json_file = os.path.join(os.path.dirname(__file__), 'equipments.json')
+    
+    accessories = {}
+    
+    if os.path.exists(json_file):
+        try:
+            all_equipments = CardSerializer.load_equipments_from_file(json_file)
+            # 筛选出饰品（通过类型检查）
+            for eq in all_equipments:
+                if isinstance(eq, Accessory):
+                    # 使用英文名作为键
+                    key = eq.name.lower().replace(" ", "_")
+                    accessories[key] = eq
+            
+            return accessories
+        except Exception as e:
+            print(f"警告：从JSON文件加载饰品失败: {e}")
+            import traceback
+            traceback.print_exc()
+            print("使用默认饰品...")
+    
+    # 如果JSON文件不存在或加载失败，返回空字典
+    return accessories
+
+
 # ==================== 预设角色 ====================
 
 def create_player_character():
@@ -295,6 +328,14 @@ def create_player_character():
         deck.extend([cards_db["格挡"].copy() for _ in range(2)])
     if "投毒" in cards_db:
         deck.extend([cards_db["投毒"].copy() for _ in range(3)])
+    
+    # 添加法术卡牌（测试用）
+    if "冰缀" in cards_db:
+        deck.append(cards_db["冰缀"].copy())
+    if "点火" in cards_db:
+        deck.append(cards_db["点火"].copy())
+    if "治疗之光" in cards_db:
+        deck.append(cards_db["治疗之光"].copy())
     
     # 如果卡组为空，添加默认卡牌
     if not deck:
@@ -422,6 +463,14 @@ def create_enemy():
         deck.extend([cards_db["劈砍"].copy() for _ in range(3)])
     if "格挡" in cards_db:
         deck.extend([cards_db["格挡"].copy() for _ in range(2)])
+    
+    # 添加法术卡牌（测试用）
+    if "冰缀" in cards_db:
+        deck.append(cards_db["冰缀"].copy())
+    if "奥术飞弹" in cards_db:
+        deck.append(cards_db["奥术飞弹"].copy())
+    if "法力护盾" in cards_db:
+        deck.append(cards_db["法力护盾"].copy())
     
     # 如果卡组不足10张，补充默认卡牌
     while len(deck) < 10:

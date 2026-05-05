@@ -155,9 +155,15 @@ class CardView(arcade.View):
             self.inventory_renderer.update_hover(x, y)
             return
         
-        # 如果装备界面打开，只更新装备界面悬停
+        # 如果装备界面打开，需要同时更新装备界面和输入处理器
         if self.equipment_renderer.is_visible():
-            self.equipment_renderer.update_hover(x, y)
+            # 先让input_handler处理拖动更新
+            self.input_handler.on_mouse_motion(
+                x, y, dx, dy,
+                self.map_offset_x, self.map_offset_y,
+                self.entity_positions,
+                self.window_width, self.window_height
+            )
             return
         
         self.input_handler.on_mouse_motion(
@@ -180,8 +186,20 @@ class CardView(arcade.View):
             buttons: 按下的鼠标按钮
             modifiers: 键盘修饰键
         """
-        # 如果背包或装备界面打开，禁止所有拖动操作
-        if self.inventory_renderer.is_visible() or self.equipment_renderer.is_visible():
+        # 如果装备界面打开，处理装备拖动
+        if self.equipment_renderer.is_visible():
+            # 如果正在拖动装备，更新拖动位置
+            if self.equipment_renderer.dragged_item and buttons & arcade.MOUSE_BUTTON_LEFT:
+                self.input_handler.on_mouse_motion(
+                    x, y, dx, dy,
+                    self.map_offset_x, self.map_offset_y,
+                    self.entity_positions,
+                    self.window_width, self.window_height
+                )
+            return
+        
+        # 如果背包界面打开，禁止拖动操作
+        if self.inventory_renderer.is_visible():
             return
         
         # 如果正在拖动卡牌（左键），更新拖动位置
@@ -224,14 +242,21 @@ class CardView(arcade.View):
     def on_mouse_release(self, x, y, button, modifiers):
         """鼠标释放事件（用于拖动）"""
         if button == arcade.MOUSE_BUTTON_LEFT:
-            # 如果正在拖动，处理拖动结束
+            # 如果正在拖动卡牌，处理拖动结束
             if self.card_display.is_dragging():
-                self.input_handler.on_mouse_press(
+                self.input_handler.on_mouse_release(
                     x, y, button, modifiers,
                     self.map_offset_x, self.map_offset_y,
                     self.window_width, self.window_height
                 )
                 self.card_display.clear_drag()
+            else:
+                # 处理装备拖动等其他拖动操作
+                self.input_handler.on_mouse_release(
+                    x, y, button, modifiers,
+                    self.map_offset_x, self.map_offset_y,
+                    self.window_width, self.window_height
+                )
     
     def on_key_press(self, key, modifiers):
         """键盘按键事件"""

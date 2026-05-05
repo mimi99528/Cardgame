@@ -59,6 +59,7 @@ class ItemType(Enum):
     """物品类型"""
     WEAPON = "weapon"           # 武器
     ARMOR = "armor"             # 防具
+    ACCESSORY = "accessory"     # 饰品
     CONSUMABLE = "consumable"   # 消耗品
     MATERIAL = "material"       # 材料
     QUEST = "quest"             # 任务物品

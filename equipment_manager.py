@@ -9,15 +9,9 @@ from inventory import InventoryItem, ItemType
 
 class EquipmentSlot(Enum):
     """装备槽位枚举"""
-    BODY = "body"           # 全身装备(主槽位)
-    WEAPON = "weapon"       # 武器槽位(右下角)
-    # 预留扩展槽位
-    # HEAD = "head"         # 头部
-    # CHEST = "chest"       # 胸部
-    # HANDS = "hands"       # 手部
-    # FEET = "feet"         # 脚部
-    # ACCESSORY1 = "acc1"   # 饰品1
-    # ACCESSORY2 = "acc2"   # 饰品2
+    BODY = "body"           # 躯干装备(主槽位)
+    WEAPON = "weapon"       # 武器槽位
+    ACCESSORY = "accessory" # 饰品槽位
 
 
 class EquipmentManager:
@@ -30,12 +24,14 @@ class EquipmentManager:
         self.equipped_items: Dict[EquipmentSlot, Optional[InventoryItem]] = {
             EquipmentSlot.BODY: None,
             EquipmentSlot.WEAPON: None,
+            EquipmentSlot.ACCESSORY: None,
         }
         
         # 已解锁的槽位列表(用于扩展)
         self.unlocked_slots: List[EquipmentSlot] = [
             EquipmentSlot.BODY,
             EquipmentSlot.WEAPON,
+            EquipmentSlot.ACCESSORY,
         ]
         
         # 战斗中标记（战斗中不能更换装备）
@@ -71,6 +67,9 @@ class EquipmentManager:
         if slot == EquipmentSlot.BODY and item.item_type != ItemType.ARMOR:
             return False, "身体槽位只能装备防具"
         
+        if slot == EquipmentSlot.ACCESSORY and item.item_type != ItemType.ACCESSORY:
+            return False, "饰品槽位只能装备饰品"
+        
         # 检查AP是否足够（仅武器需要AP）
         if slot == EquipmentSlot.WEAPON and entity:
             if hasattr(entity, 'ap'):
@@ -96,6 +95,15 @@ class EquipmentManager:
         if not can_equip:
             return False, reason
         
+        # 触发装备前事件
+        from event_system import trigger_event, GameEventType
+        event_data = {
+            "item": item,
+            "slot": slot,
+            "entity": entity
+        }
+        trigger_event(GameEventType.EQUIP_BEFORE, self, entity, event_data)
+        
         # 如果槽位已有装备，先卸下
         old_item = self.equipped_items.get(slot)
         
@@ -106,6 +114,10 @@ class EquipmentManager:
         if slot == EquipmentSlot.WEAPON and entity:
             if hasattr(entity, 'ap'):
                 entity.ap -= self.weapon_swap_ap_cost
+        
+        # 触发装备后事件
+        event_data["old_item"] = old_item
+        trigger_event(GameEventType.EQUIP_AFTER, self, entity, event_data)
         
         if old_item:
             return True, f"已替换{slot.value}槽位的装备: {old_item.name} -> {item.name}"
@@ -126,8 +138,20 @@ class EquipmentManager:
         if item is None:
             return False, f"{slot.value}槽位没有装备", None
         
+        # 触发卸下前事件
+        from event_system import trigger_event, GameEventType
+        event_data = {
+            "item": item,
+            "slot": slot
+        }
+        trigger_event(GameEventType.UNEQUIP_BEFORE, self, None, event_data)
+        
         # 卸下装备
         self.equipped_items[slot] = None
+        
+        # 触发卸下后事件
+        trigger_event(GameEventType.UNEQUIP_AFTER, self, None, event_data)
+        
         return True, f"已卸下{slot.value}槽位的装备: {item.name}", item
     
     def get_equipped_item(self, slot: EquipmentSlot) -> Optional[InventoryItem]:

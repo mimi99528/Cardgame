@@ -21,6 +21,7 @@ class CardDisplay:
             ui_renderer: UIRenderer实例,用于文本绘制
         """
         self.ui_renderer = ui_renderer
+        self.current_battle: Optional[BattleSystem] = None  # 保存当前战斗引用
         self.card_positions: Dict[int, tuple] = {}  # 使用id(card)作为键
         self.hovered_card: Optional[Card] = None
         self.dragged_card: Optional[Card] = None  # 正在拖动的卡牌
@@ -35,6 +36,9 @@ class CardDisplay:
     
     def draw_hand(self, battle: BattleSystem):
         """绘制手牌（根据当前行动的实体）"""
+        # 保存当前battle引用，供其他方法使用
+        self.current_battle = battle
+        
         current_entity = battle.current_entity
         if not current_entity:
             return
@@ -294,49 +298,111 @@ class CardDisplay:
                 anchor_x="center", anchor_y="center", bold=True
             )
     
+
     def _draw_card_description(self, card: Card, x, y, width, height):
-        """绘制卡牌描述"""
-        overlay_color = (64, 64, 64, 200)
-        desc_y_start = y - height / 2 + 41
-        desc_y_end = y + height / 2 - 46
+        """绘制卡牌描述（悬停时显示）"""
+        description_y = y + height / 2 + 10
         
-        arcade.draw_lrbt_rectangle_filled(
-            x - (width - 10) / 2, x + (width - 10) / 2,
-            desc_y_start, desc_y_end,
-            overlay_color
-        )
+        # 计算预期效果值（使用保存的battle引用）
+        expected = self._calculate_expected_values(card, self.current_battle)
         
-        # 构建描述文本
-        description_lines = [card.description]
-        
-        # 添加预期效果数值
-        expected_values = self._calculate_expected_values(card)
-        if expected_values:
-            description_lines.append("")  # 空行
-            description_lines.append("预期效果:")
-            for value_desc in expected_values:
-                description_lines.append(f"  • {value_desc}")
-        
-        # 合并文本
-        full_description = "\n".join(description_lines)
-        
-        self.ui_renderer.draw_text(
-            full_description,
-            x, y - 18,
-            arcade.color.WHITE,
-            self.ui_renderer.text_font_size,
-            anchor_x="center", anchor_y="center",
-            multiline=True, width=width - 30
-        )
+        # 如果有结构化效果列表，使用多行显示
+        if isinstance(card.effects, list):
+            # 构建描述文本
+            desc_lines = []
+            for effect in card.effects:
+                effect_type = effect.get("type", "")
+                if effect_type == "emy_dmg":
+                    dice_expr = effect.get("dice", "")
+                    if dice_expr:
+                        desc_lines.append(f"对敌人造成{dice_expr}点物理伤害")
+                elif effect_type == "self_heal":
+                    amount = effect.get("amount", 0)
+                    desc_lines.append(f"恢复{amount}点生命值")
+                elif effect_type == "self_block":
+                    dice_expr = effect.get("dice", "")
+                    if dice_expr:
+                        desc_lines.append(f"获得{dice_expr}点格挡")
+                    else:
+                        amount = effect.get("amount", 0)
+                        desc_lines.append(f"获得{amount}点格挡")
+                elif effect_type == "apply_buff":
+                    buff_name = effect.get("buff_name", "")
+                    duration = effect.get("duration", 0)
+                    desc_lines.append(f"施加{buff_name}({duration}回合)")
+            
+            # 添加预期效果值
+            if expected:
+                desc_lines.extend(expected)
+            
+            # 绘制多行描述
+            line_height = 20
+            total_height = len(desc_lines) * line_height
+            
+            # 背景框
+            arcade.draw_lrbt_rectangle_filled(
+                x - width / 2 - 5, x + width / 2 + 5,
+                description_y, description_y + total_height + 10,
+                (0, 0, 0, 200)
+            )
+            
+            # 绘制每一行
+            for i, line in enumerate(desc_lines):
+                line_y = description_y + total_height - i * line_height - 10
+                self.ui_renderer.draw_text(
+                    line,
+                    x, line_y,
+                    arcade.color.WHITE,
+                    self.ui_renderer.text_font_size - 2,
+                    anchor_x="center", anchor_y="center"
+                )
+        else:
+            # 旧版字典格式，单行显示
+            description = card.description if hasattr(card, 'description') and card.description else "无描述"
+            
+            # 添加预期效果值
+            if expected:
+                expected_str = ", ".join(expected)
+                description += f"\n[{expected_str}]"
+            
+            # 简单绘制（可能需要改进为多行）
+            self.ui_renderer.draw_text(
+                description,
+                x, description_y + 50,
+                arcade.color.WHITE,
+                self.ui_renderer.text_font_size,
+                anchor_x="center", anchor_y="top"
+            )
     
-    def _calculate_expected_values(self, card: Card) -> list:
+    def _calculate_expected_values(self, card: Card, battle: BattleSystem = None) -> list:
         """
         计算卡牌的预期效果数值
+        
+        Args:
+            card: 卡牌对象
+            battle: 战斗系统对象（可选，用于获取当前实体）
         
         Returns:
             描述列表，如 ["伤害: 15-20", "格挡: 10"]
         """
         expected = []
+        
+        # 获取当前实体（用于计算属性加值）
+        current_entity = None
+        if battle:
+            current_entity = battle.current_entity
+        elif hasattr(self.ui_renderer, 'battle') and self.ui_renderer.battle:
+            current_entity = self.ui_renderer.battle.current_entity
+        
+        # 计算属性加值（如果有实体且卡牌有stat_ratios）
+        stat_bonus = 0
+        if current_entity and hasattr(current_entity, 'stats') and card.stat_ratios:
+            try:
+                stat_bonus = card.get_stat_bonus(current_entity.stats)
+            except Exception as e:
+                # 如果计算失败，记录错误但不中断程序
+                print(f"警告: 计算属性加值失败 - {e}")
+                stat_bonus = 0
         
         # 处理结构化效果列表
         if isinstance(card.effects, list):
@@ -355,14 +421,22 @@ class CardDisplay:
                                 sides = int(parts[1])
                                 min_damage = num_dice * 1
                                 max_damage = num_dice * sides
-                                expected.append(f"伤害: {min_damage}-{max_damage} ({dice_expr})")
+                                # 添加属性加值到显示
+                                if stat_bonus != 0:
+                                    expected.append(f"伤害: {min_damage+stat_bonus}-{max_damage+stat_bonus} ({dice_expr}{stat_bonus:+d})")
+                                else:
+                                    expected.append(f"伤害: {min_damage}-{max_damage} ({dice_expr})")
                         except:
                             pass
                 
                 # 治疗效果
                 elif effect_type == "self_heal":
                     amount = effect.get("amount", 0)
-                    expected.append(f"治疗: {amount}")
+                    # 添加属性加值到显示
+                    if stat_bonus != 0:
+                        expected.append(f"治疗: {amount+stat_bonus} (基础{amount}{stat_bonus:+d})")
+                    else:
+                        expected.append(f"治疗: {amount}")
                 
                 # 格挡效果
                 elif effect_type == "self_block":
@@ -375,12 +449,20 @@ class CardDisplay:
                                 sides = int(parts[1])
                                 min_block = num_dice * 1
                                 max_block = num_dice * sides
-                                expected.append(f"格挡: {min_block}-{max_block} ({dice_expr})")
+                                # 添加属性加值到显示
+                                if stat_bonus != 0:
+                                    expected.append(f"格挡: {min_block+stat_bonus}-{max_block+stat_bonus} ({dice_expr}{stat_bonus:+d})")
+                                else:
+                                    expected.append(f"格挡: {min_block}-{max_block} ({dice_expr})")
                         except:
                             pass
                     else:
                         amount = effect.get("amount", 0)
-                        expected.append(f"格挡: {amount}")
+                        # 添加属性加值到显示
+                        if stat_bonus != 0:
+                            expected.append(f"格挡: {amount+stat_bonus} (基础{amount}{stat_bonus:+d})")
+                        else:
+                            expected.append(f"格挡: {amount}")
         
         # 兼容旧版字典格式
         elif isinstance(card.effects, dict):

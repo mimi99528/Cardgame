@@ -78,7 +78,7 @@ def calculate_attack_difficulty(attacker, target, weapon=None) -> int:
     return base_dn
 
 
-def perform_attack_check(attacker, target, base_damage: int, weapon=None) -> AttackResult:
+def perform_attack_check(attacker, target, base_damage: int, weapon=None, card=None) -> AttackResult:
     """
     执行攻击判定
     
@@ -87,6 +87,7 @@ def perform_attack_check(attacker, target, base_damage: int, weapon=None) -> Att
         target: 目标实体
         base_damage: 基础伤害
         weapon: 使用的武器（可选）
+        card: 使用的卡牌（可选，用于获取属性加值）
     
     Returns:
         AttackResult 对象
@@ -103,6 +104,11 @@ def perform_attack_check(attacker, target, base_damage: int, weapon=None) -> Att
     if attacker and hasattr(attacker, 'stats'):
         strength_mod = attacker.stats.get_modifier('strength')
         modifier += strength_mod
+    
+    # 如果提供了卡牌，添加卡牌的属性加值
+    if card and hasattr(card, 'get_stat_bonus') and hasattr(attacker, 'stats'):
+        card_stat_bonus = card.get_stat_bonus(attacker.stats)
+        modifier += card_stat_bonus
     
     # 执行检定
     check = DiceCheck(difficulty=difficulty, modifier=modifier)

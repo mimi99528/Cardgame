@@ -22,165 +22,13 @@ class CardSerializer:
         Returns:
             是否为装备卡牌
         """
-        return (data.get("category") == "item" and 
-                data.get("type") == "equipment")
-    
-    @staticmethod
-    def _convert_effects_to_list(effects_dict: Dict[str, any]) -> List[Dict[str, Any]]:
-        """
-        将effects字典转换为结构化列表格式
-        
-        Args:
-            effects_dict: 原始effects字典，如 {"hp": -10, "block": 25}
-            
-        Returns:
-            结构化效果列表
-        """
-        # 如果已经是列表格式，直接返回
-        if isinstance(effects_dict, list):
-            return effects_dict
-        
-        effects_list = []
-        
-        for key, value in effects_dict.items():
-            effect = CardSerializer._parse_effect_key_value(key, value)
-            if effect:
-                effects_list.append(effect)
-        
-        return effects_list
-    
-    @staticmethod
-    def _parse_effect_key_value(key: str, value: any) -> Dict[str, Any]:
-        """
-        解析effect键值对为结构化格式
-        
-        Args:
-            key: 效果键名，如 "hp", "block", "pot_3"
-            value: 效果值
-            
-        Returns:
-            结构化效果字典
-        """
-        # 伤害/治疗效果
-        if key == "hp":
-            if value < 0:
-                return {
-                    "type": "emy_dmg",
-                    "amount": abs(value)
-                }
-            else:
-                return {
-                    "type": "self_heal",
-                    "amount": value
-                }
-        
-        # 格挡效果
-        elif key == "block":
-            return {
-                "type": "self_block",
-                "amount": value
-            }
-        
-        # Buff/Debuff效果（如 pot_3）
-        elif "_" in key:
-            parts = key.split("_")
-            buff_prefix = parts[0]
-            
-            # 查找对应的BuffType
-            from config import BuffType
-            for buff_type in BuffType:
-                if buff_type.value == buff_prefix:
-                    # value就是实际的层数
-                    actual_stacks = value
-                    
-                    # 判断是Debuff还是Buff
-                    if buff_prefix in ["pot"]:  # Debuff
-                        return {
-                            "type": "emy_debuff",
-                            "buff_type": buff_type.value,
-                            "stacks": actual_stacks,
-                            "duration": -1  # -1表示永久
-                        }
-                    else:  # Buff
-                        return {
-                            "type": "self_buff",
-                            "buff_type": buff_type.value,
-                            "stacks": actual_stacks,
-                            "duration": -1
-                        }
-        
-        # 未知效果类型，保留原始格式
-        return {
-            "type": key,
-            "value": value
-        }
-    
-    @staticmethod
-    def _convert_effects_list_to_dict(effects_list: List[Dict[str, Any]]) -> Dict[str, any]:
-        """
-        将结构化效果列表转换回字典格式（用于创建Card对象）
-        
-        Args:
-            effects_list: 结构化效果列表
-            
-        Returns:
-            effects字典
-        """
-        effects_dict = {}
-        
-        for effect in effects_list:
-            effect_type = effect.get("type", "")
-            
-            # 敌方伤害
-            if effect_type == "emy_dmg":
-                # 优先使用dice表达式，否则使用amount
-                if "dice" in effect:
-                    # 对于dice表达式，我们暂时存储为特殊标记
-                    effects_dict["hp_dice"] = effect["dice"]
-                elif "amount" in effect:
-                    effects_dict["hp"] = -effect.get("amount", 0)
-            
-            # 自我治疗
-            elif effect_type == "self_heal":
-                effects_dict["hp"] = effect.get("amount", 0)
-            
-            # 自我格挡
-            elif effect_type == "self_block":
-                # 优先使用dice表达式，否则使用amount
-                if "dice" in effect:
-                    effects_dict["block_dice"] = effect["dice"]
-                elif "amount" in effect:
-                    effects_dict["block"] = effect.get("amount", 0)
-            
-            # 敌方Debuff
-            elif effect_type == "emy_debuff":
-                buff_type = effect.get("buff_type", "")
-                stacks = effect.get("stacks", 1)
-                # 使用stacks值作为键名的一部分，保持与原始格式一致
-                key = f"{buff_type}_{stacks}"
-                effects_dict[key] = stacks
-            
-            # 自我Buff
-            elif effect_type == "self_buff":
-                buff_type = effect.get("buff_type", "")
-                stacks = effect.get("stacks", 1)
-                # 使用stacks值作为键名的一部分，保持与原始格式一致
-                key = f"{buff_type}_{stacks}"
-                effects_dict[key] = stacks
-            
-            # 其他类型，尝试直接使用
-            else:
-                if "value" in effect:
-                    effects_dict[effect_type] = effect["value"]
-                elif "amount" in effect:
-                    effects_dict[effect_type] = effect["amount"]
-        
-        return effects_dict
+        return (data.get("type") == "equipment" and 
+                data.get("category") in ["item", "item-accessory"])
     
     @staticmethod
     def card_to_dict(card: Card, card_id: int = None) -> Dict[str, Any]:
         """
-        将卡牌对象转换为字典
+        将卡牌对象转换为字典（使用结构化列表格式）
         
         Args:
             card: 卡牌对象
@@ -189,10 +37,7 @@ class CardSerializer:
         Returns:
             包含卡牌信息的字典
         """
-        # 转换effects为结构化列表格式
-        effects_list = CardSerializer._convert_effects_to_list(card.effects)
-        
-        return {
+        card_dict = {
             "id": card_id if card_id is not None else id(card),
             "name": card.name,
             "category": "combat",  # 卡牌分类
@@ -200,12 +45,30 @@ class CardSerializer:
             "description": card.description,
             "rarity": card.rarity.name,  # 存储枚举的名称
             "ap_cost": card.ap_cost,
-            "effects": effects_list,  # 结构化效果列表
+            "effects": card.effects if isinstance(card.effects, list) else [],  # 结构化效果列表
             "play_conditions": [],  # 预留字段：打出条件列表
             "atk_dis": card.atk_dis,  # 攻击距离
             "atk_rnge": card.atk_rnge,  # 攻击范围
-            "target_type": card.target_type.value  # 目标类型
+            "target_type": card.target_type.value,  # 目标类型
+            "is_movement": card.is_movement,  # 是否为移动卡牌
+            "mp_cost": card.mp_cost,  # MP消耗
+            "stat_ratios": card.stat_ratios if card.stat_ratios else {}  # 属性比例
         }
+        
+        # 添加升级信息（如果有）
+        if card.upgrade:
+            card_dict["upgrade"] = {
+                "level": card.upgrade.level,
+                "upgrades": card.upgrade.upgrades
+            }
+        
+        # 添加进化信息（如果有）
+        if card.evolved_from:
+            card_dict["evolved_from"] = card.evolved_from
+        if card.can_evolve_to:
+            card_dict["can_evolve_to"] = card.can_evolve_to
+        
+        return card_dict
     
     @staticmethod
     def dict_to_card(data: Dict[str, Any]) -> Card:
@@ -246,29 +109,41 @@ class CardSerializer:
             except KeyError:
                 raise ValueError(f"无效的稀有度: {data['rarity']}")
         
-        # 转换effects：支持列表格式和旧版字典格式
-        effects_dict = {}
-        if "effects" in data:
-            if isinstance(data["effects"], list):
-                # 新格式：结构化列表
-                effects_dict = CardSerializer._convert_effects_list_to_dict(data["effects"])
-            elif isinstance(data["effects"], dict):
-                # 旧格式：字典（向后兼容）
-                effects_dict = data["effects"]
+        # 获取effects（必须是列表格式）
+        effects = data.get("effects", [])
+        if not isinstance(effects, list):
+            raise ValueError(f"卡牌 '{data.get('name', 'Unknown')}' 的effects必须是列表格式")
         
         # 创建卡牌对象
         card = Card(
             name=data["name"],
             card_type=card_type,
             ap_cost=data["ap_cost"],
-            effects=effects_dict,
+            effects=effects,  # 直接使用结构化列表
             description=data["description"],
             rarity=rarity,
             atk_dis=data.get("atk_dis", 1),  # 默认攻击距离为1（近战）
             atk_rnge=data.get("atk_rnge", {"type": "circle", "radius": 1}),  # 默认攻击范围为半径1的圆形
             target_type=TargetType(data.get("target_type", "enemy")),  # 默认目标类型为敌人
-            is_movement=data.get("is_movement", False)
+            is_movement=data.get("is_movement", False),
+            mp_cost=data.get("mp_cost", 0),  # 默认MP消耗为0
+            stat_ratios=data.get("stat_ratios", {})  # 默认无属性比例
         )
+        
+        # 恢复升级信息（如果有）
+        if "upgrade" in data:
+            from models import CardUpgrade
+            upgrade_data = data["upgrade"]
+            card.upgrade = CardUpgrade(
+                level=upgrade_data.get("level", 0),
+                upgrades=upgrade_data.get("upgrades", [])
+            )
+        
+        # 恢复进化信息（如果有）
+        if "evolved_from" in data:
+            card.evolved_from = data["evolved_from"]
+        if "can_evolve_to" in data:
+            card.can_evolve_to = data["can_evolve_to"]
         
         return card
     
@@ -326,6 +201,18 @@ class CardSerializer:
                 provided_cards=equipment_stats.get("provided_cards", [])
             )
             return armor
+        
+        elif equipment_type == "accessory":
+            # 创建饰品
+            from models import Accessory
+            accessory = Accessory(
+                name=data["name"],
+                description=data["description"],
+                rarity=rarity,
+                stat_bonuses=equipment_stats.get("stat_bonuses", {}),
+                special_effects=data.get("effects", [])
+            )
+            return accessory
         
         else:
             raise ValueError(f"未知的装备类型: {equipment_type}")

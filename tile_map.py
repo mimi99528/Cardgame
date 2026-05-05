@@ -288,7 +288,7 @@ class TileMap:
         return pixel_x, pixel_y
     
     def highlight_range(self, center_x: int, center_y: int, max_distance: int):
-        """高亮显示范围内的瓦片"""
+        """高亮显示范围内的瓦片（圆形范围）"""
         # 高亮显示范围内的瓦片
         for y in range(self.height):
             for x in range(self.width):
@@ -302,6 +302,125 @@ class TileMap:
                     tile = self.get_tile(x, y)
                     if tile and 0 <= y < len(self.original_colors) and 0 <= x < len(self.original_colors[y]):
                         tile.color = self.original_colors[y][x]
+    
+    def highlight_attack_range(self, center_x: int, center_y: int, attack_range_config: dict):
+        """
+        根据攻击范围配置高亮显示瓦片
+        
+        Args:
+            center_x: 中心点x坐标
+            center_y: 中心点y坐标
+            attack_range_config: 攻击范围配置字典，如 {"type": "circle", "radius": 2}
+        """
+        range_type = attack_range_config.get("type", "circle")
+        
+        # 先重置所有高亮
+        self.reset_highlights()
+        
+        if range_type == "circle":
+            radius = attack_range_config.get("radius", 1)
+            self._highlight_circle_range(center_x, center_y, radius)
+        elif range_type == "line":
+            direction = attack_range_config.get("direction", "forward")  # forward, backward, left, right
+            length = attack_range_config.get("length", 3)
+            self._highlight_line_range(center_x, center_y, direction, length)
+        elif range_type == "chain":
+            max_targets = attack_range_config.get("max_targets", 3)
+            max_distance = attack_range_config.get("max_distance", 4)
+            self._highlight_chain_range(center_x, center_y, max_targets, max_distance)
+        elif range_type == "cone":
+            direction = attack_range_config.get("direction", "forward")
+            angle = attack_range_config.get("angle", 90)  # 角度
+            length = attack_range_config.get("length", 3)
+            self._highlight_cone_range(center_x, center_y, direction, angle, length)
+        else:
+            # 默认使用圆形范围
+            radius = attack_range_config.get("radius", 1)
+            self._highlight_circle_range(center_x, center_y, radius)
+    
+    def _highlight_circle_range(self, center_x: int, center_y: int, radius: int):
+        """高亮圆形范围"""
+        for y in range(self.height):
+            for x in range(self.width):
+                # 使用曼哈顿距离
+                distance = abs(x - center_x) + abs(y - center_y)
+                if distance <= radius:
+                    tile = self.get_tile(x, y)
+                    if tile:
+                        tile.color = self.colors['range']
+    
+    def _highlight_line_range(self, center_x: int, center_y: int, direction: str, length: int):
+        """高亮直线范围"""
+        positions = []
+        
+        if direction == "forward":  # 向上
+            for i in range(1, length + 1):
+                positions.append((center_x, center_y + i))
+        elif direction == "backward":  # 向下
+            for i in range(1, length + 1):
+                positions.append((center_x, center_y - i))
+        elif direction == "left":  # 向左
+            for i in range(1, length + 1):
+                positions.append((center_x - i, center_y))
+        elif direction == "right":  # 向右
+            for i in range(1, length + 1):
+                positions.append((center_x + i, center_y))
+        
+        # 高亮这些位置
+        for x, y in positions:
+            if 0 <= x < self.width and 0 <= y < self.height:
+                tile = self.get_tile(x, y)
+                if tile:
+                    tile.color = self.colors['range']
+    
+    def _highlight_chain_range(self, center_x: int, center_y: int, max_targets: int, max_distance: int):
+        """高亮链式攻击范围（简单实现：高亮周围一定距离内的所有位置）"""
+        for y in range(self.height):
+            for x in range(self.width):
+                distance = abs(x - center_x) + abs(y - center_y)
+                if distance <= max_distance and distance > 0:  # 不包括自身
+                    tile = self.get_tile(x, y)
+                    if tile:
+                        tile.color = self.colors['range']
+    
+    def _highlight_cone_range(self, center_x: int, center_y: int, direction: str, angle: int, length: int):
+        """高亮锥形范围（简化实现）"""
+        # 这里简化处理，实际锥形需要更复杂的几何计算
+        # 暂时用矩形区域代替
+        half_width = max(1, length // 2)
+        
+        if direction == "forward":  # 向上
+            for dy in range(1, length + 1):
+                for dx in range(-half_width, half_width + 1):
+                    x, y = center_x + dx, center_y + dy
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        tile = self.get_tile(x, y)
+                        if tile:
+                            tile.color = self.colors['range']
+        elif direction == "backward":  # 向下
+            for dy in range(1, length + 1):
+                for dx in range(-half_width, half_width + 1):
+                    x, y = center_x + dx, center_y - dy
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        tile = self.get_tile(x, y)
+                        if tile:
+                            tile.color = self.colors['range']
+        elif direction == "left":  # 向左
+            for dx in range(1, length + 1):
+                for dy in range(-half_width, half_width + 1):
+                    x, y = center_x - dx, center_y + dy
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        tile = self.get_tile(x, y)
+                        if tile:
+                            tile.color = self.colors['range']
+        elif direction == "right":  # 向右
+            for dx in range(1, length + 1):
+                for dy in range(-half_width, half_width + 1):
+                    x, y = center_x + dx, center_y + dy
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        tile = self.get_tile(x, y)
+                        if tile:
+                            tile.color = self.colors['range']
     
     def highlight_move_range(self, start_x: int, start_y: int, valid_moves: List[Tuple[int, int]]):
         """高亮显示移动范围"""

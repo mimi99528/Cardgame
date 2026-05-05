@@ -188,6 +188,9 @@ class UIRenderer:
         # AP显示
         self._draw_ap_display(battle)
         
+        # MP显示
+        self._draw_mp_display(battle)
+        
         # 绘制卡组和弃牌堆数量
         self._draw_deck_info(battle)
     
@@ -268,6 +271,37 @@ class UIRenderer:
                 else:
                     arcade.draw_circle_filled(x_pos, ap_y_pos, 8, arcade.color.BLUE)
                     arcade.draw_circle_outline(x_pos, ap_y_pos, 8, arcade.color.WHITE, 2)
+    
+    def _draw_mp_display(self, battle: BattleSystem):
+        """绘制MP显示"""
+        mp_y_pos = 60  # MP显示在AP上方
+        
+        current_entity = battle.current_entity
+        if current_entity and current_entity.is_alive():
+            is_player_side = current_entity in battle.player_team
+            
+            if is_player_side:
+                mp_start_x = 20
+            else:
+                mp_start_x = self.window_width - 20
+            
+            # 绘制MP文本
+            if is_player_side:
+                text_x = mp_start_x
+            else:
+                text_x = mp_start_x
+            
+            # MP颜色：蓝色渐变，表示魔法值
+            mp_color = (100, 149, 237)  # 矢车菊蓝
+            
+            self.draw_text(
+                f"MP: {current_entity.mp}/{current_entity.max_mp}",
+                text_x, mp_y_pos,
+                mp_color, self.text_font_size,
+                anchor_x="left" if is_player_side else "right",
+                anchor_y="center",
+                bold=True
+            )
     
     def _draw_deck_info(self, battle: BattleSystem):
         """绘制卡组和弃牌堆数量信息"""

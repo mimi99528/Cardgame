@@ -60,9 +60,15 @@ class InputHandler:
         """
         # 如果装备界面打开，更新装备界面的悬停状态
         if self.equipment_renderer and self.equipment_renderer.is_visible():
-            self.equipment_renderer.update_hover(x, y)
+            # 如果正在拖动装备，更新拖动位置
+            print(f"Updating equipment renderer: dragged_item={self.equipment_renderer.dragged_item is not None}, pos=({x}, {y})")
+            if self.equipment_renderer.dragged_item:
+                print(f"  -> Calling update_drag with ({x}, {y})")
+                self.equipment_renderer.update_drag(x, y)
+            else:
+                self.equipment_renderer.update_hover(x, y)
             return
-        
+
         # 如果背包界面打开，更新背包的悬停状态
         if self.inventory_renderer and self.inventory_renderer.is_visible():
             self.inventory_renderer.update_hover(x, y)
@@ -142,7 +148,29 @@ class InputHandler:
         """
         # 如果装备界面打开，处理装备界面的点击
         if self.equipment_renderer and self.equipment_renderer.is_visible():
-            self._handle_equipment_interface_click(x, y, button)
+            # 左键：开始拖动或装备物品
+            if button == arcade.MOUSE_BUTTON_LEFT:
+                # 检查是否点击了装备槽位（开始拖动）
+                slot = self.equipment_renderer.get_slot_at_pos(x, y)
+                if slot:
+                    # 开始从槽位拖动
+                    if self.equipment_renderer.start_drag_from_slot(slot, x, y):
+                        print(f"开始拖动槽位 {slot.value} 的装备")
+                        return
+                
+                # 检查是否点击了背包物品（开始拖动）
+                item_index = self.equipment_renderer.get_inventory_item_at_pos(x, y)
+                if item_index is not None:
+                    # 开始从背包拖动
+                    if self.equipment_renderer.start_drag_from_inventory(item_index, x, y):
+                        print(f"开始拖动背包物品")
+                        return
+                
+                # 如果没有点击可拖动的物品，处理普通点击
+                self._handle_equipment_interface_click(x, y, button)
+            # 右键：卸下装备
+            elif button == arcade.MOUSE_BUTTON_RIGHT:
+                self._handle_equipment_interface_click(x, y, button)
             return
         
         # 如果背包界面打开，处理背包的点击
@@ -186,6 +214,34 @@ class InputHandler:
             # 检查是否点击了瓦片地图区域
             self._handle_tile_click(x, y, map_offset_x, map_offset_y, current_entity, window_width, window_height)
     
+    def on_mouse_release(self, x: float, y: float, button: int, modifiers: int,
+                        map_offset_x: float, map_offset_y: float,
+                        window_width: float = None, window_height: float = None):
+        """
+        处理鼠标释放事件
+        
+        Args:
+            x, y: 鼠标坐标（屏幕坐标）
+            button: 鼠标按钮
+            modifiers: 修饰键
+            map_offset_x, map_offset_y: 地图偏移量（已废弃，保留兼容性）
+            window_width, window_height: 窗口尺寸（用于坐标转换）
+        """
+        # 如果装备界面打开且正在拖动装备
+        if self.equipment_renderer and self.equipment_renderer.is_visible():
+            if self.equipment_renderer.dragged_item and button == arcade.MOUSE_BUTTON_LEFT:
+                # 检查释放位置是否在某个槽位上
+                target_slot = self.equipment_renderer.get_slot_at_pos(x, y)
+                
+                # 结束拖动
+                success, message = self.equipment_renderer.end_drag(target_slot)
+                print(message)
+                return
+        
+        # 处理卡牌拖动释放
+        if self.drag_mode and self.dragged_card_for_target and button == arcade.MOUSE_BUTTON_LEFT:
+            self._handle_drag_end(x, y, map_offset_x, map_offset_y, window_width, window_height)
+    
     def _handle_card_click(self, card: Card, current_entity: Entity):
         """处理卡牌点击（非拖动情况）"""
         # 如果是移动卡牌
@@ -217,10 +273,15 @@ class InputHandler:
             self.selected_card = None
         else:
             # 其他目标类型，进入目标选择模式
-            card_range = self._get_card_range(card)
-            self.tile_map.highlight_range(current_entity.position[0], 
-                                        current_entity.position[1], 
-                                        card_range)
+            # 获取攻击范围形状配置
+            attack_range_shape = self.battle.get_card_attack_range_shape(card)
+            
+            # 使用新的高亮方法显示攻击范围
+            self.tile_map.highlight_attack_range(
+                current_entity.position[0], 
+                current_entity.position[1], 
+                attack_range_shape
+            )
             self.target_selection_mode = True
     
     def _handle_movement_card(self, card: Card, current_entity: Entity):
@@ -402,17 +463,17 @@ class InputHandler:
             self._handle_movement_card_target(grid_x, grid_y)
             return
         
-        if self.target_selection_mode:
-            # 第二次点击，确定目标
-            self._handle_target_selection(grid_x, grid_y)
-            self.target_selection_mode = False
-            self.first_click_pos = None
-            self.tile_map.reset_highlights()
-        else:
-            # 第一次点击，进入目标选择模式或移动
-            self.first_click_pos = (grid_x, grid_y)
-            self.target_selection_mode = True
-            self.tile_map.highlight_range(grid_x, grid_y, 3)
+        # if self.target_selection_mode:
+        #     # 第二次点击，确定目标
+        #     self._handle_target_selection(grid_x, grid_y)
+        #     self.target_selection_mode = False
+        #     self.first_click_pos = None
+        #     self.tile_map.reset_highlights()
+        # else:
+        #     # 第一次点击，进入目标选择模式或移动
+        #     # 不再显示默认范围，因为卡牌选择时会自动显示正确的攻击范围
+        #     self.first_click_pos = (grid_x, grid_y)
+        #     self.target_selection_mode = True
     
     def _handle_target_selection(self, target_x: int, target_y: int):
         """处理目标选择"""
@@ -515,6 +576,10 @@ class InputHandler:
     
     def _get_card_range(self, card: Card) -> int:
         """根据卡牌类型获取有效距离"""
+        # 如果有atk_dis属性，使用它
+        if hasattr(card, 'atk_dis') and card.atk_dis:
+            return card.atk_dis
+        
         default_range = 3
         
         if card.card_type.value in ["atk_phy", "atk_mag"]:
@@ -647,7 +712,7 @@ class InputHandler:
                 inventory = entity.inventory
                 equippable_items = [
                     item for item in inventory.items 
-                    if item.item_type in [ItemType.WEAPON, ItemType.ARMOR]
+                    if item.item_type in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY]
                 ]
                 
                 if 0 <= item_index < len(equippable_items):
@@ -658,6 +723,8 @@ class InputHandler:
                         target_slot = EquipmentSlot.WEAPON
                     elif item.item_type == ItemType.ARMOR:
                         target_slot = EquipmentSlot.BODY
+                    elif item.item_type == ItemType.ACCESSORY:
+                        target_slot = EquipmentSlot.ACCESSORY
                     else:
                         return
                     

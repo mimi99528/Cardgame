@@ -3,7 +3,7 @@
 包含实体、卡牌、装备等基础类
 """
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from copy import deepcopy
 from enum import Enum
 import random
@@ -78,6 +78,11 @@ class Equipment:
     
     def __str__(self):
         return self.name
+    
+    def copy(self):
+        """创建副本"""
+        from copy import deepcopy
+        return deepcopy(self)
 
 
 @dataclass
@@ -120,6 +125,18 @@ class Armor(Equipment):
 
 
 @dataclass
+class Accessory(Equipment):
+    """饰品类"""
+    # 饰品可以提供各种特殊效果和属性加成
+    stat_bonuses: Dict[str, int] = field(default_factory=dict)  # 属性加成，如 {"strength": 2, "dexterity": -1}
+    special_effects: List[Dict[str, any]] = field(default_factory=list)  # 特殊效果列表
+    
+    def get_stat_bonus(self, stat_name: str) -> int:
+        """获取指定属性的加成值"""
+        return self.stat_bonuses.get(stat_name, 0)
+
+
+@dataclass
 class Buff:
     """Buff/Debuff 效果"""
     buff_type: BuffType
@@ -132,6 +149,22 @@ class Buff:
             self.duration -= 1
             return self.duration <= 0
         return False
+
+
+@dataclass
+class CardUpgrade:
+    """卡牌升级信息"""
+    level: int = 0  # 升级等级
+    upgrades: List[Dict[str, any]] = field(default_factory=list)  # 升级列表
+    
+    def add_upgrade(self, upgrade_type: str, value: any, description: str = ""):
+        """添加升级"""
+        self.upgrades.append({
+            "type": upgrade_type,
+            "value": value,
+            "description": description
+        })
+        self.level += 1
 
 
 class Entity:
@@ -165,6 +198,11 @@ class Entity:
         self.stats = stats or Stats()
         self.max_ap = self._calculate_max_ap()
         self.ap = self.max_ap
+        
+        # 计算初始MP（基础值10 + 心智调整值）
+        self.base_max_mp = 10
+        self.max_mp = self._calculate_max_mp()
+        self.mp = self.max_mp
         
         # 移动距离
         self.max_md = max_md
@@ -213,6 +251,11 @@ class Entity:
         #     ap += armor.calculate_ac_bonus(self.stats)
         return ap
     
+    def _calculate_max_mp(self) -> int:
+        """计算最大MP（基础值10 + 心智调整值）"""
+        intelligence_modifier = self.stats.get_modifier('intelligence')
+        return self.base_max_mp + intelligence_modifier
+    
     def _load_equipment_cards(self):
         """从装备加载提供的卡牌"""
         from card_database import create_card_database
@@ -241,6 +284,7 @@ class Entity:
         """重置状态准备战斗"""
         self.hp = self.max_hp
         self.ap = self.max_ap
+        self.mp = self.max_mp
         self.md = self.max_md
         self.block = 0
         self.buffs.clear()
@@ -363,11 +407,20 @@ class Entity:
         if self.ap < card.ap_cost:
             return False, False, []
         
+        # 检查MP是否足够（法术卡牌需要）
+        if hasattr(card, 'mp_cost') and card.mp_cost > 0:
+            if self.mp < card.mp_cost:
+                return False, False, []
+        
         # 检查是否是常驻卡牌
         is_permanent = card in self.permanent_cards
         
         # 扣除AP
         self.ap -= card.ap_cost
+        
+        # 扣除MP（如果卡牌需要）
+        if hasattr(card, 'mp_cost') and card.mp_cost > 0:
+            self.mp -= card.mp_cost
         
         # 从手牌移除
         self.hand.remove(card)
@@ -386,29 +439,98 @@ class Entity:
         
         return True, False, log_entries
     
-    def take_damage(self, damage: int, ignore_block: bool = False):
+    def take_damage(self, damage: int, ignore_block: bool = False, source: Any = None):
         """
         受到伤害
         
         Args:
             damage: 伤害值
             ignore_block: 是否忽略格挡(真伤)
+            source: 伤害来源（卡牌、实体等）
         """
+        from event_system import GameEventType, trigger_event, apply_damage_modifiers, break_shield_modifier
+        
+        # 应用伤害修正
+        modified_damage = apply_damage_modifiers(damage, source, self)
+        
+        # 触发伤害应用前事件
+        damage_event = trigger_event(
+            GameEventType.DAMAGE_BEFORE_APPLY,
+            source=source,
+            target=self,
+            data={"damage": modified_damage, "ignore_block": ignore_block}
+        )
+        
+        # 读取事件中的数据
+        modified_damage = damage_event.get_value("damage", modified_damage)
+        ignore_block = damage_event.get_value("ignore_block", ignore_block)
+        block_mechanism = damage_event.get_value("ignore_block_mechanism", "normal")
+        
         # 如果不忽略格挡，先消耗格挡
         if not ignore_block and self.block > 0:
-            if self.block >= damage:
-                self.block -= damage
-                damage = 0
+            if block_mechanism == "double":
+                # 破盾效果：双倍消耗格挡值
+                block_damage = min(self.block, modified_damage * 2)
+                actual_block_used = block_damage // 2  # 实际消耗的格挡
+                remaining_damage = modified_damage - actual_block_used
+                self.block -= block_damage
+                modified_damage = max(0, remaining_damage)
             else:
-                damage -= self.block
-                self.block = 0
+                # 正常格挡逻辑
+                if self.block >= modified_damage:
+                    self.block -= modified_damage
+                    modified_damage = 0
+                else:
+                    modified_damage -= self.block
+                    self.block = 0
         
         # 扣除HP
-        self.hp -= damage
+        self.hp -= modified_damage
+        
+        # 触发伤害应用后事件
+        trigger_event(
+            GameEventType.DAMAGE_AFTER_APPLY,
+            source=source,
+            target=self,
+            data={"final_damage": modified_damage}
+        )
     
-    def heal(self, amount: int):
-        """治疗"""
-        self.hp = min(self.hp + amount, self.max_hp)
+    def heal(self, amount: int, source: Any = None):
+        """
+        治疗
+        
+        Args:
+            amount: 基础治疗量
+            source: 治疗来源
+        """
+        from event_system import GameEventType, trigger_event, apply_heal_modifiers
+        
+        # 应用治疗修正
+        modified_heal = apply_heal_modifiers(amount, source, self)
+        
+        # 触发治疗应用前事件
+        heal_event = trigger_event(
+            GameEventType.HEAL_BEFORE_APPLY,
+            source=source,
+            target=self,
+            data={"heal": modified_heal}
+        )
+        
+        # 读取事件中的数据
+        modified_heal = heal_event.get_value("heal", modified_heal)
+        
+        # 应用治疗
+        old_hp = self.hp
+        self.hp = min(self.hp + modified_heal, self.max_hp)
+        actual_heal = self.hp - old_hp
+        
+        # 触发治疗应用后事件
+        trigger_event(
+            GameEventType.HEAL_AFTER_APPLY,
+            source=source,
+            target=self,
+            data={"actual_heal": actual_heal}
+        )
     
     def add_block(self, amount: int):
         """增加格挡"""
@@ -502,7 +624,9 @@ class Card:
         atk_rnge: Optional[Dict[str, any]] = None,
         target_type: TargetType = TargetType.ENEMY,
         is_movement: bool = False,  # 是否为移动卡牌
-        card_id: Optional[int] = None  # 卡牌唯一ID（可选，自动生成）
+        mp_cost: int = 0,  # MP消耗（法术卡牌需要）
+        card_id: Optional[int] = None,  # 卡牌唯一ID（可选，自动生成）
+        stat_ratios: Optional[Dict[str, float]] = None  # 属性比例 {"str": 1.0, "dex": 0.5, "int": 0.0, "cha": 0.0}
     ):
         self.name = name
         self.card_type = card_type
@@ -515,6 +639,8 @@ class Card:
         self.atk_rnge = atk_rnge or {"type": "circle", "radius": 1}  # 攻击范围，默认为半径1的圆形
         self.target_type = target_type  # 目标类型，默认为敌人
         self.is_movement = is_movement  # 是否为移动卡牌
+        self.mp_cost = mp_cost  # MP消耗
+        self.stat_ratios = stat_ratios or {}  # 属性比例，如 {"str": 1.0, "dex": 0.5}
         
         # 分配唯一ID
         if card_id is not None:
@@ -522,6 +648,48 @@ class Card:
         else:
             Card._id_counter += 1
             self.card_id = Card._id_counter
+        
+        # 升级和进化相关属性
+        self.upgrade: Optional[CardUpgrade] = None  # 卡牌升级信息
+        self.evolved_from: Optional[str] = None  # 进化来源卡牌名称
+        self.can_evolve_to: Optional[str] = None  # 可以进化到的卡牌名称
+    
+    def get_stat_bonus(self, stats: Stats) -> int:
+        """
+        根据属性比例计算属性加值
+        
+        Args:
+            stats: 角色属性对象
+            
+        Returns:
+            属性加值总和
+        """
+        if not self.stat_ratios:
+            return 0
+        
+        total_bonus = 0
+
+        # 力量加值
+        if "str" in self.stat_ratios:
+            str_mod = stats.get_modifier('strength')
+            total_bonus += int(str_mod * self.stat_ratios["str"])
+        
+        # 敏捷加值
+        if "dex" in self.stat_ratios:
+            dex_mod = stats.get_modifier('dexterity')
+            total_bonus += int(dex_mod * self.stat_ratios["dex"])
+        
+        # 心智加值
+        if "int" in self.stat_ratios:
+            int_mod = stats.get_modifier('intelligence')
+            total_bonus += int(int_mod * self.stat_ratios["int"])
+        
+        # 魅力加值
+        if "cha" in self.stat_ratios:
+            cha_mod = stats.get_modifier('charisma')
+            total_bonus += int(cha_mod * self.stat_ratios["cha"])
+        
+        return total_bonus
     
     def _apply_damage_effect(self, attacker: Entity, target: Entity, base_damage: int, card_name: str) -> List:
         """
@@ -536,14 +704,34 @@ class Card:
         Returns:
             日志消息列表 (message, level, color_key)
         """
+        from event_system import break_shield_modifier
+        
         results = []
+        
+        # 计算属性加值（用于显示和日志）
+        stat_bonus = self.get_stat_bonus(attacker.stats)
+        
+        # 检查是否有特殊效果（如破盾）
+        has_special_effect = False
+        if isinstance(self.effects, list):
+            for effect in self.effects:
+                if effect.get("special_effect") == "double_block_damage":
+                    has_special_effect = True
+                    break
+        elif isinstance(self.effects, dict):
+            if self.effects.get("special_effect") == "double_block_damage":
+                has_special_effect = True
+        
+        # 如果卡牌有破盾效果，激活破盾修饰器
+        if has_special_effect:
+            break_shield_modifier.activate()
         
         # 获取武器
         weapon = attacker.equipment.get("weapon")
         
-        # 执行攻击判定
+        # 执行攻击判定（传入卡牌以使用属性加值）
         from attack_system import perform_attack_check, AttackOutcome
-        attack_result = perform_attack_check(attacker, target, base_damage, weapon)
+        attack_result = perform_attack_check(attacker, target, base_damage, weapon, card=self)
         
         # 根据攻击结果确定颜色键值
         outcome_color_map = {
@@ -557,6 +745,10 @@ class Card:
         
         # 记录判定结果
         results.append((f"{attacker}对{target}使用{card_name}", 0, color_key))  # level 0
+        
+        # 显示属性加值（如果有）
+        if stat_bonus != 0:
+            results.append((f"  属性加值: +{stat_bonus} (命中和伤害)", 2, color_key))
         
         # 详细判定信息（level 2 - verbose）
         results.append((f"  判定: {attack_result.outcome.value}", 2, color_key))
@@ -582,6 +774,16 @@ class Card:
         if not self.owner:
             raise ValueError("卡牌没有所有者")
         
+        from event_system import GameEventType, trigger_event
+        
+        # 触发卡牌打出前事件
+        trigger_event(
+            GameEventType.CARD_PLAY_BEFORE,
+            source=self,
+            target=target,
+            data={"card_name": self.name}
+        )
+        
         attacker = self.owner
         results = []
         
@@ -603,6 +805,11 @@ class Card:
                 # 自我治疗
                 elif effect_type == "self_heal":
                     amount = effect.get("amount", 0)
+                    # 应用属性加值到治疗量
+                    heal_bonus = self.get_stat_bonus(attacker.stats)
+                    if heal_bonus != 0:
+                        amount += heal_bonus
+                        results.append((f"  属性加值: +{heal_bonus}", 2, "success"))
                     attacker.heal(amount)
                     results.append((f"{attacker}使用{self.name}，恢复{amount}点生命值", 0, "success"))  # level 0, success color
                 
@@ -613,6 +820,11 @@ class Card:
                         block_amount = self._roll_dice_expression(dice_expr)
                     else:
                         block_amount = effect.get("amount", 0)
+                    # 应用属性加值到格挡值
+                    block_bonus = self.get_stat_bonus(attacker.stats)
+                    if block_bonus != 0:
+                        block_amount += block_bonus
+                        results.append((f"  属性加值: +{block_bonus}", 2, "success"))
                     attacker.add_block(block_amount)
                     results.append((f"{attacker}使用{self.name}，获得{block_amount}点格挡", 0, "success"))  # level 0, success color
                 
@@ -644,55 +856,13 @@ class Card:
                             results.append((f"{attacker}获得了{stacks}层{bt.name}", 0, "success"))  # level 0, success color
                             break
         
-        # 兼容旧版字典格式effects
-        elif isinstance(self.effects, dict):
-            # 伤害效果 - 使用新的攻击判定系统
-            if "hp" in self.effects:
-                base_damage = abs(self.effects["hp"])
-                
-                # 使用统一的伤害处理逻辑
-                results.extend(self._apply_damage_effect(attacker, target, base_damage, self.name))
-            
-            # 骰子伤害效果（新格式）
-            elif "hp_dice" in self.effects:
-                dice_expr = self.effects["hp_dice"]
-                base_damage = self._roll_dice_expression(dice_expr)
-                
-                # 使用统一的伤害处理逻辑
-                results.extend(self._apply_damage_effect(attacker, target, base_damage, self.name))
-            
-            # 格挡效果
-            if "block" in self.effects:
-                block_amount = self.effects["block"]
-                attacker.add_block(block_amount)
-                results.append((f"{attacker}使用{self.name}，获得{block_amount}点格挡", 0, "success"))  # level 0, success color
-            
-            # 骰子格挡效果（新格式）
-            if "block_dice" in self.effects:
-                dice_expr = self.effects["block_dice"]
-                block_amount = self._roll_dice_expression(dice_expr)
-                attacker.add_block(block_amount)
-                results.append((f"{attacker}使用{self.name}，获得{block_amount}点格挡", 0, "success"))  # level 0, success color
-            
-            # Buff效果
-            for effect_key, effect_value in self.effects.items():
-                # 检查是否是Buff
-                for buff_type in BuffType:
-                    if effect_key.startswith(buff_type.value):
-                        try:
-                            stacks = int(effect_key.split("_")[1]) if "_" in effect_key else 1
-                        except (IndexError, ValueError):
-                            stacks = 1
-                        
-                        buff = Buff(buff_type=buff_type, stacks=effect_value)
-                        
-                        # 判断是给自己还是给目标
-                        if effect_key in ["pot_1", "pot_2", "pot_3"]:  # Debuff
-                            target.apply_buff(buff)
-                            results.append((f"{attacker}对{target}施加了{effect_value}层{buff_type.name}", 0, "failure"))  # level 0, failure color
-                        else:  # Buff
-                            attacker.apply_buff(buff)
-                            results.append((f"{attacker}获得了{effect_value}层{buff_type.name}", 0, "success"))  # level 0, success color
+        # 触发卡牌打出后事件
+        trigger_event(
+            GameEventType.CARD_PLAY_AFTER,
+            source=self,
+            target=target,
+            data={"card_name": self.name, "results": results}
+        )
         
         return results
     
@@ -738,9 +908,18 @@ class Card:
             atk_dis=self.atk_dis,
             atk_rnge=deepcopy(self.atk_rnge),
             target_type=self.target_type,
-            is_movement=self.is_movement
+            is_movement=self.is_movement,
+            mp_cost=self.mp_cost,  # 复制MP消耗
+            stat_ratios=deepcopy(self.stat_ratios) if self.stat_ratios else {}  # 复制属性比例
             # 不传递card_id，让副本获得新的唯一ID
         )
+        
+        # 复制升级和进化信息
+        if self.upgrade:
+            new_card.upgrade = deepcopy(self.upgrade)
+        new_card.evolved_from = self.evolved_from
+        new_card.can_evolve_to = self.can_evolve_to
+        
         return new_card
     
     def __str__(self):
