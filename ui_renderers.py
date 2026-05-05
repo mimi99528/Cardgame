@@ -187,6 +187,9 @@ class UIRenderer:
         
         # AP显示
         self._draw_ap_display(battle)
+        
+        # 绘制卡组和弃牌堆数量
+        self._draw_deck_info(battle)
     
     def _draw_entity_health_bar(self, entity: Entity, index: int, bar_width: float,
                                bar_y_start: float, bar_height: float, is_player: bool):
@@ -265,6 +268,60 @@ class UIRenderer:
                 else:
                     arcade.draw_circle_filled(x_pos, ap_y_pos, 8, arcade.color.BLUE)
                     arcade.draw_circle_outline(x_pos, ap_y_pos, 8, arcade.color.WHITE, 2)
+    
+    def _draw_deck_info(self, battle: BattleSystem):
+        """绘制卡组和弃牌堆数量信息"""
+        current_entity = battle.current_entity
+        if not current_entity or not current_entity.is_alive():
+            return
+        
+        # 只显示当前行动实体的卡组信息
+        deck_info = current_entity.get_deck_info()
+        deck_count = deck_info['deck_count']
+        discard_count = deck_info['discard_count']
+        hand_count = deck_info['hand_count']
+        
+        # 确定显示位置（左下角）
+        info_x = 20
+        info_y = 80
+        
+        # 背景框
+        box_width = 180
+        box_height = 60
+        arcade.draw_lrbt_rectangle_filled(
+            info_x, info_x + box_width,
+            info_y, info_y + box_height,
+            (255, 255, 255, 200)
+        )
+        arcade.draw_lrbt_rectangle_outline(
+            info_x, info_x + box_width,
+            info_y, info_y + box_height,
+            arcade.color.BLACK, 2
+        )
+        
+        # 标题
+        self.draw_text(
+            f"{current_entity.name} 卡牌信息",
+            info_x + box_width / 2, info_y + box_height - 12,
+            arcade.color.BLACK, self.text_font_size,
+            anchor_x="center", anchor_y="center", bold=True
+        )
+        
+        # 卡组数量
+        self.draw_text(
+            f"卡组: {deck_count}",
+            info_x + 10, info_y + 35,
+            arcade.color.DARK_BLUE, self.text_font_size,
+            anchor_x="left", anchor_y="center"
+        )
+        
+        # 弃牌堆数量
+        self.draw_text(
+            f"弃牌堆: {discard_count}",
+            info_x + 10, info_y + 18,
+            arcade.color.DARK_RED, self.text_font_size,
+            anchor_x="left", anchor_y="center"
+        )
     
     def draw_battle_log(self, battle: BattleSystem):
         """绘制战斗日志"""

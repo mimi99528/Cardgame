@@ -94,10 +94,15 @@ def perform_attack_check(attacker, target, base_damage: int, weapon=None) -> Att
     # 计算DN（考虑防御方属性）
     difficulty = calculate_attack_difficulty(attacker, target, weapon)
     
-    # 计算加值（来自武器和属性）
+    # 计算加值（来自武器、属性和装备）
     modifier = 0
     if weapon and hasattr(weapon, 'attack_modifier'):
         modifier += weapon.attack_modifier
+    
+    # 添加攻击者的力量修正
+    if attacker and hasattr(attacker, 'stats'):
+        strength_mod = attacker.stats.get_modifier('strength')
+        modifier += strength_mod
     
     # 执行检定
     check = DiceCheck(difficulty=difficulty, modifier=modifier)

@@ -14,6 +14,7 @@ from config import CONSTANTS
 class BattleLog:
     """战斗日志"""
     entries: List[Tuple[str, int, str]] = field(default_factory=list)  # (message, level, color_key)
+    debug_mode: bool = False  # 调试模式开关
     
     def add(self, message: str, level: int = 0, color_key: str = "normal"):
         """
@@ -26,7 +27,11 @@ class BattleLog:
         """
         from config import CONSTANTS
         log_level = CONSTANTS.LOG_LEVEL
-        print(message, )
+        
+        # 仅在调试模式下打印到控制台
+        if self.debug_mode:
+            print(message)
+        
         # 根据日志级别决定是否记录
         should_add = False
         if log_level.value == "simple":

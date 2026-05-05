@@ -12,6 +12,9 @@ from config import Rarity, CardType, BuffType, CONSTANTS, TargetType
 from inventory import Inventory
 from equipment_manager import EquipmentManager
 
+# 调试模式开关
+DEBUG_MODE = False
+
 
 def roll_dice_sum_from_expression(dice_expr: str) -> int:
     """
@@ -268,7 +271,8 @@ class Entity:
                 self.deck.remove(card)
                 self.hand.append(card)
         
-        print(f"[DEBUG] {self.name} 战斗开始初始抽牌: 从卡组抽取{min(initial_draw_count, len(available_cards))}张")
+        if DEBUG_MODE:
+            print(f"[DEBUG] {self.name} 战斗开始初始抽牌: 从卡组抽取{min(initial_draw_count, len(available_cards))}张")
         
         return self
     
@@ -280,12 +284,14 @@ class Entity:
         # 保留上一回合的普通卡牌和装备卡牌
         non_permanent_in_hand = [card for card in self.hand if card not in self.permanent_cards]
         
-        print(f"[DEBUG] {self.name} draw_hand: hand_size={len(self.hand)}, permanent={len(permanent_in_hand)}, non_permanent={len(non_permanent_in_hand)}, equipment={len(self.equipment_cards)}")
+        if DEBUG_MODE:
+            print(f"[DEBUG] {self.name} draw_hand: hand_size={len(self.hand)}, permanent={len(permanent_in_hand)}, non_permanent={len(non_permanent_in_hand)}, equipment={len(self.equipment_cards)}")
         
         # 每回合固定抽2张牌
         cards_to_draw = 2
         
-        print(f"[DEBUG] {self.name} cards_to_draw={cards_to_draw}, deck={len(self.deck)}, discard={len(self.discard_pile)}")
+        if DEBUG_MODE:
+            print(f"[DEBUG] {self.name} cards_to_draw={cards_to_draw}, deck={len(self.deck)}, discard={len(self.discard_pile)}")
         
         # 检查卡组中的可用卡牌数量
         available_cards = [c for c in self.deck if c not in self.permanent_cards]
@@ -341,7 +347,8 @@ class Entity:
                     if excess <= 0:
                         break
         
-        print(f"[DEBUG] {self.name} draw_hand结束: hand_size={len(self.hand)}, deck={len(self.deck)}, discard={len(self.discard_pile)}")
+        if DEBUG_MODE:
+            print(f"[DEBUG] {self.name} draw_hand结束: hand_size={len(self.hand)}, deck={len(self.deck)}, discard={len(self.discard_pile)}")
     
     def play_card(self, card: 'Card', target: 'Entity') -> tuple:
         """

@@ -58,6 +58,9 @@ class CardView(arcade.View):
         
         # 将CardView引用设置到BattleSystem中，以便在回合开始时清除拖动状态
         self.battle.card_view = self
+        
+        # 将tile_map传递给battle系统
+        self.battle.tile_map = self.tile_map
     
 
     
@@ -125,18 +128,16 @@ class CardView(arcade.View):
         # 获取当前行动的实体
         current_entity = self.battle.current_entity
         if not current_entity:
-            print("警告：没有活动实体")
+            # 警告：没有活动实体
             return
         
         # 检查是否点击了物品
         clicked_item = self.inventory_renderer.get_item_at_position(x, y)
         if clicked_item:
-            print(f"尝试使用物品: {clicked_item.name}")
             success, message = self.inventory_renderer.current_inventory.use_item(
                 clicked_item, 
                 user_entity=current_entity
             )
-            print(message)
             
             if success:
                 # 记录到战斗日志
