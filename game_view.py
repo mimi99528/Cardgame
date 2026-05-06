@@ -110,6 +110,8 @@ class CardView(arcade.View):
         # 绘制提示
         if self.battle.battle_finished:
             self.ui_renderer.draw_battle_end_message(self.battle)
+            # 绘制重新开始按钮
+            self._draw_restart_button()
         
         # 重置相机（确保下次绘制正确）
         arcade.Camera2D().use()  # 使用默认相机
@@ -119,6 +121,44 @@ class CardView(arcade.View):
         # 不再绘制遮挡的顶部和底部背景，让UI更清晰
         # 如果需要背景，可以使用淡色
         pass
+    
+    def _draw_restart_button(self):
+        """绘制重新开始按钮"""
+        button_width = 200
+        button_height = 50
+        button_x = self.window_width // 2 - button_width // 2
+        button_y = self.window_height // 2 - 100
+        
+        # 绘制按钮背景
+        arcade.draw_rectangle_filled(
+            button_x + button_width // 2,
+            button_y + button_height // 2,
+            button_width,
+            button_height,
+            arcade.color.DARK_GREEN
+        )
+        
+        # 绘制按钮边框
+        arcade.draw_rectangle_outline(
+            button_x + button_width // 2,
+            button_y + button_height // 2,
+            button_width,
+            button_height,
+            arcade.color.WHITE,
+            border_width=3
+        )
+        
+        # 绘制按钮文字
+        arcade.draw_text(
+            "再来一局",
+            button_x + button_width // 2,
+            button_y + button_height // 2,
+            arcade.color.WHITE,
+            24,
+            anchor_x="center",
+            anchor_y="center",
+            bold=True
+        )
     
     def _handle_inventory_item_use(self, x: float, y: float):
         """处理背包物品使用（右键点击）"""
@@ -227,6 +267,12 @@ class CardView(arcade.View):
     
     def on_mouse_press(self, x, y, button, modifiers):
         """鼠标点击事件"""
+        # 如果战斗结束，检查是否点击了重新开始按钮
+        if self.battle.battle_finished and button == arcade.MOUSE_BUTTON_LEFT:
+            if self._check_restart_button_click(x, y):
+                self._restart_game()
+                return
+        
         # 如果背包打开，处理背包内的点击
         if self.inventory_renderer.is_visible():
             # 右键点击使用物品
@@ -276,5 +322,27 @@ class CardView(arcade.View):
         
         # 更新卡牌动画
         self.card_display.update_animations()
+    
+    def _check_restart_button_click(self, x: float, y: float) -> bool:
+        """检查是否点击了重新开始按钮"""
+        button_width = 200
+        button_height = 50
+        button_x = self.window_width // 2 - button_width // 2
+        button_y = self.window_height // 2 - 100
+        
+        return (button_x <= x <= button_x + button_width and
+                button_y <= y <= button_y + button_height)
+    
+    def _restart_game(self):
+        """重新开始游戏 - 返回角色创建界面"""
+        from character_creation import CharacterCreationView
+        from main import CardGame
+        
+        # 获取主窗口引用
+        window = self.window
+        
+        # 创建新的角色创建视图
+        character_creation_view = CharacterCreationView(window.on_character_created)
+        window.show_view(character_creation_view)
     
 

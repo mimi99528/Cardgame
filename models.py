@@ -285,6 +285,7 @@ class Entity:
                     self.deck.append(card)
     
     def _load_equipment_cards(self):
+        """加载装备提供的卡牌到equipment_cards列表（每回合加入手牌）"""
         from card_database import create_card_database
         
         cards_db = create_card_database()

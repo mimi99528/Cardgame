@@ -57,7 +57,9 @@ class FarmerPassiveHandler:
         # 检查卡牌是否有[生存]标签
         has_survival_tag = False
         if hasattr(source, 'tags') and source.tags:
-            has_survival_tag = CardTag.SURVIVAL in source.tags
+            # 支持枚举类型和字符串类型的标签
+            has_survival_tag = (CardTag.SURVIVAL in source.tags or 
+                               "生存" in source.tags)
         
         if has_survival_tag:
             current_heal = event.get_value("heal", 0)
@@ -97,7 +99,9 @@ class FarmerPassiveHandler:
         # 检查卡牌是否有[生存]标签
         has_survival_tag = False
         if hasattr(source, 'tags') and source.tags:
-            has_survival_tag = CardTag.SURVIVAL in source.tags
+            # 支持枚举类型和字符串类型的标签
+            has_survival_tag = (CardTag.SURVIVAL in source.tags or 
+                               "生存" in source.tags)
         
         if has_survival_tag:
             current_block = event.get_value("block", 0)

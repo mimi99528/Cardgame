@@ -262,19 +262,27 @@ class BattleSystem:
             self.current_entity_index += 1
         
         # 检查是否所有实体都行动完毕
-        # 触发回合结束事件（所有实体行动完毕）
-        from event_system import trigger_event, GameEventType
-        trigger_event(
-            GameEventType.TURN_END,
-            source=self,
-            target=None,
-            data={"round": self.current_round}
-        )
         if self.current_entity_index >= len(self.all_entities):
+            # 所有实体行动完毕，触发真正的轮次结束事件
+            from event_system import trigger_event, GameEventType
+            trigger_event(
+                GameEventType.TURN_END,
+                source=self,
+                target=None,
+                data={"round": self.current_round}
+            )
             # 开始新回合
             if not self.battle_finished:
                 self.begin_round()
         else:
+            # 还有实体未行动，只触发实体回合结束事件（不是全局TURN_END）
+            from event_system import trigger_event, GameEventType
+            trigger_event(
+                GameEventType.ENTITY_TURN_END,
+                source=current,
+                target=None,
+                data={"entity_name": current.name if current else None}
+            )
             # 检查下一个实体是否是玩家控制
             next_entity = self.all_entities[self.current_entity_index]
             self.is_player_turn = (next_entity.control_type == ControlType.PLAYER)
@@ -364,9 +372,10 @@ class BattleSystem:
                 moved = self._ai_move_towards_target(ai_entity, target, max_range)
                 
                 if not moved:
-                    # 无法移动，移除这张卡，但继续尝试其他卡牌
-                    ai_entity.hand.remove(card)
-                    # 不结束回合，让update_ai下次调用时继续出牌
+                    # 无法移动，保留这张卡到下回合，结束本回合
+                    self.battle_log.add(f"{ai_entity.name}无法移动到目标范围，保留卡牌", level=2)
+                    self.ai_playing = False
+                    self.end_current_entity_turn()
                     return
                 else:
                     # 移动成功，重新检查距离并尝试出牌
@@ -390,9 +399,10 @@ class BattleSystem:
                             # 出牌成功，不结束回合，让AI可以继续出牌
                             return
                         else:
-                            # 出牌失败，移除这张卡
-                            ai_entity.hand.remove(card)
-                            self.battle_log.add(f"{ai_entity.name}出牌失败，移除卡牌", level=2)
+                            # 出牌失败，将卡牌放入弃牌堆（正常流程）
+                            if card not in ai_entity.permanent_cards and card not in ai_entity.equipment_cards:
+                                ai_entity.discard_pile.append(card)
+                            self.battle_log.add(f"{ai_entity.name}出牌失败，卡牌进入弃牌堆", level=2)
                     # 移动后仍然无法出牌，保留卡牌，结束本回合
                     self.ai_playing = False
                     self.end_current_entity_turn()
@@ -417,17 +427,20 @@ class BattleSystem:
                     # 出牌成功，不结束回合，让AI可以继续出牌
                     return
                 else:
-                    # 出牌失败，移除这张卡，继续尝试其他卡牌
-                    ai_entity.hand.remove(card)
+                    # 出牌失败，将卡牌放入弃牌堆（正常流程）
+                    if card not in ai_entity.permanent_cards and card not in ai_entity.equipment_cards:
+                        ai_entity.discard_pile.append(card)
+                    self.battle_log.add(f"{ai_entity.name}出牌失败，卡牌进入弃牌堆", level=2)
                     return
             else:
                 # 仍然不在范围内，保留卡牌到下回合，结束回合
                 self.ai_playing = False
                 self.end_current_entity_turn()
         else:
-            # 没有目标，移除这张卡，但继续尝试其他卡牌
-            ai_entity.hand.remove(card)
-            # 不结束回合，让update_ai下次调用时继续出牌
+            # 没有目标，保留卡牌到下回合，结束回合
+            self.battle_log.add(f"{ai_entity.name}没有找到有效目标，保留卡牌", level=2)
+            self.ai_playing = False
+            self.end_current_entity_turn()
     
     def _choose_ai_target(self, ai_entity: Entity, card: Card = None) -> Optional[Entity]:
         """

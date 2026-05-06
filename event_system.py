@@ -32,8 +32,9 @@ class GameEventType(Enum):
     BUFF_REMOVE = "buff_remove"                # Buff移除时
     
     # 回合相关事件
-    TURN_START = "turn_start"                  # 回合开始
-    TURN_END = "turn_end"                      # 回合结束
+    TURN_START = "turn_start"                  # 回合开始（所有实体）
+    TURN_END = "turn_end"                      # 回合结束（所有实体行动完毕）
+    ENTITY_TURN_END = "entity_turn_end"        # 实体回合结束（单个实体行动完毕）
     
     # 移动相关事件
     MOVE_BEFORE = "move_before"                # 移动前

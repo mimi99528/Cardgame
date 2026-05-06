@@ -65,8 +65,9 @@ class ScholarPassiveHandler:
         # 检查卡牌是否有[知识]或[法术]标签
         has_knowledge_or_spell = False
         if hasattr(source, 'tags') and source.tags:
-            has_knowledge_or_spell = (CardTag.KNOWLEDGE in source.tags or 
-                                     CardTag.SPELL in source.tags)
+            # 支持枚举类型和字符串类型的标签
+            has_knowledge_or_spell = ((CardTag.KNOWLEDGE in source.tags or "知识" in source.tags) or 
+                                     (CardTag.SPELL in source.tags or "法术" in source.tags))
         
         if not has_knowledge_or_spell:
             return
