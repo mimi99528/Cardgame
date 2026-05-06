@@ -44,6 +44,12 @@ class GameEventType(Enum):
     EQUIP_AFTER = "equip_after"                # 装备后
     UNEQUIP_BEFORE = "unequip_before"          # 卸下前
     UNEQUIP_AFTER = "unequip_after"            # 卸下后
+    
+    # 职业相关事件
+    HAND_SIZE_CALCULATE = "hand_size_calculate"  # 手牌上限计算
+    SOCIAL_CHECK_BEFORE = "social_check_before"  # 社交检定前
+    ENCOUNTER_START = "encounter_start"          # 遭遇开始
+    NODE_TRAVEL = "node_travel"                  # 节点移动
 
 
 @dataclass
@@ -265,7 +271,7 @@ class ValueModifier:
         self.additions.clear()
 
 
-def apply_damage_modifiers(base_damage: int, source: Any, target: Any) -> int:
+def apply_damage_modifiers(base_damage: int, source: Any, target: Any, battle_log=None) -> int:
     """
     应用伤害修正
     
@@ -273,6 +279,7 @@ def apply_damage_modifiers(base_damage: int, source: Any, target: Any) -> int:
         base_damage: 基础伤害
         source: 伤害来源
         target: 伤害目标
+        battle_log: 战斗日志（可选）
         
     Returns:
         修正后的伤害值
@@ -284,7 +291,7 @@ def apply_damage_modifiers(base_damage: int, source: Any, target: Any) -> int:
         event_type=GameEventType.DAMAGE_CALCULATE,
         source=source,
         target=target,
-        data={"damage": base_damage}
+        data={"damage": base_damage, "battle_log": battle_log}
     )
     global_event_bus.trigger(event)
     
@@ -294,7 +301,7 @@ def apply_damage_modifiers(base_damage: int, source: Any, target: Any) -> int:
     return int(modified_damage)
 
 
-def apply_heal_modifiers(base_heal: int, source: Any, target: Any) -> int:
+def apply_heal_modifiers(base_heal: int, source: Any, target: Any, battle_log=None) -> int:
     """
     应用治疗修正
     
@@ -302,6 +309,7 @@ def apply_heal_modifiers(base_heal: int, source: Any, target: Any) -> int:
         base_heal: 基础治疗量
         source: 治疗来源
         target: 治疗目标
+        battle_log: 战斗日志（可选）
         
     Returns:
         修正后的治疗量
@@ -313,7 +321,7 @@ def apply_heal_modifiers(base_heal: int, source: Any, target: Any) -> int:
         event_type=GameEventType.HEAL_CALCULATE,
         source=source,
         target=target,
-        data={"heal": base_heal}
+        data={"heal": base_heal, "battle_log": battle_log}
     )
     global_event_bus.trigger(event)
     

@@ -8,6 +8,10 @@ from card_database import create_player_character, create_enemy, create_ally_ai,
 from game_view import CardView
 from config import CONSTANTS
 from tile_map import TileMap
+from career_system import CareerFactory
+from careers.farmer_passive import setup_farmer_passives
+from careers.scholar_passive import setup_scholar_passives
+from character_creation import CharacterCreationView
 
 
 def demo_serialization():
@@ -94,14 +98,24 @@ class CardGame(arcade.Window):
         self.setup_game()
     
     def setup_game(self):
-        """设置游戏"""
-        # 创建玩家和敌人
-        player = create_player_character()
-        enemy = create_enemy()
+        """设置游戏 - 先显示角色创建界面"""
+        # 创建角色创建视图
+        character_creation_view = CharacterCreationView(self.on_character_created)
+        self.show_view(character_creation_view)
+    
+    def on_character_created(self, player):
+        """角色创建完成回调"""
+        print(f"✓ 角色创建完成: {player.name}")
+        print(f"  职业: {player.career.name if player.career else '无'}")
+        print(f"  属性: 力量{player.stats.strength}, 敏捷{player.stats.dexterity}, "
+              f"心智{player.stats.intelligence}, 魅力{player.stats.charisma}")
         
-        # 创建额外的队友和敌人（可选）
-        ally_ai = create_ally_ai()
-        enemy_2 = create_enemy_2()
+        # 创建敌人（使用不同的敌人类型）
+        enemy = create_enemy(enemy_type="warrior")  # 战士型敌人
+        enemy_2 = create_enemy_2(enemy_type="mage")  # 法师型敌人
+        
+        # 创建额外的队友（可选，使用不同职业）
+        ally_ai = create_ally_ai()  # 默认均衡型队友
         
         # 创建战斗系统
         battle = BattleSystem(
@@ -128,6 +142,22 @@ def main():
     print("- ESC键：退出游戏（战斗结束后）")
     print("- 鼠标悬停在卡牌上查看详细信息")
     print("\n" + "=" * 60)
+    
+    # 初始化职业系统
+    CareerFactory.initialize()
+    
+    # 初始化所有职业被动效果
+    from careers.artisan_passive import setup_artisan_passives
+    from careers.drifter_passive import setup_drifter_passives
+    from careers.pedlar_passive import setup_pedlar_passives
+    
+    setup_artisan_passives()
+    setup_drifter_passives()
+    setup_pedlar_passives()
+    setup_farmer_passives()
+    setup_scholar_passives()
+    
+    print("✓ 职业系统和被动效果已初始化")
     
     # 演示卡牌序列化功能
     demo_serialization()

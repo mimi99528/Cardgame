@@ -87,7 +87,7 @@ def perform_attack_check(attacker, target, base_damage: int, weapon=None, card=N
         target: 目标实体
         base_damage: 基础伤害
         weapon: 使用的武器（可选）
-        card: 使用的卡牌（可选，用于获取属性加值）
+        card: 使用的卡牌（可选，用于获取属性加值和取优势/劣势配置）
     
     Returns:
         AttackResult 对象
@@ -110,8 +110,29 @@ def perform_attack_check(attacker, target, base_damage: int, weapon=None, card=N
         card_stat_bonus = card.get_stat_bonus(attacker.stats)
         modifier += card_stat_bonus
     
+    # 检查卡牌是否有攻击判定取优势/劣势配置
+    check_advantage = None
+    check_disadvantage = None
+    
+    if card and hasattr(card, 'effects'):
+        for effect in card.effects:
+            if isinstance(effect, dict) and 'Check' in effect:
+                check_config = effect['Check']
+                if isinstance(check_config, dict):
+                    if 'dl1' in check_config or 'dl2' in check_config:
+                        # 取优势：去掉最低值
+                        check_advantage = 'dl1' if 'dl1' in check_config else 'dl2'
+                    elif 'dh1' in check_config or 'dh2' in check_config:
+                        # 取劣势：去掉最高值
+                        check_disadvantage = 'dh1' if 'dh1' in check_config else 'dh2'
+    
     # 执行检定
-    check = DiceCheck(difficulty=difficulty, modifier=modifier)
+    check = DiceCheck(
+        difficulty=difficulty, 
+        modifier=modifier,
+        check_advantage=check_advantage,
+        check_disadvantage=check_disadvantage
+    )
     result = check.roll()
     
     # 根据结果类型计算实际伤害和额外效果

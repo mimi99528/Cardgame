@@ -1,0 +1,23 @@
+{
+  "name": "应急咒文",
+  "type": "atk_mag",
+  "description": "战斗：造成 1d6 法术伤害，若目标处于[失衡]则伤害+2；\n探索：解读古代文字/陷阱，心智检定获得优势；\n社交：社交时有几率引用典籍建立信任，魅力检定 +1 加值，此时魅力检定可替换为心智检定。",
+  "rarity": "UNCOMMON",
+  "ap_cost": 2,
+  "mp_cost": 3,
+  "effects": [
+    {
+      "type": "emy_dmg",
+      "dice": "1d6",
+      "bonus_condition": "imbalance",
+      "bonus_value": 2
+    }
+  ],
+  "atk_dis": 4,
+  "atk_rnge": "single",
+  "target_type": "enemy",
+  "tags": ["法术", "知识", "控制"],
+  "stat_ratios": {
+    "intelligence": 1.0
+  }
+}

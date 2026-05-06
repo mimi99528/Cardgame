@@ -136,7 +136,8 @@ class CardView(arcade.View):
         if clicked_item:
             success, message = self.inventory_renderer.current_inventory.use_item(
                 clicked_item, 
-                user_entity=current_entity
+                user_entity=current_entity,
+                battle_log=self.battle.battle_log
             )
             
             if success:

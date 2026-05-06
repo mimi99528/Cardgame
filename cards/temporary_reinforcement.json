@@ -1,0 +1,23 @@
+{
+  "id": 1002,
+  "name": "临时加固",
+  "category": "combat",
+  "type": "blk",
+  "description": "战斗：获得临时格挡值=当前手牌数//2\n探索：强化场景物件（如桥梁），降低通行DN\n社交：修理物品换取NPC信任或折扣",
+  "rarity": "COMMON",
+  "ap_cost": 1,
+  "effects": [
+    {
+      "type": "self_block",
+      "formula": "hand_count // 2"
+    }
+  ],
+  "play_conditions": [],
+  "atk_dis": 1,
+  "atk_rnge": {"type": "circle", "radius": 1},
+  "target_type": "self",
+  "is_movement": false,
+  "mp_cost": 0,
+  "stat_ratios": {},
+  "tags": ["格挡", "装备交互", "自身"]
+}

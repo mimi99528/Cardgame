@@ -12,7 +12,8 @@
     "atk_dis": 1,
     "atk_rnge": {"type": "circle", "radius": 1},
     "target_type": "enemy",
-    "stat_ratios": {"str": 1.0}
+    "stat_ratios": {"str": 1.0},
+    "tags": ["近战", "战斗", "单体", "力量", "物理"]
   },
   {
     "id": 2,
@@ -27,7 +28,8 @@
     "atk_dis": 1,
     "atk_rnge": {"type": "circle", "radius": 1},
     "target_type": "enemy",
-    "stat_ratios": {"str": 1.0}
+    "stat_ratios": {"str": 1.0},
+    "tags": ["近战", "战斗", "单体", "力量", "物理"]
   },
   {
     "id": 3,
@@ -41,7 +43,8 @@
     "play_conditions": [],
     "atk_dis": 3,
     "atk_rnge": {"type": "circle", "radius": 3},
-    "target_type": "enemy"
+    "target_type": "enemy",
+    "tags": ["远程", "战斗", "单体", "状态", "敏捷"]
   },
   {
     "id": 4,
@@ -56,7 +59,8 @@
     "atk_dis": 0,
     "atk_rnge": {"type": "circle", "radius": 0},
     "target_type": "self",
-    "stat_ratios": {"dex": 1.0}
+    "stat_ratios": {"dex": 1.0},
+    "tags": ["格挡", "战斗", "自身", "敏捷"]
   },
   {
     "id": 5,
@@ -71,7 +75,8 @@
     "atk_dis": 0,
     "atk_rnge": {"type": "circle", "radius": 0},
     "target_type": "self",
-    "stat_ratios": {"int": 1.0}
+    "stat_ratios": {"int": 1.0},
+    "tags": ["治疗", "战斗", "自身", "心智"]
   },
   {
     "id": 6,
@@ -86,7 +91,8 @@
     "atk_dis": 0,
     "atk_rnge": {"type": "circle", "radius": 0},
     "target_type": "all",
-    "is_movement": true
+    "is_movement": true,
+    "tags": ["移动", "泛用"]
   },
   {
     "id": 7,
@@ -101,7 +107,8 @@
     "atk_dis": 0,
     "atk_rnge": {"type": "circle", "radius": 0},
     "target_type": "self",
-    "stat_ratios": {"dex": 1.0}
+    "stat_ratios": {"dex": 1.0},
+    "tags": ["格挡", "战斗", "自身", "敏捷", "装备交互"]
   },
   {
     "id": 8,
@@ -116,7 +123,8 @@
     "atk_dis": 1,
     "atk_rnge": {"type": "circle", "radius": 1},
     "target_type": "enemy",
-    "stat_ratios": {"str": 1.0}
+    "stat_ratios": {"str": 1.0},
+    "tags": ["近战", "破甲", "战斗", "单体", "力量", "物理"]
   },
   {
     "id": 9,
@@ -132,7 +140,8 @@
     "atk_dis": 5,
     "atk_rnge": {"type": "circle", "radius": 5},
     "target_type": "enemy",
-    "stat_ratios": {"int": 1.0}
+    "stat_ratios": {"int": 1.0},
+    "tags": ["远程", "法术", "战斗", "单体", "心智", "冰霜", "控制"]
   },
   {
     "id": 10,
@@ -151,7 +160,8 @@
     "atk_dis": 4,
     "atk_rnge": {"type": "circle", "radius": 4},
     "target_type": "enemy",
-    "stat_ratios": {"int": 1.0}
+    "stat_ratios": {"int": 1.0},
+    "tags": ["远程", "法术", "战斗", "单体", "心智", "火焰", "状态"]
   },
   {
     "id": 11,
@@ -167,7 +177,8 @@
     "atk_dis": 6,
     "atk_rnge": {"type": "circle", "radius": 6},
     "target_type": "enemy",
-    "stat_ratios": {"int": 1.0}
+    "stat_ratios": {"int": 1.0},
+    "tags": ["远程", "法术", "战斗", "单体", "心智"]
   },
   {
     "id": 12,
@@ -183,7 +194,8 @@
     "atk_dis": 0,
     "atk_rnge": {"type": "circle", "radius": 0},
     "target_type": "self",
-    "stat_ratios": {"int": 1.0}
+    "stat_ratios": {"int": 1.0},
+    "tags": ["格挡", "法术", "战斗", "自身", "心智", "资源"]
   },
   {
     "id": 13,
@@ -199,6 +211,7 @@
     "atk_dis": 0,
     "atk_rnge": {"type": "circle", "radius": 0},
     "target_type": "self",
-    "stat_ratios": {"int": 1.0}
+    "stat_ratios": {"int": 1.0},
+    "tags": ["治疗", "法术", "战斗", "自身", "心智", "神圣"]
   }
 ]

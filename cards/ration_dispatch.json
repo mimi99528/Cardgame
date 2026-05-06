@@ -1,0 +1,21 @@
+{
+  "name": "粮草调度",
+  "type": "hel",
+  "description": "战斗：指定1个友方单位，回复1d4+1点体力。若用于自身，回复量+2。\n探索：消耗1fu食物，使队伍在下个节点移动消耗减半。\n社交：快速建立平民交易线，解锁临时补给站或雇佣1名临时NPC随从（持续1遭遇）。",
+  "rarity": "COMMON",
+  "ap_cost": 2,
+  "mp_cost": 0,
+  "effects": [
+    {
+      "type": "ally_heal",
+      "dice": "1d4",
+      "base_bonus": 1,
+      "self_bonus": 2
+    }
+  ],
+  "atk_dis": 3,
+  "atk_rnge": "single",
+  "target_type": "ally",
+  "tags": ["资源", "生存", "群体"],
+  "stat_ratios": {}
+}

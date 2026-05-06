@@ -1,0 +1,25 @@
+{
+  "id": 1003,
+  "name": "讨价还价",
+  "category": "combat",
+  "type": "skl",
+  "description": "战斗：使目标敌人本回合攻击DN+1\n探索：降低节点通行费或获取补给\n社交：快速建立交易关系，解锁隐藏商店",
+  "rarity": "COMMON",
+  "ap_cost": 1,
+  "effects": [
+    {
+      "type": "emy_debuff",
+      "effect": "increase_dn",
+      "value": 1,
+      "duration": 1
+    }
+  ],
+  "play_conditions": [],
+  "atk_dis": 3,
+  "atk_rnge": {"type": "circle", "radius": 3},
+  "target_type": "enemy",
+  "is_movement": false,
+  "mp_cost": 0,
+  "stat_ratios": {"cha": 1.0},
+  "tags": ["干扰", "社交", "单体"]
+}

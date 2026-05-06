@@ -39,18 +39,53 @@ def roll_dice_from_expression(dice_expr: str) -> List[int]:
     从骰子表达式掷骰
     
     Args:
-        dice_expr: 骰子表达式，如 "1d4", "2d6", "3d8" 等
+        dice_expr: 骰子表达式，如 "1d4", "2d6", "3d8", "2d10dh1", "2d10dl1" 等
+        dhX: Drop Highest X - 去掉X个最高值（取劣势，保留较低的值）
+        dlX: Drop Lowest X - 去掉X个最低值（取优势，保留较高的值）
         
     Returns:
         每个骰子的结果列表
     """
     try:
-        # 解析表达式，格式为 "NdM"
-        parts = dice_expr.lower().split('d')
+        # 解析表达式，格式为 "NdM" 或 "NdMdhX" 或 "NdMdlX"
+        dice_expr = dice_expr.lower().strip()
+        
+        # 检查是否有dh或dl后缀
+        drop_mode = None
+        drop_count = 0
+        
+        if 'dh' in dice_expr:
+            parts = dice_expr.split('dh')
+            base_expr = parts[0]
+            drop_mode = 'highest'
+            drop_count = int(parts[1]) if len(parts) > 1 else 1
+        elif 'dl' in dice_expr:
+            parts = dice_expr.split('dl')
+            base_expr = parts[0]
+            drop_mode = 'lowest'
+            drop_count = int(parts[1]) if len(parts) > 1 else 1
+        else:
+            base_expr = dice_expr
+        
+        # 解析基础骰子表达式 "NdM"
+        parts = base_expr.split('d')
         if len(parts) == 2:
             num_dice = int(parts[0])
             sides = int(parts[1])
-            return roll_dice(num_dice, sides)
+            results = roll_dice(num_dice, sides)
+            
+            # 应用取优势/劣势逻辑
+            if drop_mode and drop_count > 0 and len(results) > drop_count:
+                if drop_mode == 'highest':
+                    # dh: 去掉最高的X个（取劣势，保留较低的）
+                    results.sort()  # 升序排序
+                    results = results[:len(results) - drop_count]  # 保留前面的（较小的）
+                elif drop_mode == 'lowest':
+                    # dl: 去掉最低的X个（取优势，保留较高的）
+                    results.sort(reverse=True)  # 降序排序
+                    results = results[:len(results) - drop_count]  # 保留前面的（较大的）
+            
+            return results
         else:
             return []
     except (ValueError, IndexError):
@@ -62,7 +97,9 @@ def roll_dice_sum_from_expression(dice_expr: str) -> int:
     从骰子表达式掷骰并返回总和
     
     Args:
-        dice_expr: 骰子表达式，如 "1d4", "2d6", "3d8" 等
+        dice_expr: 骰子表达式，如 "1d4", "2d6", "3d8", "2d10dh1", "2d10dl1" 等
+        dhX: Drop Highest X - 去掉X个最高值（取劣势，保留较低的值）
+        dlX: Drop Lowest X - 去掉X个最低值（取优势，保留较高的值）
         
     Returns:
         骰子结果的总和
@@ -96,18 +133,27 @@ class DiceCheck:
     - 半成功: DN - 4 <= 结果 < DN
     - 失败: 结果 < DN - 4
     - 大失败: 结果 <= DN - 9
+    
+    支持取优势/劣势：
+    - check_advantage="dl1": 攻击判定取优势（去掉最低值）
+    - check_disadvantage="dh1": 攻击判定取劣势（去掉最高值）
     """
     
-    def __init__(self, difficulty: int, modifier: int = 0):
+    def __init__(self, difficulty: int, modifier: int = 0, 
+                 check_advantage: str = None, check_disadvantage: str = None):
         """
         初始化检定
         
         Args:
             difficulty: 难度值 (DN)
             modifier: 加值（默认为0）
+            check_advantage: 攻击判定取优势表达式，如 "dl1"（可选）
+            check_disadvantage: 攻击判定取劣势表达式，如 "dh1"（可选）
         """
         self.difficulty = difficulty
         self.modifier = modifier
+        self.check_advantage = check_advantage
+        self.check_disadvantage = check_disadvantage
     
     def roll(self) -> CheckResult:
         """
@@ -118,6 +164,29 @@ class DiceCheck:
         """
         # 掷2个10面骰
         dice_results = roll_dice(2, 10)
+        
+        # 应用攻击判定取优势/劣势
+        if self.check_advantage:
+            # 解析dlX表达式
+            drop_count = int(self.check_advantage[2:]) if len(self.check_advantage) > 2 else 1
+            if drop_count > 0 and len(dice_results) > drop_count:
+                # dl: 去掉最低值，保留较高的
+                dice_results.sort(reverse=True)  # 降序排序
+                dice_results = dice_results[:len(dice_results) - drop_count]
+                # 补充骰子到2个（因为去掉了1个）
+                while len(dice_results) < 2:
+                    dice_results.append(random.randint(1, 10))
+        elif self.check_disadvantage:
+            # 解析dhX表达式
+            drop_count = int(self.check_disadvantage[2:]) if len(self.check_disadvantage) > 2 else 1
+            if drop_count > 0 and len(dice_results) > drop_count:
+                # dh: 去掉最高值，保留较低的
+                dice_results.sort()  # 升序排序
+                dice_results = dice_results[:len(dice_results) - drop_count]
+                # 补充骰子到2个（因为去掉了1个）
+                while len(dice_results) < 2:
+                    dice_results.append(random.randint(1, 10))
+        
         total = sum(dice_results)
         final_result = total + self.modifier
         

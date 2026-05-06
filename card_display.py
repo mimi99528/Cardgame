@@ -7,7 +7,7 @@ import time
 from typing import Dict, Optional, List
 from models import Card, Entity
 from battle_system import BattleSystem
-from config import CONSTANTS, CARD_TYPE_NAMES, RARITY_COLORS
+from config import CONSTANTS, CARD_TYPE_NAMES, RARITY_COLORS, CardTag
 
 
 class CardDisplay:
@@ -175,30 +175,33 @@ class CardDisplay:
             anchor_x="center", anchor_y="center", bold=True
         )
         
-        # 卡牌类型背景
-        type_bg_y_bottom = y - height / 2 + 75
-        type_bg_y_top = y - height / 2 + 105
-        arcade.draw_lrbt_rectangle_filled(
-            x - 50, x + 50,
-            type_bg_y_bottom, type_bg_y_top,
-            arcade.color.DARK_GRAY
-        )
+        # 卡牌类型背景（已废弃，改为标签显示）
+        # type_bg_y_bottom = y - height / 2 + 75
+        # type_bg_y_top = y - height / 2 + 105
+        # arcade.draw_lrbt_rectangle_filled(
+        #     x - 50, x + 50,
+        #     type_bg_y_bottom, type_bg_y_top,
+        #     arcade.color.DARK_GRAY
+        # )
         
-        # 卡牌类型
-        type_name = CARD_TYPE_NAMES.get(card.card_type, "未知")
-        self.ui_renderer.draw_text(
-            type_name,
-            x, type_bg_y_bottom + 15,
-            arcade.color.WHITE,
-            self.ui_renderer.title_font_size,
-            anchor_x="center", anchor_y="center"
-        )
+        # 卡牌类型（已删除，由标签系统取代）
+        # type_name = CARD_TYPE_NAMES.get(card.card_type, "未知")
+        # self.ui_renderer.draw_text(
+        #     type_name,
+        #     x, type_bg_y_bottom + 15,
+        #     arcade.color.WHITE,
+        #     self.ui_renderer.title_font_size,
+        #     anchor_x="center", anchor_y="center"
+        # )
         
         # AP消耗
         self._draw_ap_cost(card, x, y, width, height)
         
         # 效果值显示
         self._draw_effect_values(card, x, y, width, height)
+        
+        # 卡牌标签显示
+        self._draw_card_tags(card, x, y, width, height)
         
         # 如果是悬停状态，显示描述
         if id(card) == id(self.hovered_card):
@@ -220,6 +223,120 @@ class CardDisplay:
             else:
                 arcade.draw_circle_filled(ap_x, ap_y - i * 25, 8, arcade.color.BLUE)
                 arcade.draw_circle_outline(ap_x, ap_y - i * 25, 8, arcade.color.WHITE, 2)
+    
+    def _draw_card_tags(self, card: Card, x, y, width, height):
+        """绘制卡牌标签（在卡牌底部）"""
+        if not card.tags:
+            return
+        
+        # 标签显示区域：卡牌底部
+        tag_start_y = y - height / 4
+        tag_height = 18
+        tag_spacing = 5
+        max_tags_per_row = 3  # 每行最多显示3个标签
+        
+        # 定义标签颜色映射（根据标签类型）
+        tag_colors = {
+            # 战斗方式 - 红色系
+            CardTag.MELEE: (200, 50, 50),
+            CardTag.RANGED: (220, 100, 50),
+            CardTag.SPELL: (100, 50, 200),
+            CardTag.CONTROL: (150, 50, 150),
+            CardTag.DISRUPT: (180, 80, 80),
+            CardTag.COUNTER: (200, 150, 50),
+            CardTag.ARMOR_PIERCE: (100, 100, 100),
+            CardTag.BLOCK: (50, 150, 50),
+            CardTag.FORMATION: (100, 150, 200),
+            CardTag.STEALTH: (80, 80, 150),
+            
+            # 功能效果 - 绿色系
+            CardTag.HEALING: (50, 200, 50),
+            CardTag.PURIFY: (100, 200, 100),
+            CardTag.BUFF: (150, 200, 50),
+            CardTag.DEBUFF: (200, 100, 100),
+            CardTag.RESOURCE: (200, 200, 50),
+            CardTag.EQUIPMENT_INTERACT: (150, 100, 200),
+            CardTag.SUSTAIN: (100, 180, 100),
+            
+            # 场景应用 - 蓝色系
+            CardTag.COMBAT: (200, 50, 50),
+            CardTag.EXPLORATION: (50, 150, 200),
+            CardTag.SOCIAL: (200, 150, 100),
+            CardTag.MOVEMENT: (50, 200, 150),
+            CardTag.UNIVERSAL: (150, 150, 150),
+            
+            # 属性绑定 - 黄色系
+            CardTag.STRENGTH: (200, 150, 50),
+            CardTag.DEXTERITY: (200, 200, 50),
+            CardTag.INTELLIGENCE: (50, 100, 200),
+            CardTag.CHARISMA: (200, 100, 200),
+            CardTag.LUCK: (255, 215, 0),
+            
+            # 技能类型 - 紫色系
+            CardTag.INTELLIGENCE_SKILL: (100, 50, 200),
+            CardTag.DECEPTION: (150, 50, 150),
+            CardTag.KNOWLEDGE: (80, 50, 180),
+            CardTag.ENVIRONMENT: (50, 150, 100),
+            CardTag.TRAP: (180, 100, 50),
+            CardTag.FATE: (150, 50, 200),
+            CardTag.RISK: (200, 80, 50),
+            CardTag.SURVIVAL: (100, 150, 50),
+            
+            # 目标范围 - 青色系
+            CardTag.SINGLE: (50, 200, 200),
+            CardTag.AOE: (200, 100, 200),
+            CardTag.SELF_ONLY: (100, 200, 200),
+            CardTag.FRIENDLY: (50, 200, 100),
+            CardTag.TERRAIN: (100, 150, 100),
+            
+            # 伤害类型 - 特殊色
+            CardTag.PHYSICAL_DAMAGE: (180, 50, 50),
+            CardTag.FIRE_DAMAGE: (255, 100, 0),
+            CardTag.ICE_DAMAGE: (100, 200, 255),
+            CardTag.LIGHTNING_DAMAGE: (255, 255, 100),
+            CardTag.SHADOW_DAMAGE: (100, 50, 150),
+            CardTag.HOLY_DAMAGE: (255, 255, 200),
+        }
+        
+        # 绘制标签（最多显示6个标签，分2行）
+        display_tags = card.tags[:6]  # 限制显示数量
+        for i, tag in enumerate(display_tags):
+            row = i // max_tags_per_row
+            col = i % max_tags_per_row
+            
+            # 计算标签位置
+            tag_width = 50
+            tag_x = x - width / 2 + 10 + col * (tag_width + tag_spacing)
+            tag_y = tag_start_y - row * (tag_height + tag_spacing)
+            
+            # 获取标签颜色
+            color = tag_colors.get(tag, (150, 150, 150))  # 默认灰色
+            
+            # 绘制标签背景
+            arcade.draw_lrbt_rectangle_filled(
+                tag_x, tag_x + tag_width,
+                tag_y, tag_y + tag_height,
+                (*color, 200)  # 添加透明度
+            )
+            
+            # 绘制标签边框
+            arcade.draw_lrbt_rectangle_outline(
+                tag_x, tag_x + tag_width,
+                tag_y, tag_y + tag_height,
+                (*color, 255), 2
+            )
+            
+            # 绘制标签文字
+            self.ui_renderer.draw_text(
+                tag.value,
+                tag_x + tag_width / 2,
+                tag_y + tag_height / 2,
+                arcade.color.WHITE,
+                10,
+                anchor_x="center",
+                anchor_y="center",
+                bold=True
+            )
     
     def _draw_effect_values(self, card: Card, x, y, width, height):
         """绘制效果值（HP、格挡等）"""
@@ -306,10 +423,15 @@ class CardDisplay:
         # 计算预期效果值（使用保存的battle引用）
         expected = self._calculate_expected_values(card, self.current_battle)
         
-        # 如果有结构化效果列表，使用多行显示
+        # 构建描述文本
+        desc_lines = []
+        
+        # 添加卡牌原始描述
+        if hasattr(card, 'description') and card.description:
+            desc_lines.append(card.description)
+        
+        # 如果有结构化效果列表，解析并添加详细效果说明
         if isinstance(card.effects, list):
-            # 构建描述文本
-            desc_lines = []
             for effect in card.effects:
                 effect_type = effect.get("type", "")
                 if effect_type == "emy_dmg":
@@ -330,48 +452,65 @@ class CardDisplay:
                     buff_name = effect.get("buff_name", "")
                     duration = effect.get("duration", 0)
                     desc_lines.append(f"施加{buff_name}({duration}回合)")
+                elif effect_type == "self_buff":
+                    buff_type_str = effect.get("buff_type", "")
+                    stacks = effect.get("stacks", 1)
+                    duration = effect.get("duration", -1)
+                    duration_str = f"持续{duration}回合" if duration > 0 else "永久"
+                    desc_lines.append(f"获得{stacks}层{buff_type_str}({duration_str})")
+                elif effect_type == "emy_debuff":
+                    buff_type_str = effect.get("buff_type", "")
+                    stacks = effect.get("stacks", 1)
+                    duration = effect.get("duration", -1)
+                    duration_str = f"持续{duration}回合" if duration > 0 else "永久"
+                    desc_lines.append(f"使敌人获得{stacks}层{buff_type_str}({duration_str})")
+        
+        # 添加预期效果值
+        if expected:
+            if desc_lines:  # 如果已有描述，先加空行
+                desc_lines.append("")
+            desc_lines.append("预期效果:")
+            for value_desc in expected:
+                desc_lines.append(f"  • {value_desc}")
+        
+        # 如果没有描述也没有预期效果，显示默认文本
+        if not desc_lines:
+            desc_lines.append("无描述")
+        
+        # 绘制多行描述
+        line_height = 18
+        max_line_width = width - 20  # 留出边距
+        
+        # 计算总高度
+        total_height = len(desc_lines) * line_height + 10
+        
+        # 背景框
+        arcade.draw_lrbt_rectangle_filled(
+            x - width / 2 - 5, x + width / 2 + 5,
+            description_y, description_y + total_height,
+            (0, 0, 0, 220)  # 半透明黑色背景
+        )
+        
+        # 绘制每一行
+        for i, line in enumerate(desc_lines):
+            line_y = description_y + total_height - 10 - i * line_height
+            # 如果是标题行（如"预期效果:"），使用稍大字体和不同颜色
+            if line.endswith(":"):
+                font_size = self.ui_renderer.text_font_size
+                color = arcade.color.YELLOW
+            else:
+                font_size = self.ui_renderer.text_font_size - 1
+                color = arcade.color.WHITE
             
-            # 添加预期效果值
-            if expected:
-                desc_lines.extend(expected)
-            
-            # 绘制多行描述
-            line_height = 20
-            total_height = len(desc_lines) * line_height
-            
-            # 背景框
-            arcade.draw_lrbt_rectangle_filled(
-                x - width / 2 - 5, x + width / 2 + 5,
-                description_y, description_y + total_height + 10,
-                (0, 0, 0, 200)
-            )
-            
-            # 绘制每一行
-            for i, line in enumerate(desc_lines):
-                line_y = description_y + total_height - i * line_height - 10
-                self.ui_renderer.draw_text(
-                    line,
-                    x, line_y,
-                    arcade.color.WHITE,
-                    self.ui_renderer.text_font_size - 2,
-                    anchor_x="center", anchor_y="center"
-                )
-        else:
-            # 旧版字典格式，单行显示
-            description = card.description if hasattr(card, 'description') and card.description else "无描述"
-            
-            # 添加预期效果值
-            if expected:
-                expected_str = ", ".join(expected)
-                description += f"\n[{expected_str}]"
-            
-            # 简单绘制（可能需要改进为多行）
             self.ui_renderer.draw_text(
-                description,
-                x, description_y + 50,
-                arcade.color.WHITE,
-                self.ui_renderer.text_font_size,
-                anchor_x="center", anchor_y="top"
+                line,
+                x, line_y,
+                color,
+                font_size,
+                anchor_x="center", 
+                anchor_y="center",
+                multiline=True,
+                width=max_line_width
             )
     
     def _calculate_expected_values(self, card: Card, battle: BattleSystem = None) -> list:
@@ -432,6 +571,13 @@ class CardDisplay:
                 # 治疗效果
                 elif effect_type == "self_heal":
                     amount = effect.get("amount", 0)
+                    # 确保 amount 是数值类型，防止从配置读取时为字符串导致 TypeError
+                    if not isinstance(amount, (int, float)):
+                        try:
+                            amount = int(amount)
+                        except (ValueError, TypeError):
+                            amount = 0
+                    
                     # 添加属性加值到显示
                     if stat_bonus != 0:
                         expected.append(f"治疗: {amount+stat_bonus} (基础{amount}{stat_bonus:+d})")

@@ -188,13 +188,18 @@ class BattleSystem:
         # 重置行动索引
         self.current_entity_index = 0
         
+        # 跳过已死亡的实体，找到第一个存活的实体
+        while (self.current_entity_index < len(self.all_entities) and 
+               not self.all_entities[self.current_entity_index].is_alive()):
+            self.current_entity_index += 1
+        
         # 清除所有拖动状态（防止引用已不存在的卡牌）
         if hasattr(self, 'card_view') and self.card_view:
             self.card_view.input_handler.clear_drag_states()
         
         # 检查第一个实体是否是玩家控制
-        if self.all_entities:
-            first_entity = self.all_entities[0]
+        if self.current_entity_index < len(self.all_entities):
+            first_entity = self.all_entities[self.current_entity_index]
             self.is_player_turn = (first_entity.control_type == ControlType.PLAYER)
             
             # 如果第一个是AI，启动AI回合
@@ -204,7 +209,7 @@ class BattleSystem:
     def _process_all_buffs(self):
         """处理所有实体的Buff"""
         for entity in self.player_team + self.enemy_team:
-            effects = entity.process_buffs()
+            effects = entity.process_buffs(self.battle_log)
             for effect in effects:
                 self.battle_log.add(effect)
     
@@ -215,13 +220,13 @@ class BattleSystem:
             tuple: (success: bool, is_permanent: bool)
         """
         current = self.current_entity
-        if not current or not self.is_player_turn or self.battle_finished:
+        if not current or not current.is_alive() or not self.is_player_turn or self.battle_finished:
             return False, False, []
         
         if current.control_type != ControlType.PLAYER:
             return False, False, []
         
-        success, is_permanent, log_entries = current.play_card(card, target)
+        success, is_permanent, log_entries = current.play_card(card, target, self.battle_log)
         if success:
             # 将日志条目添加到战斗日志
             for entry in log_entries:
@@ -251,15 +256,20 @@ class BattleSystem:
         # 移动到下一个实体
         self.current_entity_index += 1
         
+        # 跳过已死亡的实体，找到下一个存活的实体
+        while (self.current_entity_index < len(self.all_entities) and 
+               not self.all_entities[self.current_entity_index].is_alive()):
+            self.current_entity_index += 1
+        
         # 检查是否所有实体都行动完毕
-            # 触发回合结束事件（所有实体行动完毕）
-            from event_system import trigger_event, GameEventType
-            trigger_event(
-                GameEventType.TURN_END,
-                source=self,
-                target=None,
-                data={"round": self.current_round}
-            )
+        # 触发回合结束事件（所有实体行动完毕）
+        from event_system import trigger_event, GameEventType
+        trigger_event(
+            GameEventType.TURN_END,
+            source=self,
+            target=None,
+            data={"round": self.current_round}
+        )
         if self.current_entity_index >= len(self.all_entities):
             # 开始新回合
             if not self.battle_finished:
@@ -283,7 +293,7 @@ class BattleSystem:
             return
         
         current = self.current_entity
-        if not current:
+        if not current or not current.is_alive():
             return
         
         self.ai_playing = True
@@ -299,7 +309,7 @@ class BattleSystem:
             return
         
         current = self.current_entity
-        if not current or current.control_type == ControlType.PLAYER:
+        if not current or not current.is_alive() or current.control_type == ControlType.PLAYER:
             return
         
         # 检查是否到了出牌时间
@@ -313,7 +323,7 @@ class BattleSystem:
     
     def _ai_play_card(self, ai_entity: Entity):
         """AI打出一张卡牌"""
-        if self.battle_finished:
+        if self.battle_finished or not ai_entity.is_alive():
             return
         
         # 选择一张能支付的卡牌
@@ -367,7 +377,7 @@ class BattleSystem:
                     
                     if distance <= max_range:
                         # 移动后在范围内，立即出牌
-                        success, _, log_entries = ai_entity.play_card(card, target)
+                        success, _, log_entries = ai_entity.play_card(card, target, self.battle_log)
                         if success:
                             # 添加AI卡牌使用日志
                             for entry in log_entries:
@@ -394,7 +404,7 @@ class BattleSystem:
             
             if distance <= max_range:
                 # 打出卡牌
-                success, _, log_entries = ai_entity.play_card(card, target)
+                success, _, log_entries = ai_entity.play_card(card, target, self.battle_log)
                 if success:
                     # 添加AI卡牌使用日志
                     for entry in log_entries:

@@ -8,9 +8,10 @@ from copy import deepcopy
 from enum import Enum
 import random
 
-from config import Rarity, CardType, BuffType, CONSTANTS, TargetType
+from config import Rarity, CardType, BuffType, CONSTANTS, TargetType, CardTag
 from inventory import Inventory
 from equipment_manager import EquipmentManager
+from career_system import Career, CareerType, CareerFactory
 
 # 调试模式开关
 DEBUG_MODE = False
@@ -242,6 +243,13 @@ class Entity:
         
         # 初始化装备管理器
         self.equipment_manager = EquipmentManager(owner_name=name)
+        
+        # 职业系统（心智>4时拥有职业）
+        self.career: Optional[Career] = None
+        if stats and stats.intelligence > 4:
+            # 默认分配流浪者职业，后续可以通过其他方式选择
+            self.career = CareerFactory.get_career(CareerType.DRIFTER)
+            self._add_career_cards_to_deck()
     
     def _calculate_max_ap(self) -> int:
         """计算最大AP（包括护甲AC加成）"""
@@ -256,8 +264,27 @@ class Entity:
         intelligence_modifier = self.stats.get_modifier('intelligence')
         return self.base_max_mp + intelligence_modifier
     
+    def _add_career_cards_to_deck(self):
+        """将职业特殊卡牌强制加入卡组"""
+        if not self.career:
+            return
+        
+        from card_database import create_card_database
+        cards_db = create_card_database()
+        
+        # 获取职业需要的特殊卡牌
+        required_cards = self.career.get_all_required_cards()
+        
+        for card_name in required_cards:
+            if card_name in cards_db:
+                # 创建卡牌副本并设置所有者
+                card = cards_db[card_name].copy()
+                card.owner = self
+                # 强制加入卡组（如果不在卡组中）
+                if not any(c.name == card_name for c in self.deck):
+                    self.deck.append(card)
+    
     def _load_equipment_cards(self):
-        """从装备加载提供的卡牌"""
         from card_database import create_card_database
         
         cards_db = create_card_database()
@@ -394,9 +421,14 @@ class Entity:
         if DEBUG_MODE:
             print(f"[DEBUG] {self.name} draw_hand结束: hand_size={len(self.hand)}, deck={len(self.deck)}, discard={len(self.discard_pile)}")
     
-    def play_card(self, card: 'Card', target: 'Entity') -> tuple:
+    def play_card(self, card: 'Card', target: 'Entity', battle_log=None) -> tuple:
         """
         打出卡牌
+        
+        Args:
+            card: 要使用的卡牌
+            target: 目标实体
+            battle_log: 战斗日志（可选）
         
         Returns:
             tuple: (success: bool, is_permanent: bool, log_entries: List)
@@ -425,8 +457,8 @@ class Entity:
         # 从手牌移除
         self.hand.remove(card)
         
-        # 应用卡牌效果并获取日志
-        log_entries = card.apply_effects(target)
+        # 应用卡牌效果并获取日志（传递battle_log）
+        log_entries = card.apply_effects(target, battle_log)
         
         # 如果是常驻卡牌，立即重新加入手牌（会自动触发上升动画）
         if is_permanent:
@@ -439,7 +471,7 @@ class Entity:
         
         return True, False, log_entries
     
-    def take_damage(self, damage: int, ignore_block: bool = False, source: Any = None):
+    def take_damage(self, damage: int, ignore_block: bool = False, source: Any = None, battle_log=None):
         """
         受到伤害
         
@@ -447,11 +479,12 @@ class Entity:
             damage: 伤害值
             ignore_block: 是否忽略格挡(真伤)
             source: 伤害来源（卡牌、实体等）
+            battle_log: 战斗日志（可选）
         """
         from event_system import GameEventType, trigger_event, apply_damage_modifiers, break_shield_modifier
         
         # 应用伤害修正
-        modified_damage = apply_damage_modifiers(damage, source, self)
+        modified_damage = apply_damage_modifiers(damage, source, self, battle_log)
         
         # 触发伤害应用前事件
         damage_event = trigger_event(
@@ -495,18 +528,19 @@ class Entity:
             data={"final_damage": modified_damage}
         )
     
-    def heal(self, amount: int, source: Any = None):
+    def heal(self, amount: int, source: Any = None, battle_log=None):
         """
         治疗
         
         Args:
             amount: 基础治疗量
             source: 治疗来源
+            battle_log: 战斗日志（可选）
         """
         from event_system import GameEventType, trigger_event, apply_heal_modifiers
         
         # 应用治疗修正
-        modified_heal = apply_heal_modifiers(amount, source, self)
+        modified_heal = apply_heal_modifiers(amount, source, self, battle_log)
         
         # 触发治疗应用前事件
         heal_event = trigger_event(
@@ -556,8 +590,13 @@ class Entity:
             # 新的buff类型，直接添加
             self.buffs[key] = buff
     
-    def process_buffs(self) -> List[str]:
-        """处理所有Buff，返回效果描述列表"""
+    def process_buffs(self, battle_log=None) -> List[str]:
+        """
+        处理所有Buff，返回效果描述列表
+        
+        Args:
+            battle_log: 战斗日志（可选）
+        """
         effects = []
         buffs_to_remove = []
         
@@ -573,7 +612,7 @@ class Entity:
                 total_damage = dice_damage + additional_damage
                 
                 # 使用真伤（忽略格挡）
-                self.take_damage(total_damage, ignore_block=True)
+                self.take_damage(total_damage, ignore_block=True, battle_log=battle_log)
                 effects.append(f"{self.name}毒发，受到{total_damage}点真实伤害（1d{stacks}+{additional_damage}）")
             
             # 检查是否需要移除
@@ -597,6 +636,83 @@ class Entity:
             'discard_count': len(self.discard_pile),
             'hand_count': len([c for c in self.hand if c not in self.permanent_cards and c not in self.equipment_cards])
         }
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """将实体序列化为字典（包含职业信息）"""
+        data = {
+            'name': self.name,
+            'max_hp': self.max_hp,
+            'hp': self.hp,
+            'base_max_ap': self.base_max_ap,
+            'max_ap': self.max_ap,
+            'ap': self.ap,
+            'base_max_mp': self.base_max_mp,
+            'max_mp': self.max_mp,
+            'mp': self.mp,
+            'max_md': self.max_md,
+            'md': self.md,
+            'block': self.block,
+            'hand_size': self.hand_size,
+            'stats': {
+                'strength': self.stats.strength,
+                'dexterity': self.stats.dexterity,
+                'intelligence': self.stats.intelligence,
+                'charisma': self.stats.charisma,
+                'luck': self.stats.luck
+            },
+            'control_type': self.control_type.value,
+            'position': list(self.position),
+            'career': self.career.to_dict() if self.career else None
+        }
+        return data
+    
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> 'Entity':
+        """从字典创建实体（包含职业信息）"""
+        # 恢复属性
+        stats_data = data.get('stats', {})
+        stats = Stats(
+            strength=stats_data.get('strength', 10),
+            dexterity=stats_data.get('dexterity', 10),
+            intelligence=stats_data.get('intelligence', 10),
+            charisma=stats_data.get('charisma', 10),
+            luck=stats_data.get('luck', 10)
+        )
+        
+        # 恢复控制类型
+        from models import ControlType
+        control_type = ControlType(data.get('control_type', 'ai'))
+        
+        # 恢复位置
+        position = tuple(data.get('position', [0, 0]))
+        
+        # 创建临时实体（后续需要加载卡牌和装备）
+        entity = Entity(
+            name=data['name'],
+            max_hp=data['max_hp'],
+            max_ap=data['base_max_ap'],
+            equipment={},
+            cards=[],
+            hand_size=data.get('hand_size', 4),
+            stats=stats,
+            control_type=control_type,
+            position=position
+        )
+        
+        # 恢复HP、AP、MP等状态
+        entity.hp = data.get('hp', data['max_hp'])
+        entity.ap = data.get('ap', entity.max_ap)
+        entity.mp = data.get('mp', entity.max_mp)
+        entity.md = data.get('md', entity.max_md)
+        entity.block = data.get('block', 0)
+        
+        # 恢复职业
+        career_data = data.get('career')
+        if career_data:
+            from career_system import Career
+            entity.career = Career.from_dict(career_data)
+        
+        return entity
     
     def __str__(self):
         return self.name
@@ -626,7 +742,8 @@ class Card:
         is_movement: bool = False,  # 是否为移动卡牌
         mp_cost: int = 0,  # MP消耗（法术卡牌需要）
         card_id: Optional[int] = None,  # 卡牌唯一ID（可选，自动生成）
-        stat_ratios: Optional[Dict[str, float]] = None  # 属性比例 {"str": 1.0, "dex": 0.5, "int": 0.0, "cha": 0.0}
+        stat_ratios: Optional[Dict[str, float]] = None,  # 属性比例 {"str": 1.0, "dex": 0.5, "int": 0.0, "cha": 0.0}
+        tags: Optional[List[CardTag]] = None  # 卡牌标签列表
     ):
         self.name = name
         self.card_type = card_type
@@ -641,6 +758,7 @@ class Card:
         self.is_movement = is_movement  # 是否为移动卡牌
         self.mp_cost = mp_cost  # MP消耗
         self.stat_ratios = stat_ratios or {}  # 属性比例，如 {"str": 1.0, "dex": 0.5}
+        self.tags = tags or []  # 卡牌标签列表
         
         # 分配唯一ID
         if card_id is not None:
@@ -769,8 +887,13 @@ class Card:
         
         return results
     
-    def apply_effects(self, target: Entity):
-        """应用卡牌效果"""
+    def apply_effects(self, target: Entity, battle_log=None):
+        """应用卡牌效果
+        
+        Args:
+            target: 目标实体
+            battle_log: 战斗日志（可选）
+        """
         if not self.owner:
             raise ValueError("卡牌没有所有者")
         
@@ -802,24 +925,47 @@ class Card:
                         # 使用统一的伤害处理逻辑
                         results.extend(self._apply_damage_effect(attacker, target, base_damage, self.name))
                 
-                # 自我治疗
+                # 自我治疗 - 支持骰子表达式和固定值
                 elif effect_type == "self_heal":
-                    amount = effect.get("amount", 0)
+                    # 检查是否有dice字段（骰子表达式）
+                    dice_expr = effect.get("dice", "")
+                    if dice_expr:
+                        # 使用骰子表达式
+                        amount = self._roll_dice_expression(dice_expr)
+                    else:
+                        # 使用固定值（可能是字符串或整数）
+                        amount_value = effect.get("amount", 0)
+                        if isinstance(amount_value, str):
+                            # 如果是字符串，尝试解析为骰子表达式
+                            amount = self._roll_dice_expression(amount_value)
+                        else:
+                            # 如果是整数，直接使用
+                            amount = amount_value
+                    
                     # 应用属性加值到治疗量
                     heal_bonus = self.get_stat_bonus(attacker.stats)
                     if heal_bonus != 0:
                         amount += heal_bonus
                         results.append((f"  属性加值: +{heal_bonus}", 2, "success"))
-                    attacker.heal(amount)
+                    attacker.heal(amount, battle_log=battle_log)
                     results.append((f"{attacker}使用{self.name}，恢复{amount}点生命值", 0, "success"))  # level 0, success color
                 
-                # 自我格挡 - 使用骰子表达式
+                # 自我格挡 - 支持骰子表达式和固定值
                 elif effect_type == "self_block":
                     dice_expr = effect.get("dice", "")
                     if dice_expr:
+                        # 使用骰子表达式
                         block_amount = self._roll_dice_expression(dice_expr)
                     else:
-                        block_amount = effect.get("amount", 0)
+                        # 使用固定值（可能是字符串或整数）
+                        amount_value = effect.get("amount", 0)
+                        if isinstance(amount_value, str):
+                            # 如果是字符串，尝试解析为骰子表达式
+                            block_amount = self._roll_dice_expression(amount_value)
+                        else:
+                            # 如果是整数，直接使用
+                            block_amount = amount_value
+                    
                     # 应用属性加值到格挡值
                     block_bonus = self.get_stat_bonus(attacker.stats)
                     if block_bonus != 0:
@@ -910,7 +1056,8 @@ class Card:
             target_type=self.target_type,
             is_movement=self.is_movement,
             mp_cost=self.mp_cost,  # 复制MP消耗
-            stat_ratios=deepcopy(self.stat_ratios) if self.stat_ratios else {}  # 复制属性比例
+            stat_ratios=deepcopy(self.stat_ratios) if self.stat_ratios else {},  # 复制属性比例
+            tags=deepcopy(self.tags) if self.tags else []  # 复制标签列表
             # 不传递card_id，让副本获得新的唯一ID
         )
         

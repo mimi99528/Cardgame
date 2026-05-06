@@ -1,0 +1,346 @@
+[
+  {
+    "id": 101,
+    "name": "训练木剑",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "weapon",
+    "description": "你是怎么拿到这东西的（警觉）",
+    "rarity": "COMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "physical_bonus": 10,
+      "magical_bonus": 5,
+      "attack_modifier": 0,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 102,
+    "name": "铁剑",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "weapon",
+    "description": "标准的铁制长剑",
+    "rarity": "UNCOMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "physical_bonus": 20,
+      "magical_bonus": 5,
+      "attack_modifier": 1,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 103,
+    "name": "魔法杖",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "weapon",
+    "description": "蕴含魔力的法杖",
+    "rarity": "RARE",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "physical_bonus": 5,
+      "magical_bonus": 25,
+      "attack_modifier": 2,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 104,
+    "name": "手半剑",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "weapon",
+    "description": "灵活的双刃剑，提供刺击和劈砍选项",
+    "rarity": "UNCOMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "physical_bonus": 15,
+      "magical_bonus": 0,
+      "attack_modifier": 2,
+      "provided_cards": ["刺击", "劈砍"]
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 201,
+    "name": "布衣",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "armor",
+    "description": "普通的布制衣服",
+    "rarity": "COMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "block_dice": "d2",
+      "block_per_turn": 0,
+      "ap_bonus": 0,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 202,
+    "name": "皮甲",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "armor",
+    "description": "轻便的皮革护甲",
+    "rarity": "UNCOMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "block_dice": "d3",
+      "block_per_turn": 0,
+      "ap_bonus": 0,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 203,
+    "name": "板甲",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "armor",
+    "description": "厚重的金属板甲",
+    "rarity": "RARE",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "block_dice": "d4",
+      "block_per_turn": 0,
+      "ap_bonus": 0,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 204,
+    "name": "圆盾",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "armor",
+    "description": "提供每回合再生格挡值和消耗AP的格挡牌",
+    "rarity": "UNCOMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "block_dice": "d2",
+      "block_per_turn": 2,
+      "ap_bonus": 0,
+      "provided_cards": ["盾牌格挡"]
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 205,
+    "name": "普通衬衫",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "armor",
+    "description": "最常见的日常穿着，几乎不提供防护",
+    "rarity": "COMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "block_dice": "d1",
+      "block_per_turn": 0,
+      "ap_bonus": 0,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 206,
+    "name": "粗布外套",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "armor",
+    "description": "粗糙但耐用的外套，适合旅行",
+    "rarity": "COMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "block_dice": "d2",
+      "block_per_turn": 0,
+      "ap_bonus": 0,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 207,
+    "name": "亚麻长袍",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "armor",
+    "description": "轻便透气的长袍，适合温暖气候",
+    "rarity": "COMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "block_dice": "d2",
+      "block_per_turn": 1,
+      "ap_bonus": 0,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 208,
+    "name": "羊毛斗篷",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "armor",
+    "description": "保暖的羊毛斗篷，提供少量防护",
+    "rarity": "COMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "block_dice": "d2",
+      "block_per_turn": 0,
+      "ap_bonus": 0,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 209,
+    "name": "旅行者套装",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "armor",
+    "description": "专为长途旅行设计的实用服装",
+    "rarity": "UNCOMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "block_dice": "d3",
+      "block_per_turn": 0,
+      "ap_bonus": 0,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 210,
+    "name": "学徒法袍",
+    "category": "item",
+    "type": "equipment",
+    "equipment_type": "armor",
+    "description": "法师学徒的标准装束，带有简单的魔法纹饰",
+    "rarity": "UNCOMMON",
+    "ap_cost": 0,
+    "effects": [],
+    "equipment_stats": {
+      "block_dice": "d2",
+      "block_per_turn": 1,
+      "ap_bonus": 1,
+      "provided_cards": []
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 301,
+    "name": "巨力护腕",
+    "category": "item-accessory",
+    "type": "equipment",
+    "equipment_type": "accessory",
+    "description": "力量+2，格挡每回合回复1d4点；敏捷-1，闪避劣势（3d10取2低）",
+    "rarity": "RARE",
+    "ap_cost": 0,
+    "effects": [
+      {"type": "stat_bonus", "stat": "strength", "value": 2},
+      {"type": "stat_penalty", "stat": "dexterity", "value": -1},
+      {"type": "block_regen", "value": "1d4"}
+    ],
+    "equipment_stats": {
+      "stat_bonuses": {
+        "strength": 2,
+        "dexterity": -1
+      },
+      "block_regen_per_turn": "1d4"
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 302,
+    "name": "灵敏手套",
+    "category": "item-accessory",
+    "type": "equipment",
+    "equipment_type": "accessory",
+    "description": "敏捷+2；心智-1，施法时法力消耗+2",
+    "rarity": "RARE",
+    "ap_cost": 0,
+    "effects": [
+      {"type": "stat_bonus", "stat": "dexterity", "value": 2},
+      {"type": "stat_penalty", "stat": "intelligence", "value": -1},
+      {"type": "mp_cost_increase", "value": 2}
+    ],
+    "equipment_stats": {
+      "stat_bonuses": {
+        "dexterity": 2,
+        "intelligence": -1
+      },
+      "mp_cost_modifier": 2
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 303,
+    "name": "贤者戒指",
+    "category": "item-accessory",
+    "type": "equipment",
+    "equipment_type": "accessory",
+    "description": "心智+2，魅力+1；力量-2，近战伤害-1",
+    "rarity": "RARE",
+    "ap_cost": 0,
+    "effects": [
+      {"type": "stat_bonus", "stat": "intelligence", "value": 2},
+      {"type": "stat_bonus", "stat": "charisma", "value": 1},
+      {"type": "stat_penalty", "stat": "strength", "value": -2},
+      {"type": "melee_damage_penalty", "value": -1}
+    ],
+    "equipment_stats": {
+      "stat_bonuses": {
+        "intelligence": 2,
+        "charisma": 1,
+        "strength": -2
+      },
+      "melee_damage_modifier": -1
+    },
+    "play_conditions": []
+  },
+  {
+    "id": 304,
+    "name": "华丽胸针",
+    "category": "item-accessory",
+    "type": "equipment",
+    "equipment_type": "accessory",
+    "description": "魅力+2；格挡值-1（最低为0）",
+    "rarity": "RARE",
+    "ap_cost": 0,
+    "effects": [
+      {"type": "stat_bonus", "stat": "charisma", "value": 2},
+      {"type": "block_penalty", "value": -1}
+    ],
+    "equipment_stats": {
+      "stat_bonuses": {
+        "charisma": 2
+      },
+      "block_modifier": -1
+    },
+    "play_conditions": []
+  }
+]

@@ -393,13 +393,14 @@ class Inventory:
             "grid_height": self.grid_height
         }
     
-    def use_item(self, item: InventoryItem, user_entity=None) -> Tuple[bool, str]:
+    def use_item(self, item: InventoryItem, user_entity=None, battle_log=None) -> Tuple[bool, str]:
         """
         使用物品
         
         Args:
             item: 要使用的物品
             user_entity: 使用者实体（用于消耗AP和应用效果）
+            battle_log: 战斗日志（可选）
             
         Returns:
             (是否成功, 说明)
@@ -415,7 +416,7 @@ class Inventory:
         # 根据物品类型执行不同操作
         if item.item_type == ItemType.CONSUMABLE:
             # 消耗品：应用效果
-            result = self._apply_consumable_effect(item, user_entity)
+            result = self._apply_consumable_effect(item, user_entity, battle_log)
             if result[0]:  # 如果成功
                 # 减少堆叠数量或移除物品
                 if item.stackable and item.stack_count > 1:
@@ -435,8 +436,15 @@ class Inventory:
         else:
             return False, f"无法使用{item.item_type.value}类型的物品"
     
-    def _apply_consumable_effect(self, item: InventoryItem, user_entity) -> Tuple[bool, str]:
-        """应用消耗品效果"""
+    def _apply_consumable_effect(self, item: InventoryItem, user_entity, battle_log=None) -> Tuple[bool, str]:
+        """
+        应用消耗品效果
+        
+        Args:
+            item: 物品
+            user_entity: 使用者实体
+            battle_log: 战斗日志（可选）
+        """
         if not user_entity:
             return False, "没有使用者"
         
@@ -448,7 +456,7 @@ class Inventory:
             heal_value = effects["heal"]
             heal_amount = int(parse_value_or_dice(heal_value))
             old_hp = user_entity.hp
-            user_entity.heal(heal_amount)
+            user_entity.heal(heal_amount, battle_log=battle_log)
             actual_heal = user_entity.hp - old_hp
             results.append(f"恢复了{actual_heal}点生命值")
         

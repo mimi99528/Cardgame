@@ -196,7 +196,7 @@ class UIRenderer:
     
     def _draw_entity_health_bar(self, entity: Entity, index: int, bar_width: float,
                                bar_y_start: float, bar_height: float, is_player: bool):
-        """绘制单个实体的血条"""
+        """绘制单个实体的血条（包含职业信息）"""
         entity_bar_width = bar_width * 0.8
         
         if is_player:
@@ -204,10 +204,15 @@ class UIRenderer:
         else:
             entity_bar_x = self.window_width - (self.window_width // 8) - index * bar_width
         
+        # 检查是否有职业，有职业则增加血条高度
+        has_career = hasattr(entity, 'career') and entity.career is not None
+        career_height_offset = bar_height * 0.5 if has_career else 0
+        total_height = bar_height + career_height_offset
+        
         # 血条背景
         arcade.draw_lrbt_rectangle_filled(
             entity_bar_x - entity_bar_width / 2, entity_bar_x + entity_bar_width / 2,
-            bar_y_start - bar_height * 2, bar_y_start - bar_height,
+            bar_y_start - total_height * 2, bar_y_start - total_height,
             arcade.color.DARK_GRAY
         )
         
@@ -220,14 +225,14 @@ class UIRenderer:
             if left <= right:
                 arcade.draw_lrbt_rectangle_filled(
                     left, right,
-                    bar_y_start - bar_height * 2, bar_y_start - bar_height,
+                    bar_y_start - total_height * 2, bar_y_start - total_height,
                     arcade.color.GREEN
                 )
         
         # 血条边框
         arcade.draw_lrbt_rectangle_outline(
             entity_bar_x - entity_bar_width / 2, entity_bar_x + entity_bar_width / 2,
-            bar_y_start - bar_height * 2, bar_y_start - bar_height,
+            bar_y_start - total_height * 2, bar_y_start - total_height,
             arcade.color.BLACK, 2
         )
         
@@ -235,10 +240,37 @@ class UIRenderer:
         control_marker = "★" if entity.control_type.value == "player" else "●"
         self.draw_text(
             f"{control_marker}{entity.name}: {int(entity.hp)}/{entity.max_hp}",
-            entity_bar_x, bar_y_start - bar_height * 1.5,
+            entity_bar_x, bar_y_start - total_height * 1.5,
             arcade.color.WHITE, self.text_font_size - 2,
             anchor_x="center", anchor_y="center"
         )
+        
+        # 如果有职业，显示职业名称
+        if has_career:
+            career_name = entity.career.name
+            # 职业名称背景
+            career_text_width = len(career_name) * 10
+            arcade.draw_lrbt_rectangle_filled(
+                entity_bar_x - career_text_width / 2 - 5,
+                entity_bar_x + career_text_width / 2 + 5,
+                bar_y_start - total_height * 2 - 15,
+                bar_y_start - total_height * 2 - 3,
+                (255, 255, 200, 200)
+            )
+            arcade.draw_lrbt_rectangle_outline(
+                entity_bar_x - career_text_width / 2 - 5,
+                entity_bar_x + career_text_width / 2 + 5,
+                bar_y_start - total_height * 2 - 15,
+                bar_y_start - total_height * 2 - 3,
+                arcade.color.BLACK, 1
+            )
+            # 职业名称文字
+            self.draw_text(
+                career_name,
+                entity_bar_x, bar_y_start - total_height * 2 - 9,
+                arcade.color.DARK_GOLDENROD, self.text_font_size - 4,
+                anchor_x="center", anchor_y="center", bold=True
+            )
     
     def _draw_ap_display(self, battle: BattleSystem):
         """绘制AP显示"""
@@ -435,7 +467,9 @@ class UIRenderer:
             info_y = self.window_height - 300
         
         info_width = 300
-        info_height = 180
+        # 根据是否有职业调整高度
+        has_career = hasattr(entity, 'career') and entity.career is not None
+        info_height = 200 if has_career else 180
         
         # 绘制背景
         arcade.draw_lrbt_rectangle_filled(
@@ -494,6 +528,40 @@ class UIRenderer:
             anchor_x="left", anchor_y="center"
         )
         
+        # 如果有职业，显示职业信息
+        if has_career:
+            career_name = entity.career.name
+            career_desc = entity.career.description[:30] + "..." if len(entity.career.description) > 30 else entity.career.description
+            
+            # 职业信息背景
+            career_box_y = info_y + info_height - 210
+            arcade.draw_lrbt_rectangle_filled(
+                info_x + 5, info_x + info_width - 5,
+                career_box_y - 35, career_box_y - 5,
+                (255, 255, 200, 150)
+            )
+            arcade.draw_lrbt_rectangle_outline(
+                info_x + 5, info_x + info_width - 5,
+                career_box_y - 35, career_box_y - 5,
+                arcade.color.DARK_GOLDENROD, 1
+            )
+            
+            # 职业名称
+            self.draw_text(
+                f"职业: {career_name}",
+                info_x + 10, career_box_y - 15,
+                arcade.color.DARK_GOLDENROD, self.text_font_size - 2,
+                anchor_x="left", anchor_y="center", bold=True
+            )
+            
+            # 职业描述
+            self.draw_text(
+                career_desc,
+                info_x + 10, career_box_y - 30,
+                arcade.color.BROWN, self.text_font_size - 4,
+                anchor_x="left", anchor_y="center"
+            )
+        
         # 绘制装备信息
         if hasattr(entity, 'equipment_manager'):
             from equipment_manager import EquipmentSlot
@@ -501,7 +569,8 @@ class UIRenderer:
             weapon = equip_mgr.get_equipped_item(EquipmentSlot.WEAPON)
             armor = equip_mgr.get_equipped_item(EquipmentSlot.BODY)
             
-            equipment_y = info_y + info_height - 210
+            # 根据是否有职业调整装备信息的Y坐标
+            equipment_y = info_y + info_height - 210 if has_career else info_y + info_height - 180
             
             if weapon:
                 self.draw_text(

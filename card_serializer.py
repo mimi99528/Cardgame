@@ -5,7 +5,7 @@
 import json
 from typing import Dict, List, Any, Optional
 from models import Card, Weapon, Armor
-from config import CardType, Rarity, TargetType
+from config import CardType, Rarity, TargetType, CardTag
 
 
 class CardSerializer:
@@ -52,7 +52,8 @@ class CardSerializer:
             "target_type": card.target_type.value,  # 目标类型
             "is_movement": card.is_movement,  # 是否为移动卡牌
             "mp_cost": card.mp_cost,  # MP消耗
-            "stat_ratios": card.stat_ratios if card.stat_ratios else {}  # 属性比例
+            "stat_ratios": card.stat_ratios if card.stat_ratios else {},  # 属性比例
+            "tags": [tag.value for tag in card.tags] if card.tags else []  # 标签列表（存储中文值）
         }
         
         # 添加升级信息（如果有）
@@ -114,6 +115,19 @@ class CardSerializer:
         if not isinstance(effects, list):
             raise ValueError(f"卡牌 '{data.get('name', 'Unknown')}' 的effects必须是列表格式")
         
+        # 解析标签列表
+        tags = []
+        if "tags" in data and isinstance(data["tags"], list):
+            for tag_str in data["tags"]:
+                try:
+                    # 通过中文值查找对应的CardTag枚举
+                    for tag in CardTag:
+                        if tag.value == tag_str:
+                            tags.append(tag)
+                            break
+                except (ValueError, AttributeError):
+                    pass  # 忽略无效的标签
+        
         # 创建卡牌对象
         card = Card(
             name=data["name"],
@@ -127,7 +141,8 @@ class CardSerializer:
             target_type=TargetType(data.get("target_type", "enemy")),  # 默认目标类型为敌人
             is_movement=data.get("is_movement", False),
             mp_cost=data.get("mp_cost", 0),  # 默认MP消耗为0
-            stat_ratios=data.get("stat_ratios", {})  # 默认无属性比例
+            stat_ratios=data.get("stat_ratios", {}),  # 默认无属性比例
+            tags=tags  # 标签列表
         )
         
         # 恢复升级信息（如果有）

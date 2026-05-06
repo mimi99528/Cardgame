@@ -1,0 +1,23 @@
+{
+  "id": 1001,
+  "name": "应急包扎",
+  "category": "combat",
+  "type": "hel",
+  "description": "战斗：回复 1d10+等阶加值\n探索：处理流血/中毒，清除1层\n社交：展示善意，魅力检定+1加值（限可治疗行动）",
+  "rarity": "COMMON",
+  "ap_cost": 1,
+  "effects": [
+    {
+      "type": "self_heal",
+      "dice": "2d10dh1"
+    }
+  ],
+  "play_conditions": [],
+  "atk_dis": 1,
+  "atk_rnge": {"type": "circle", "radius": 0},
+  "target_type": "self",
+  "is_movement": false,
+  "mp_cost": 0,
+  "stat_ratios": {},
+  "tags": ["治疗", "生存", "自身"]
+}

@@ -1,4 +1,3 @@
-```
 # Environment files
 .env
 .env.local
@@ -39,4 +38,20 @@ htmlcov/
 # System files
 .DS_Store
 Thumbs.db
-```
+
+# Test files and directories
+tests/
+docs_and_tests/
+*test_*.py
+*demo*.py
+*example*.py
+*probability*.py
+
+# Documentation files (except design.md and roadmap.md)
+*.md
+!design.md
+!roadmap.md
+
+# Other generated files
+dice_probability_chart.png
+CardBattleGame_v1.0.0.zip

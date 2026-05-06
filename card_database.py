@@ -12,21 +12,47 @@ from card_serializer import CardSerializer
 
 def create_card_database():
     """创建卡牌数据库 - 从JSON文件读取"""
-    # 尝试从JSON文件加载卡牌
+    cards = {}
+    
+    # 1. 尝试从主JSON文件加载卡牌
     json_file = os.path.join(os.path.dirname(__file__), 'cards.json')
     
     if os.path.exists(json_file):
         try:
             cards_list = CardSerializer.load_cards_from_file(json_file)
             # 转换为字典格式，以卡牌名称为键
-            cards = {card.name: card for card in cards_list}
-            return cards
+            cards.update({card.name: card for card in cards_list})
         except Exception as e:
             print(f"警告：从JSON文件加载卡牌失败: {e}")
-            print("使用默认卡牌...")
     
-    # 如果JSON文件不存在或加载失败，返回空字典
-    return {}
+    # 2. 从./cards文件夹加载单独的卡牌文件
+    cards_dir = os.path.join(os.path.dirname(__file__), 'cards')
+    if os.path.exists(cards_dir):
+        try:
+            for filename in os.listdir(cards_dir):
+                if filename.endswith('.json'):
+                    filepath = os.path.join(cards_dir, filename)
+                    try:
+                        with open(filepath, 'r', encoding='utf-8') as f:
+                            import json
+                            card_data = json.load(f)
+                            
+                            # 支持列表格式（多个卡牌）或单个卡牌对象
+                            if isinstance(card_data, list):
+                                # 列表格式：遍历所有卡牌
+                                for data in card_data:
+                                    card = CardSerializer.dict_to_card(data)
+                                    cards[card.name] = card
+                            else:
+                                # 单个卡牌对象
+                                card = CardSerializer.dict_to_card(card_data)
+                                cards[card.name] = card
+                    except Exception as e:
+                        print(f"警告：加载卡牌文件 {filename} 失败: {e}")
+        except Exception as e:
+            print(f"警告：扫描cards目录失败: {e}")
+    
+    return cards
 
 
 # ==================== 武器数据库 ====================
@@ -305,10 +331,302 @@ def create_accessory_database():
     return accessories
 
 
+# ==================== 职业专属卡组 ====================
+
+def create_drifter_deck():
+    """创建流浪者专属卡组 - 敏捷型、生存导向"""
+    cards_db = create_card_database()
+    deck = []
+    
+    # 核心攻击卡
+    if "精准打击" in cards_db:
+        deck.extend([cards_db["精准打击"].copy() for _ in range(3)])
+    if "刺击" in cards_db:
+        deck.append(cards_db["刺击"].copy())
+    
+    # 移动和生存卡
+    if "疾风步" in cards_db:
+        deck.extend([cards_db["疾风步"].copy() for _ in range(2)])
+    if "野外求生" in cards_db:
+        deck.append(cards_db["野外求生"].copy())
+    
+    # 防御卡
+    if "灵巧闪避" in cards_db:
+        deck.extend([cards_db["灵巧闪避"].copy() for _ in range(2)])
+    if "格挡" in cards_db:
+        deck.append(cards_db["格挡"].copy())
+    
+    # 补充到10张（不包括基础移动，因为它是常驻牌）
+    while len(deck) < 10:
+        if "基础移动" in cards_db:
+            # 基础移动是常驻牌，不应该加入卡组
+            break
+        else:
+            break
+    
+    return deck
+
+
+def create_artisan_deck():
+    """创建手艺人专属卡组 - 力量型、装备导向"""
+    cards_db = create_card_database()
+    deck = []
+    
+    # 核心攻击卡
+    if "重击" in cards_db:
+        deck.extend([cards_db["重击"].copy() for _ in range(2)])
+    if "劈砍" in cards_db:
+        deck.extend([cards_db["劈砍"].copy() for _ in range(2)])
+    
+    # 装备交互卡
+    if "工具修理" in cards_db:
+        deck.extend([cards_db["工具修理"].copy() for _ in range(2)])
+    
+    # 防御卡
+    if "坚固防御" in cards_db:
+        deck.extend([cards_db["坚固防御"].copy() for _ in range(2)])
+    if "格挡" in cards_db:
+        deck.append(cards_db["格挡"].copy())
+    
+    # 补充到10张
+    while len(deck) < 10:
+        if "刺击" in cards_db:
+            deck.append(cards_db["刺击"].copy())
+        else:
+            break
+    
+    return deck
+
+
+def create_pedlar_deck():
+    """创建行商专属卡组 - 魅力型、控制导向"""
+    cards_db = create_card_database()
+    deck = []
+    
+    # 核心攻击卡
+    if "洞察弱点" in cards_db:
+        deck.extend([cards_db["洞察弱点"].copy() for _ in range(3)])
+    
+    # 社交和控制卡
+    if "巧言令色" in cards_db:
+        deck.extend([cards_db["巧言令色"].copy() for _ in range(2)])
+    if "贿赂" in cards_db:
+        deck.append(cards_db["贿赂"].copy())
+    
+    # 防御卡
+    if "格挡" in cards_db:
+        deck.extend([cards_db["格挡"].copy() for _ in range(2)])
+    
+    # 补充到10张
+    while len(deck) < 10:
+        if "刺击" in cards_db:
+            deck.append(cards_db["刺击"].copy())
+        else:
+            break
+    
+    return deck
+
+
+def create_farmer_deck():
+    """创建农民专属卡组 - 力量/心智型、坦克导向"""
+    cards_db = create_card_database()
+    deck = []
+    
+    # 核心攻击卡
+    if "丰收之击" in cards_db:
+        deck.extend([cards_db["丰收之击"].copy() for _ in range(2)])
+    if "劈砍" in cards_db:
+        deck.append(cards_db["劈砍"].copy())
+    
+    # 治疗和群体卡
+    if "坚韧不拔" in cards_db:
+        deck.extend([cards_db["坚韧不拔"].copy() for _ in range(2)])
+    if "群体鼓舞" in cards_db:
+        deck.append(cards_db["群体鼓舞"].copy())
+    
+    # 防御卡
+    if "大地守护" in cards_db:
+        deck.extend([cards_db["大地守护"].copy() for _ in range(2)])
+    
+    # 补充到10张
+    while len(deck) < 10:
+        if "格挡" in cards_db:
+            deck.append(cards_db["格挡"].copy())
+        else:
+            break
+    
+    return deck
+
+
+def create_scholar_deck():
+    """创建学者专属卡组 - 心智型、法术导向"""
+    cards_db = create_card_database()
+    deck = []
+    
+    # 核心法术卡
+    if "奥术冲击" in cards_db:
+        deck.extend([cards_db["奥术冲击"].copy() for _ in range(3)])
+    if "心灵震爆" in cards_db:
+        deck.append(cards_db["心灵震爆"].copy())
+    
+    # 资源管理卡
+    if "知识汲取" in cards_db:
+        deck.extend([cards_db["知识汲取"].copy() for _ in range(2)])
+    if "思维加速" in cards_db:
+        deck.append(cards_db["思维加速"].copy())
+    
+    # 防御卡
+    if "法力护盾" in cards_db:
+        deck.extend([cards_db["法力护盾"].copy() for _ in range(2)])
+    
+    # 补充到10张
+    while len(deck) < 10:
+        if "冰缀" in cards_db:
+            deck.append(cards_db["冰缀"].copy())
+        else:
+            break
+    
+    return deck
+
+
+def get_career_deck(career_type):
+    """根据职业类型获取专属卡组"""
+    from career_system import CareerType
+    
+    deck_functions = {
+        CareerType.DRIFTER: create_drifter_deck,
+        CareerType.ARTISAN: create_artisan_deck,
+        CareerType.PEDLAR: create_pedlar_deck,
+        CareerType.FARMER: create_farmer_deck,
+        CareerType.SCHOLAR: create_scholar_deck,
+    }
+    
+    func = deck_functions.get(career_type)
+    if func:
+        return func()
+    else:
+        # 默认卡组
+        return create_drifter_deck()
+
+
+# ==================== 敌人职业卡组 ====================
+
+def create_enemy_warrior_deck():
+    """创建战士型敌人卡组 - 高攻击、中等防御"""
+    cards_db = create_card_database()
+    deck = []
+    
+    if "劈砍" in cards_db:
+        deck.extend([cards_db["劈砍"].copy() for _ in range(4)])
+    if "刺击" in cards_db:
+        deck.extend([cards_db["刺击"].copy() for _ in range(3)])
+    if "破绽打击" in cards_db:
+        deck.append(cards_db["破绽打击"].copy())
+    if "格挡" in cards_db:
+        deck.extend([cards_db["格挡"].copy() for _ in range(2)])
+    
+    while len(deck) < 10:
+        if "刺击" in cards_db:
+            deck.append(cards_db["刺击"].copy())
+        else:
+            break
+    
+    return deck
+
+
+def create_enemy_mage_deck():
+    """创建法师型敌人卡组 - 高伤害法术、低防御"""
+    cards_db = create_card_database()
+    deck = []
+    
+    if "奥术飞弹" in cards_db:
+        deck.extend([cards_db["奥术飞弹"].copy() for _ in range(2)])
+    if "点火" in cards_db:
+        deck.extend([cards_db["点火"].copy() for _ in range(2)])
+    if "冰缀" in cards_db:
+        deck.extend([cards_db["冰缀"].copy() for _ in range(2)])
+    if "法力护盾" in cards_db:
+        deck.extend([cards_db["法力护盾"].copy() for _ in range(2)])
+    if "奥术冲击" in cards_db:
+        deck.append(cards_db["奥术冲击"].copy())
+    
+    while len(deck) < 10:
+        if "冰缀" in cards_db:
+            deck.append(cards_db["冰缀"].copy())
+        else:
+            break
+    
+    return deck
+
+
+def create_enemy_tank_deck():
+    """创建坦克型敌人卡组 - 高防御、持续作战"""
+    cards_db = create_card_database()
+    deck = []
+    
+    if "格挡" in cards_db:
+        deck.extend([cards_db["格挡"].copy() for _ in range(4)])
+    if "盾牌格挡" in cards_db:
+        deck.extend([cards_db["盾牌格挡"].copy() for _ in range(2)])
+    if "刺击" in cards_db:
+        deck.extend([cards_db["刺击"].copy() for _ in range(3)])
+    if "治疗" in cards_db:
+        deck.append(cards_db["治疗"].copy())
+    
+    while len(deck) < 10:
+        if "格挡" in cards_db:
+            deck.append(cards_db["格挡"].copy())
+        else:
+            break
+    
+    return deck
+
+
+def create_enemy_assassin_deck():
+    """创建刺客型敌人卡组 - 高爆发、毒药"""
+    cards_db = create_card_database()
+    deck = []
+    
+    if "投毒" in cards_db:
+        deck.extend([cards_db["投毒"].copy() for _ in range(3)])
+    if "刺击" in cards_db:
+        deck.extend([cards_db["刺击"].copy() for _ in range(3)])
+    if "破绽打击" in cards_db:
+        deck.extend([cards_db["破绽打击"].copy() for _ in range(2)])
+    if "精准打击" in cards_db:
+        deck.append(cards_db["精准打击"].copy())
+    
+    while len(deck) < 10:
+        if "刺击" in cards_db:
+            deck.append(cards_db["刺击"].copy())
+        else:
+            break
+    
+    return deck
+
+
+def get_enemy_deck(enemy_type="warrior"):
+    """根据敌人类型获取卡组"""
+    deck_functions = {
+        "warrior": create_enemy_warrior_deck,
+        "mage": create_enemy_mage_deck,
+        "tank": create_enemy_tank_deck,
+        "assassin": create_enemy_assassin_deck,
+    }
+    
+    func = deck_functions.get(enemy_type, create_enemy_warrior_deck)
+    return func()
+
+
 # ==================== 预设角色 ====================
 
-def create_player_character():
-    """创建玩家角色"""
+def create_player_character(career_type=None):
+    """
+    创建玩家角色
+    
+    Args:
+        career_type: 职业类型（可选），如果不指定则使用默认卡组
+    """
     from models import Entity
     from inventory import Inventory, InventoryItem, ItemShape, ItemType
     
@@ -316,26 +634,28 @@ def create_player_character():
     weapons_db = create_weapon_database()
     armors_db = create_armor_database()
     
-    # 构建卡组（从 JSON 加载的卡牌）
-    deck = []
-    
-    # 如果 JSON 中有这些卡牌，则使用它们
-    if "刺击" in cards_db:
-        deck.extend([cards_db["刺击"].copy() for _ in range(4)])
-    if "劈砍" in cards_db:
-        deck.append(cards_db["劈砍"].copy())
-    if "格挡" in cards_db:
-        deck.extend([cards_db["格挡"].copy() for _ in range(2)])
-    if "投毒" in cards_db:
-        deck.extend([cards_db["投毒"].copy() for _ in range(3)])
-    
-    # 添加法术卡牌（测试用）
-    if "冰缀" in cards_db:
-        deck.append(cards_db["冰缀"].copy())
-    if "点火" in cards_db:
-        deck.append(cards_db["点火"].copy())
-    if "治疗之光" in cards_db:
-        deck.append(cards_db["治疗之光"].copy())
+    # 根据职业获取专属卡组
+    if career_type:
+        deck = get_career_deck(career_type)
+    else:
+        # 默认卡组（向后兼容）
+        deck = []
+        if "刺击" in cards_db:
+            deck.extend([cards_db["刺击"].copy() for _ in range(4)])
+        if "劈砍" in cards_db:
+            deck.append(cards_db["劈砍"].copy())
+        if "格挡" in cards_db:
+            deck.extend([cards_db["格挡"].copy() for _ in range(2)])
+        if "投毒" in cards_db:
+            deck.extend([cards_db["投毒"].copy() for _ in range(3)])
+        
+        # 添加法术卡牌（测试用）
+        if "冰缀" in cards_db:
+            deck.append(cards_db["冰缀"].copy())
+        if "点火" in cards_db:
+            deck.append(cards_db["点火"].copy())
+        if "治疗之光" in cards_db:
+            deck.append(cards_db["治疗之光"].copy())
     
     # 如果卡组为空，添加默认卡牌
     if not deck:
@@ -447,34 +767,21 @@ def create_player_character():
     return player
 
 
-def create_enemy():
-    """创建敌人"""
+def create_enemy(enemy_type="warrior"):
+    """
+    创建敌人
+    
+    Args:
+        enemy_type: 敌人类型 (warrior/mage/tank/assassin)
+    """
     from models import Entity
     
     cards_db = create_card_database()
     weapons_db = create_weapon_database()
     armors_db = create_armor_database()
     
-    # 敌人卡组 - 至少10张
-    deck = []
-    if "刺击" in cards_db:
-        deck.extend([cards_db["刺击"].copy() for _ in range(5)])
-    if "劈砍" in cards_db:
-        deck.extend([cards_db["劈砍"].copy() for _ in range(3)])
-    if "格挡" in cards_db:
-        deck.extend([cards_db["格挡"].copy() for _ in range(2)])
-    
-    # 添加法术卡牌（测试用）
-    if "冰缀" in cards_db:
-        deck.append(cards_db["冰缀"].copy())
-    if "奥术飞弹" in cards_db:
-        deck.append(cards_db["奥术飞弹"].copy())
-    if "法力护盾" in cards_db:
-        deck.append(cards_db["法力护盾"].copy())
-    
-    # 如果卡组不足10张，补充默认卡牌
-    while len(deck) < 10:
-        deck.append(Card("普攻", CardType.ATTACK_PHYSICAL, 1, {"hp": -10}, "基础攻击", Rarity.COMMON))
+    # 根据敌人类型获取专属卡组
+    deck = get_enemy_deck(enemy_type)
     
     # 装备（使用EquipmentManager管理）
     equipment = {
@@ -496,24 +803,33 @@ def create_enemy():
     return enemy
 
 
-def create_ally_ai():
-    """创建AI控制的队友"""
+def create_ally_ai(career_type=None):
+    """
+    创建AI控制的队友
+    
+    Args:
+        career_type: 职业类型（可选）
+    """
     from models import Entity
     
     cards_db = create_card_database()
     weapons_db = create_weapon_database()
     armors_db = create_armor_database()
     
-    # AI队友卡组 - 至少10张
-    deck = []
-    if "刺击" in cards_db:
-        deck.extend([cards_db["刺击"].copy() for _ in range(4)])
-    if "劈砍" in cards_db:
-        deck.extend([cards_db["劈砍"].copy() for _ in range(2)])
-    if "格挡" in cards_db:
-        deck.extend([cards_db["格挡"].copy() for _ in range(2)])
-    if "治疗" in cards_db:
-        deck.extend([cards_db["治疗"].copy() for _ in range(2)])
+    # AI队友卡组 - 根据职业或默认
+    if career_type:
+        deck = get_career_deck(career_type)
+    else:
+        # 默认均衡卡组
+        deck = []
+        if "刺击" in cards_db:
+            deck.extend([cards_db["刺击"].copy() for _ in range(4)])
+        if "劈砍" in cards_db:
+            deck.extend([cards_db["劈砍"].copy() for _ in range(2)])
+        if "格挡" in cards_db:
+            deck.extend([cards_db["格挡"].copy() for _ in range(2)])
+        if "治疗" in cards_db:
+            deck.extend([cards_db["治疗"].copy() for _ in range(2)])
     
     # 如果卡组不足10张，补充默认卡牌
     while len(deck) < 10:
@@ -539,24 +855,21 @@ def create_ally_ai():
     return ally
 
 
-def create_enemy_2():
-    """创建第二个敌人"""
+def create_enemy_2(enemy_type="mage"):
+    """
+    创建第二个敌人
+    
+    Args:
+        enemy_type: 敌人类型 (warrior/mage/tank/assassin)
+    """
     from models import Entity
     
     cards_db = create_card_database()
     weapons_db = create_weapon_database()
     armors_db = create_armor_database()
     
-    # 敌人卡组 - 至少10张
-    deck = []
-    if "劈砍" in cards_db:
-        deck.extend([cards_db["劈砍"].copy() for _ in range(3)])
-    if "刺击" in cards_db:
-        deck.extend([cards_db["刺击"].copy() for _ in range(3)])
-    if "格挡" in cards_db:
-        deck.extend([cards_db["格挡"].copy() for _ in range(2)])
-    if "治疗" in cards_db:
-        deck.extend([cards_db["治疗"].copy() for _ in range(2)])
+    # 敌人卡组 - 根据类型
+    deck = get_enemy_deck(enemy_type)
     
     # 如果卡组不足10张，补充默认卡牌
     while len(deck) < 10:
