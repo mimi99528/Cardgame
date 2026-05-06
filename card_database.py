@@ -184,7 +184,8 @@ def create_armor_database():
                         "圆盾": "round_shield",
                         "轻型护甲": "light_armor",
                         "中型护甲": "medium_armor",
-                        "重型护甲": "heavy_armor"
+                        "重型护甲": "heavy_armor",
+                        "学徒法袍": "apprentice_robe"
                     }
                     if eq.name in name_to_key:
                         key = name_to_key[eq.name]

@@ -916,7 +916,7 @@ class CharacterCreationView(arcade.View):
             equipment["weapon"] = weapons_db.get("wooden_sword")
         elif self.selected_equipment_set == 2:
             # 法袍
-            equipment["armor"] = armors_db.get("学徒法袍")
+            equipment["armor"] = armors_db.get("apprentice_robe")
             # 法师没有武器，或者可以添加一个魔法杖
             # equipment["weapon"] = weapons_db.get("magic_staff")
         
@@ -955,6 +955,38 @@ class CharacterCreationView(arcade.View):
         
         # 设置职业
         player.career = self.selected_career
+        
+        # 将初始装备同步到 equipment_manager（用于装备界面显示）
+        from inventory import InventoryItem, ItemType
+        from equipment_manager import EquipmentSlot
+        
+        if "weapon" in equipment and equipment["weapon"]:
+            weapon = equipment["weapon"]
+            # 创建对应的 InventoryItem
+            weapon_item = InventoryItem(
+                name=weapon.name,
+                item_type=ItemType.WEAPON,
+                description=weapon.description,
+                weight=1.0,
+                volume=1,
+                icon_color=(255, 165, 0)  # 橙色
+            )
+            # 装备到武器槽位
+            player.equipment_manager.equip_item(weapon_item, EquipmentSlot.WEAPON)
+        
+        if "armor" in equipment and equipment["armor"]:
+            armor = equipment["armor"]
+            # 创建对应的 InventoryItem
+            armor_item = InventoryItem(
+                name=armor.name,
+                item_type=ItemType.ARMOR,
+                description=armor.description,
+                weight=2.0,
+                volume=2,
+                icon_color=(100, 149, 237)  # 蓝色
+            )
+            # 装备到躯干槽位
+            player.equipment_manager.equip_item(armor_item, EquipmentSlot.BODY)
         
         # 调用回调函数，传递创建好的角色
         self.on_character_created(player)

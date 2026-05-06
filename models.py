@@ -1002,6 +1002,42 @@ class Card:
                             attacker.apply_buff(buff)
                             results.append((f"{attacker}获得了{stacks}层{bt.name}", 0, "success"))  # level 0, success color
                             break
+                
+                # 自我资源效果（抽牌、恢复MP等）
+                elif effect_type == "self_resource":
+                    # 处理抽牌效果
+                    draw_count = effect.get("draw", 0)
+                    if draw_count > 0:
+                        # 从卡组抽取指定数量的卡牌
+                        import random
+                        available_cards = [c for c in attacker.deck if c not in attacker.permanent_cards]
+                        
+                        # 如果卡组不足，先从弃牌堆洗牌
+                        if len(available_cards) < draw_count and len(attacker.discard_pile) > 0:
+                            attacker.deck.extend(attacker.discard_pile)
+                            random.shuffle(attacker.deck)
+                            attacker.discard_pile.clear()
+                            available_cards = [c for c in attacker.deck if c not in attacker.permanent_cards]
+                        
+                        # 实际抽取的卡牌数量
+                        actual_draw = min(draw_count, len(available_cards))
+                        drawn_cards = []
+                        
+                        if actual_draw > 0:
+                            drawn_cards = random.sample(available_cards, actual_draw)
+                            for card in drawn_cards:
+                                attacker.deck.remove(card)
+                                attacker.hand.append(card)
+                            
+                            results.append((f"{attacker}抽取了{actual_draw}张卡牌", 0, "success"))
+                    
+                    # 处理MP恢复效果
+                    restore_mp = effect.get("restore_mp", 0)
+                    if restore_mp > 0:
+                        old_mp = attacker.mp
+                        attacker.mp = min(attacker.mp + restore_mp, attacker.max_mp)
+                        actual_restore = attacker.mp - old_mp
+                        results.append((f"{attacker}恢复了{actual_restore}点MP", 0, "success"))
         
         # 触发卡牌打出后事件
         trigger_event(
