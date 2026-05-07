@@ -307,10 +307,7 @@ class CardDisplay:
             row = i // max_tags_per_row
             col = i % max_tags_per_row
             
-            # 计算标签位置
-            tag_width = S.px(50)
-            tag_height = S.py(18)
-            tag_spacing = S.px(5)
+            # 计算标签位置（使用函数开头定义的 tag_width/height/spacing）
             tag_x = x - width / 2 + S.px(10) + col * (tag_width + tag_spacing)
             tag_y = tag_start_y - row * (tag_height + tag_spacing)
             
@@ -349,9 +346,9 @@ class CardDisplay:
             value = abs(card.effects["hp"])
             icon_x = x - width / 2 + S.px(30)
             icon_y = y + height / 2 - S.py(30)
-            icon_hw = S.px(27)   # half-width
-            icon_hh = S.py(15)   # half-height
-            icon_sz = S.scale(20)
+            icon_hw = S.px(27)   # box half-width
+            icon_hh = S.py(15)   # box half-height
+            icon_sz = S.scale(20)  # icon size (fits within left half of box)
             
             # 白色背景框
             arcade.draw_lrbt_rectangle_filled(
@@ -365,19 +362,19 @@ class CardDisplay:
                 arcade.color.BLACK, 2
             )
             
-            # 图标
+            # 图标（位于背景框左侧，与原版保持一致的偏移比例）
             phy_texture = self.ui_renderer.phy_texture if hasattr(self.ui_renderer, 'phy_texture') else None
             def_texture = self.ui_renderer.def_texture if hasattr(self.ui_renderer, 'def_texture') else None
             
             if "phy" in card.card_type.value and phy_texture:
                 arcade.draw_texture_rect(
                     phy_texture,
-                    arcade.XYWH(icon_x - icon_hw, icon_y - icon_hh, icon_sz, icon_sz)
+                    arcade.XYWH(icon_x - S.px(20), icon_y - icon_sz / 2, icon_sz, icon_sz)
                 )
             elif def_texture:
                 arcade.draw_texture_rect(
                     def_texture,
-                    arcade.XYWH(icon_x - icon_hw, icon_y - icon_hh, icon_sz, icon_sz)
+                    arcade.XYWH(icon_x - S.px(20), icon_y - icon_sz / 2, icon_sz, icon_sz)
                 )
             
             # 数值
@@ -409,12 +406,12 @@ class CardDisplay:
                 arcade.color.BLACK, 2
             )
             
-            # 图标
+            # 图标（位于背景框左侧）
             def_texture = self.ui_renderer.def_texture if hasattr(self.ui_renderer, 'def_texture') else None
             if def_texture:
                 arcade.draw_texture_rect(
                     def_texture,
-                    arcade.XYWH(icon_x - icon_hw, icon_y - icon_hh, icon_sz, icon_sz)
+                    arcade.XYWH(icon_x - S.px(20), icon_y - icon_sz / 2, icon_sz, icon_sz)
                 )
             
             # 数值

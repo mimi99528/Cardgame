@@ -28,6 +28,7 @@ API 速查::
     S.scale(v)     — 等比缩放（圆半径、边框宽度等）
     S.rect(w, h)   — 返回 (scaled_w, scaled_h) 二元组
 """
+from typing import Tuple
 
 # ─── 设计分辨率（基准） ──────────────────────────────────────────
 DESIGN_WIDTH: int = 1920
@@ -74,7 +75,7 @@ class UIScale:
         """字体大小缩放（等比，保证在宽屏/超宽屏下也不会过大）。"""
         return max(1, int(size * self.s))
 
-    def rect(self, w: float, h: float):
+    def rect(self, w: float, h: float) -> Tuple[float, float]:
         """矩形尺寸缩放，返回 ``(scaled_w, scaled_h)``。"""
         return self.px(w), self.py(h)
 

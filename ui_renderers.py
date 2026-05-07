@@ -573,7 +573,7 @@ class UIRenderer:
             self.draw_text(
                 career_desc,
                 info_x + S.px(10), career_box_y - S.py(30),
-                arcade.color.BROWN, max(1, self.text_font_size - 4),
+                arcade.color.BROWN, max(1, self.text_font_size - 1),
                 anchor_x="left", anchor_y="center"
             )
         
