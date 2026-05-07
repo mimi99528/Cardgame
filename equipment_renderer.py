@@ -122,8 +122,8 @@ class EquipmentRenderer:
         title_text = f"装备与属性 - {self.current_entity.name}"
         arcade.draw_text(
             title_text,
-            self.panel_x + 15,
-            self.panel_y + self.panel_height - 30,
+            self.panel_x + S.px(15),
+            self.panel_y + self.panel_height - S.py(30),
             arcade.color.WHITE,
             font_size=S.font(18),
             bold=True
@@ -131,12 +131,12 @@ class EquipmentRenderer:
     
     def _draw_stats_section(self):
         """绘制属性区域"""
-        section_y = self.panel_y + self.panel_height - 70
+        section_y = self.panel_y + self.panel_height - S.py(70)
         
         # 标题
         arcade.draw_text(
             "角色属性",
-            self.panel_x + 15,
+            self.panel_x + S.px(15),
             section_y,
             arcade.color.YELLOW,
             font_size=S.font(14),
@@ -145,7 +145,7 @@ class EquipmentRenderer:
         
         # 属性列表
         stats = self.current_entity.stats
-        stat_y = section_y - 30
+        stat_y = section_y - S.py(30)
         stats_data = [
             ("力量 (STR)", stats.strength),
             ("敏捷 (DEX)", stats.dexterity),
@@ -158,18 +158,18 @@ class EquipmentRenderer:
             text = f"{label}: {value}"
             arcade.draw_text(
                 text,
-                self.panel_x + 20,
+                self.panel_x + S.px(20),
                 stat_y,
                 arcade.color.WHITE,
                 font_size=S.font(12)
             )
-            stat_y -= 25
+            stat_y -= S.py(25)
         
         # HP和AP
-        hp_ap_y = stat_y - 10
+        hp_ap_y = stat_y - S.py(10)
         arcade.draw_text(
             f"HP: {self.current_entity.hp}/{self.current_entity.max_hp}",
-            self.panel_x + 20,
+            self.panel_x + S.px(20),
             hp_ap_y,
             arcade.color.RED,
             font_size=S.font(12),
@@ -178,7 +178,7 @@ class EquipmentRenderer:
         
         arcade.draw_text(
             f"AP: {self.current_entity.ap}/{self.current_entity.max_ap}",
-            self.panel_x + 200,
+            self.panel_x + S.px(200),
             hp_ap_y,
             arcade.color.BLUE,
             font_size=S.font(12),
@@ -187,12 +187,12 @@ class EquipmentRenderer:
     
     def _draw_equipment_section(self):
         """绘制装备区域（方形格子布局）"""
-        section_top = self.panel_y + self.panel_height - 70 - self.stats_section_height
+        section_top = self.panel_y + self.panel_height - S.py(70) - self.stats_section_height
         
         # 标题
         arcade.draw_text(
             "当前装备",
-            self.panel_x + 15,
+            self.panel_x + S.px(15),
             section_top,
             arcade.color.YELLOW,
             font_size=S.font(14),
@@ -254,7 +254,7 @@ class EquipmentRenderer:
             arcade.draw_text(
                 slot_name,
                 slot_left + self.slot_size // 2,
-                slot_top - 12,
+                slot_top - S.py(12),
                 arcade.color.LIGHT_GRAY,
                 font_size=S.font(10),
                 anchor_x="center"
@@ -266,13 +266,13 @@ class EquipmentRenderer:
                 arcade.draw_text(
                     item.name,
                     slot_left + self.slot_size // 2,
-                    slot_top - self.slot_size // 2 + 5,
+                    slot_top - self.slot_size // 2 + S.py(5),
                     arcade.color.WHITE,
                     font_size=S.font(11),
                     bold=True,
                     anchor_x="center",
                     anchor_y="center",
-                    width=self.slot_size - 10,
+                    width=self.slot_size - S.px(10),
                     align="center"
                 )
                 
@@ -286,7 +286,7 @@ class EquipmentRenderer:
                 arcade.draw_text(
                     f"[{item.item_type.value}]",
                     slot_left + self.slot_size // 2,
-                    slot_bottom + 12,
+                    slot_bottom + S.py(12),
                     type_color,
                     font_size=S.font(9),
                     anchor_x="center"
@@ -304,12 +304,12 @@ class EquipmentRenderer:
     
     def _draw_inventory_section(self):
         """绘制背包物品区域（可装备的物品）"""
-        section_top = self.panel_y + self.panel_height - 70 - self.stats_section_height - self.equipment_section_height
+        section_top = self.panel_y + self.panel_height - S.py(70) - self.stats_section_height - self.equipment_section_height
         
         # 标题
         arcade.draw_text(
             "背包中的装备",
-            self.panel_x + 15,
+            self.panel_x + S.px(15),
             section_top,
             arcade.color.YELLOW,
             font_size=S.font(14),
@@ -326,17 +326,17 @@ class EquipmentRenderer:
                     equippable_items.append(item)
             
             # 绘制物品列表
-            item_y = section_top - 30
+            item_y = section_top - S.py(30)
             max_display = 6  # 最多显示6个物品
             
             for i, item in enumerate(equippable_items[:max_display]):
-                if item_y < self.panel_y + 20:
+                if item_y < self.panel_y + S.py(20):
                     break
                 
                 # 物品背景
-                item_left = self.panel_x + 15
-                item_right = self.panel_x + self.panel_width - 15
-                item_bottom = item_y - 25
+                item_left = self.panel_x + S.px(15)
+                item_right = self.panel_x + self.panel_width - S.px(15)
+                item_bottom = item_y - S.py(25)
                 item_top = item_y
                 
                 # 高亮悬停物品
@@ -365,8 +365,8 @@ class EquipmentRenderer:
                 
                 arcade.draw_text(
                     item.name,
-                    item_left + 5,
-                    item_top - 12,
+                    item_left + S.px(5),
+                    item_top - S.py(12),
                     item_color,
                     font_size=S.font(11),
                     bold=True
@@ -377,19 +377,19 @@ class EquipmentRenderer:
                     desc_text = item.description[:25] + "..." if len(item.description) > 25 else item.description
                     arcade.draw_text(
                         desc_text,
-                        item_left + 5,
-                        item_bottom + 3,
+                        item_left + S.px(5),
+                        item_bottom + S.py(3),
                         arcade.color.LIGHT_GRAY,
                         font_size=S.font(9)
                     )
                 
-                item_y -= 30
+                item_y -= S.py(30)
             
             if not equippable_items:
                 arcade.draw_text(
                     "没有可装备的物品",
-                    self.panel_x + 15,
-                    section_top - 50,
+                    self.panel_x + S.px(15),
+                    section_top - S.py(50),
                     arcade.color.DARK_GRAY,
                     font_size=S.font(12)
                 )
@@ -445,20 +445,20 @@ class EquipmentRenderer:
             if item.item_type in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY]
         ]
         
-        section_top = self.panel_y + self.panel_height - 70 - self.stats_section_height - self.equipment_section_height
-        item_y = section_top - 30
+        section_top = self.panel_y + self.panel_height - S.py(70) - self.stats_section_height - self.equipment_section_height
+        item_y = section_top - S.py(30)
         
         for i, item in enumerate(equippable_items[:6]):
-            item_left = self.panel_x + 15
-            item_right = self.panel_x + self.panel_width - 15
-            item_bottom = item_y - 25
+            item_left = self.panel_x + S.px(15)
+            item_right = self.panel_x + self.panel_width - S.px(15)
+            item_bottom = item_y - S.py(25)
             item_top = item_y
             
             if (item_left <= mouse_x <= item_right and 
                 item_bottom <= mouse_y <= item_top):
                 return i
             
-            item_y -= 30
+            item_y -= S.py(30)
         
         return None
     
@@ -690,8 +690,8 @@ class EquipmentRenderer:
         print(f"  -> 绘制拖动物品 at ({mouse_x}, {mouse_y}): {self.dragged_item.name}")
         
         # 绘制拖动物品的背景
-        drag_width = 120
-        drag_height = 40
+        drag_width = S.px(120)
+        drag_height = S.py(40)
         
         arcade.draw_lrbt_rectangle_filled(
             mouse_x - drag_width // 2,
