@@ -24,10 +24,9 @@ class CardView(arcade.View):
         super().__init__()
         
         self.battle = battle
-        # 获取真实屏幕分辨率
-        screen_width, screen_height = arcade.get_display_size()
-        self.window_width = screen_width if screen_width else CONSTANTS.WINDOW_WIDTH
-        self.window_height = screen_height if screen_height else CONSTANTS.WINDOW_HEIGHT
+        # 使用配置中自动检测的窗口尺寸
+        self.window_width = CONSTANTS.WINDOW_WIDTH
+        self.window_height = CONSTANTS.WINDOW_HEIGHT
         
         # 调试 overlay（按 F3 切换）
         self.debug_overlay_visible: bool = False

@@ -20,10 +20,9 @@ class CharacterCreationView(arcade.View):
         
         self.on_character_created = on_character_created_callback
         
-        # 获取屏幕尺寸
-        screen_width, screen_height = arcade.get_display_size()
-        self.window_width = screen_width if screen_width else CONSTANTS.WINDOW_WIDTH
-        self.window_height = screen_height if screen_height else CONSTANTS.WINDOW_HEIGHT
+        # 使用配置中自动检测的窗口尺寸
+        self.window_width = CONSTANTS.WINDOW_WIDTH
+        self.window_height = CONSTANTS.WINDOW_HEIGHT
         
         # 确保缩放单例与当前窗口同步
         update_scale(self.window_width, self.window_height)

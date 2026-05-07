@@ -100,15 +100,10 @@ class CardGame(arcade.Window):
     """卡牌战斗游戏主窗口"""
     
     def __init__(self):
-        # 获取真实屏幕分辨率
-        screen_width, screen_height = arcade.get_display_size()
-        if not screen_width or not screen_height:
-            screen_width = CONSTANTS.WINDOW_WIDTH
-            screen_height = CONSTANTS.WINDOW_HEIGHT
-        
+        # 使用配置中自动检测的窗口尺寸
         super().__init__(
-            screen_width,
-            screen_height,
+            CONSTANTS.WINDOW_WIDTH,
+            CONSTANTS.WINDOW_HEIGHT,
             CONSTANTS.WINDOW_TITLE,
             fullscreen=True  # 全屏模式
         )

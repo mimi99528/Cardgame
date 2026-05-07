@@ -2,8 +2,9 @@
 游戏配置和常量定义
 """
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List
+import arcade
 
 
 # 稀有度枚举
@@ -137,9 +138,29 @@ class LogLevel(Enum):
 # 游戏常量
 @dataclass
 class GameConstants:
-    # 窗口设置
-    WINDOW_WIDTH: int = 1920
-    WINDOW_HEIGHT: int = 1080
+    # 窗口设置 - 自动检测显示屏大小
+    def __post_init__(self):
+        """初始化后自动检测屏幕尺寸"""
+        try:
+            screen_width, screen_height = arcade.get_display_size()
+            if screen_width and screen_height:
+                # 使用屏幕尺寸的90%作为窗口大小，留出边距
+                self.WINDOW_WIDTH = int(screen_width * 0.9)
+                self.WINDOW_HEIGHT = int(screen_height * 0.9)
+                # 确保最小窗口尺寸
+                self.WINDOW_WIDTH = max(self.WINDOW_WIDTH, 1280)
+                self.WINDOW_HEIGHT = max(self.WINDOW_HEIGHT, 720)
+            else:
+                # 如果检测失败，使用默认值
+                self.WINDOW_WIDTH = 1920
+                self.WINDOW_HEIGHT = 1080
+        except Exception:
+            # 如果检测出错，使用默认值
+            self.WINDOW_WIDTH = 1920
+            self.WINDOW_HEIGHT = 1080
+    
+    WINDOW_WIDTH: int = field(default=1920, init=False)
+    WINDOW_HEIGHT: int = field(default=1080, init=False)
     WINDOW_TITLE: str = "卡牌战斗游戏"
     
     # 卡牌尺寸

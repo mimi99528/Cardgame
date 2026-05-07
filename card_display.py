@@ -245,6 +245,7 @@ class CardDisplay:
         
         # 标签显示区域：卡牌底部
         tag_start_y = y - height / 4
+        tag_width = S.px(50)  # 标签宽度
         tag_height = S.py(18)
         tag_spacing = S.px(5)
         max_tags_per_row = 3  # 每行最多显示3个标签
