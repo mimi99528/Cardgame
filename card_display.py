@@ -63,7 +63,18 @@ class CardDisplay:
         card_height = CONSTANTS.CARD_HEIGHT
         spacing = CONSTANTS.CARD_SPACING
         
-        total_width = len(hand) * (card_width + spacing) - spacing
+        # 根据手牌数量动态调整间距（>=6张时启用重叠）
+        if len(hand) >= 6:
+            # 计算总可用宽度（留出边距）
+            available_width = self.ui_renderer.window_width - self.ui_renderer.window_width  * 0.2
+            # 第一张卡牌占用完整宽度，后续卡牌只增加间距
+            # 实际间距 = (可用宽度 - 卡牌宽度) / (手牌数 - 1)
+            actual_spacing = max(30, (available_width - card_width) / (len(hand) - 1))
+            total_width = card_width + (len(hand) - 1) * actual_spacing
+        else:
+            actual_spacing = card_width + spacing
+            total_width = len(hand) * (card_width + spacing) - spacing
+        
         start_x = (self.ui_renderer.window_width - total_width) / 2
         base_y = 60
         
@@ -72,7 +83,7 @@ class CardDisplay:
             if card == self.dragged_card:
                 continue
                     
-            x = start_x + i * (card_width + spacing) + card_width / 2
+            x = start_x + i * actual_spacing + card_width / 2
             base_y = 60
                     
             # 使用卡牌的唯一ID作为键

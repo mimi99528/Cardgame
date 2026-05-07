@@ -127,23 +127,21 @@ class CardView(arcade.View):
         button_width = 200
         button_height = 50
         button_x = self.window_width // 2 - button_width // 2
-        button_y = self.window_height // 2 - 100
+        button_y = self.window_height // 2 - 200
+        left = button_x
+        right = button_x + button_width
+        bottom = button_y
+        top = button_y + button_height
         
         # 绘制按钮背景
-        arcade.draw_rectangle_filled(
-            button_x + button_width // 2,
-            button_y + button_height // 2,
-            button_width,
-            button_height,
+        arcade.draw_lrbt_rectangle_filled(
+            left, right, bottom, top,
             arcade.color.DARK_GREEN
         )
         
         # 绘制按钮边框
-        arcade.draw_rectangle_outline(
-            button_x + button_width // 2,
-            button_y + button_height // 2,
-            button_width,
-            button_height,
+        arcade.draw_lrbt_rectangle_outline(
+            left, right, bottom, top,
             arcade.color.WHITE,
             border_width=3
         )
@@ -328,7 +326,7 @@ class CardView(arcade.View):
         button_width = 200
         button_height = 50
         button_x = self.window_width // 2 - button_width // 2
-        button_y = self.window_height // 2 - 100
+        button_y = self.window_height // 2 - 200
         
         return (button_x <= x <= button_x + button_width and
                 button_y <= y <= button_y + button_height)
