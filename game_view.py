@@ -14,6 +14,7 @@ from card_display import CardDisplay
 from input_handlers import InputHandler
 from inventory_renderer import InventoryRenderer
 from equipment_renderer import EquipmentRenderer
+from ui_scale import UIScale
 
 
 class CardView(arcade.View):
@@ -27,6 +28,8 @@ class CardView(arcade.View):
         screen_width, screen_height = arcade.get_display_size()
         self.window_width = screen_width if screen_width else CONSTANTS.WINDOW_WIDTH
         self.window_height = screen_height if screen_height else CONSTANTS.WINDOW_HEIGHT
+        self.ui_scale = UIScale(self.window_width, self.window_height, CONSTANTS.WINDOW_WIDTH, CONSTANTS.WINDOW_HEIGHT)
+        self.show_ui_scale_debug = False
         
         # 瓦片地图相关
         self.tile_map = TileMap(width=20, height=15)
@@ -45,9 +48,10 @@ class CardView(arcade.View):
         
         # 初始化UI模块
         self.ui_renderer = UIRenderer(self.window_width, self.window_height)
+        self.ui_renderer.ui_scale = self.ui_scale
         self.card_display = CardDisplay(self.ui_renderer)
-        self.inventory_renderer = InventoryRenderer(self.window_width, self.window_height)
-        self.equipment_renderer = EquipmentRenderer(self.window_width, self.window_height)
+        self.inventory_renderer = InventoryRenderer(self.window_width, self.window_height, self.ui_scale)
+        self.equipment_renderer = EquipmentRenderer(self.window_width, self.window_height, self.ui_scale)
         self.input_handler = InputHandler(
             self.battle, 
             self.tile_map, 
@@ -112,6 +116,9 @@ class CardView(arcade.View):
             self.ui_renderer.draw_battle_end_message(self.battle)
             # 绘制重新开始按钮
             self._draw_restart_button()
+
+        if self.show_ui_scale_debug:
+            self._draw_ui_scale_debug_overlay()
         
         # 重置相机（确保下次绘制正确）
         arcade.Camera2D().use()  # 使用默认相机
@@ -124,10 +131,10 @@ class CardView(arcade.View):
     
     def _draw_restart_button(self):
         """绘制重新开始按钮"""
-        button_width = 200
-        button_height = 50
-        button_x = self.window_width // 2 - button_width // 2
-        button_y = self.window_height // 2 - 100
+        button_width = self.ui_scale.ss(200)
+        button_height = self.ui_scale.ss(50)
+        button_x = self.ui_scale.sx(CONSTANTS.WINDOW_WIDTH / 2 - 100)
+        button_y = self.ui_scale.sy(CONSTANTS.WINDOW_HEIGHT / 2 - 100)
         
         # 绘制按钮背景
         arcade.draw_rectangle_filled(
@@ -145,7 +152,7 @@ class CardView(arcade.View):
             button_width,
             button_height,
             arcade.color.WHITE,
-            border_width=3
+            border_width=self.ui_scale.ss(3)
         )
         
         # 绘制按钮文字
@@ -154,11 +161,31 @@ class CardView(arcade.View):
             button_x + button_width // 2,
             button_y + button_height // 2,
             arcade.color.WHITE,
-            24,
+            self.ui_scale.ss(24),
             anchor_x="center",
             anchor_y="center",
             bold=True
         )
+
+    def _draw_ui_scale_debug_overlay(self):
+        """调试信息：显示窗口尺寸和缩放参数"""
+        debug_lines = [
+            f"win: {self.window_width}x{self.window_height}",
+            f"scale: {self.ui_scale.scale:.4f}",
+            f"offset: ({self.ui_scale.offset_x:.1f}, {self.ui_scale.offset_y:.1f})",
+        ]
+        x = 10
+        y = self.window_height - self.ui_scale.ss(20)
+        for line in debug_lines:
+            arcade.draw_text(
+                line,
+                x,
+                y,
+                arcade.color.BLACK,
+                self.ui_scale.ss(16),
+                bold=True
+            )
+            y -= self.ui_scale.ss(20)
     
     def _handle_inventory_item_use(self, x: float, y: float):
         """处理背包物品使用（右键点击）"""
@@ -307,6 +334,9 @@ class CardView(arcade.View):
     
     def on_key_press(self, key, modifiers):
         """键盘按键事件"""
+        if key == arcade.key.F3:
+            self.show_ui_scale_debug = not self.show_ui_scale_debug
+            return
         should_close = self.input_handler.on_key_press(key, modifiers)
         if should_close:
             self.window.close()
@@ -325,13 +355,25 @@ class CardView(arcade.View):
     
     def _check_restart_button_click(self, x: float, y: float) -> bool:
         """检查是否点击了重新开始按钮"""
-        button_width = 200
-        button_height = 50
-        button_x = self.window_width // 2 - button_width // 2
-        button_y = self.window_height // 2 - 100
+        button_width = self.ui_scale.ss(200)
+        button_height = self.ui_scale.ss(50)
+        button_x = self.ui_scale.sx(CONSTANTS.WINDOW_WIDTH / 2 - 100)
+        button_y = self.ui_scale.sy(CONSTANTS.WINDOW_HEIGHT / 2 - 100)
         
         return (button_x <= x <= button_x + button_width and
                 button_y <= y <= button_y + button_height)
+
+    def on_resize(self, width: float, height: float):
+        """窗口尺寸变化处理"""
+        super().on_resize(width, height)
+        self.window_width = int(width)
+        self.window_height = int(height)
+        self.ui_scale.update(self.window_width, self.window_height)
+        self.ui_renderer.update_window_size(self.window_width, self.window_height)
+        self.inventory_renderer.update_window_size(self.window_width, self.window_height)
+        self.equipment_renderer.update_window_size(self.window_width, self.window_height)
+        if self.tile_map.gui_camera:
+            self.tile_map.gui_camera.position = (self.window_width / 2, self.window_height / 2)
     
     def _restart_game(self):
         """重新开始游戏 - 返回角色创建界面"""
@@ -345,4 +387,3 @@ class CardView(arcade.View):
         character_creation_view = CharacterCreationView(window.on_character_created)
         window.show_view(character_creation_view)
     
-

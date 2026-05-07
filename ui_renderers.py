@@ -8,28 +8,42 @@ from models import Entity, Card
 from battle_system import BattleSystem
 from config import CONSTANTS, CARD_TYPE_NAMES, RARITY_COLORS, TargetType
 from tile_map import TileMap
+from ui_scale import UIScale
 
 
 class UIRenderer:
     """UI渲染器 - 处理所有绘制逻辑"""
     
     def __init__(self, window_width: int, window_height: int):
-        self.window_width = window_width
-        self.window_height = window_height
+        self.ui_scale = UIScale(window_width, window_height, CONSTANTS.WINDOW_WIDTH, CONSTANTS.WINDOW_HEIGHT)
+        self.window_width = CONSTANTS.WINDOW_WIDTH
+        self.window_height = CONSTANTS.WINDOW_HEIGHT
         
         # 字体大小（根据屏幕高度调整）
-        scale_factor = self.window_height / 1080.0
-        self.headtitle_font_size = int(24 * scale_factor)
-        self.title_font_size = int(18 * scale_factor)
-        self.text_font_size = int(12 * scale_factor)
-        self.number_font_size = int(18 * scale_factor)
-        self.normal_font_size = int(16 * scale_factor)
+        self.headtitle_font_size = 24
+        self.title_font_size = 18
+        self.text_font_size = 12
+        self.number_font_size = 18
+        self.normal_font_size = 16
         
         # 文本对象缓存
         self.text_objects: Dict[str, arcade.Text] = {}
         
         # 加载图片素材
         self._load_textures()
+
+    def update_window_size(self, window_width: int, window_height: int):
+        """窗口尺寸变化时更新缩放参数"""
+        self.ui_scale.update(window_width, window_height)
+
+    def sx(self, x: float) -> float:
+        return self.ui_scale.sx(x)
+
+    def sy(self, y: float) -> float:
+        return self.ui_scale.sy(y)
+
+    def ss(self, size: float, min_value: int = 1) -> int:
+        return self.ui_scale.ss(size, min_value=min_value)
     
     def _load_textures(self):
         """加载图片素材"""
@@ -54,37 +68,41 @@ class UIRenderer:
                   anchor_x: str = "left", anchor_y: str = "baseline", bold: bool = False,
                   multiline: bool = False, width: int = None):
         """绘制文本的辅助方法，使用Text对象提高性能"""
-        cache_key = f"{text}_{x}_{y}_{font_size}_{bold}"
+        scaled_x = self.sx(x)
+        scaled_y = self.sy(y)
+        scaled_font_size = self.ss(font_size)
+        scaled_width = int(width * self.ui_scale.scale) if width else None
+        cache_key = f"{text}_{scaled_x}_{scaled_y}_{scaled_font_size}_{bold}"
         
         if cache_key not in self.text_objects:
             try:
                 text_obj = arcade.Text(
                     text=text,
-                    x=x,
-                    y=y,
+                    x=scaled_x,
+                    y=scaled_y,
                     color=color,
-                    font_size=font_size,
+                    font_size=scaled_font_size,
                     anchor_x=anchor_x,
                     anchor_y=anchor_y,
                     bold=bold,
                     multiline=multiline,
-                    width=width
+                    width=scaled_width
                 )
                 self.text_objects[cache_key] = text_obj
             except TypeError:
                 arcade.draw_text(
-                    text, x, y, color, font_size,
+                    text, scaled_x, scaled_y, color, scaled_font_size,
                     anchor_x=anchor_x, anchor_y=anchor_y,
-                    bold=bold, multiline=multiline, width=width
+                    bold=bold, multiline=multiline, width=scaled_width
                 )
                 return
         
         text_obj = self.text_objects[cache_key]
         text_obj.text = text
-        text_obj.x = x
-        text_obj.y = y
+        text_obj.x = scaled_x
+        text_obj.y = scaled_y
         text_obj.color = color
-        text_obj.font_size = font_size
+        text_obj.font_size = scaled_font_size
         text_obj.anchor_x = anchor_x
         text_obj.anchor_y = anchor_y
         text_obj.bold = bold
@@ -211,8 +229,8 @@ class UIRenderer:
         
         # 血条背景
         arcade.draw_lrbt_rectangle_filled(
-            entity_bar_x - entity_bar_width / 2, entity_bar_x + entity_bar_width / 2,
-            bar_y_start - total_height * 2, bar_y_start - total_height,
+            self.sx(entity_bar_x - entity_bar_width / 2), self.sx(entity_bar_x + entity_bar_width / 2),
+            self.sy(bar_y_start - total_height * 2), self.sy(bar_y_start - total_height),
             arcade.color.DARK_GRAY
         )
         
@@ -224,16 +242,16 @@ class UIRenderer:
             right = entity_bar_x + hp_width / 2
             if left <= right:
                 arcade.draw_lrbt_rectangle_filled(
-                    left, right,
-                    bar_y_start - total_height * 2, bar_y_start - total_height,
+                    self.sx(left), self.sx(right),
+                    self.sy(bar_y_start - total_height * 2), self.sy(bar_y_start - total_height),
                     arcade.color.GREEN
                 )
         
         # 血条边框
         arcade.draw_lrbt_rectangle_outline(
-            entity_bar_x - entity_bar_width / 2, entity_bar_x + entity_bar_width / 2,
-            bar_y_start - total_height * 2, bar_y_start - total_height,
-            arcade.color.BLACK, 2
+            self.sx(entity_bar_x - entity_bar_width / 2), self.sx(entity_bar_x + entity_bar_width / 2),
+            self.sy(bar_y_start - total_height * 2), self.sy(bar_y_start - total_height),
+            arcade.color.BLACK, self.ss(2)
         )
         
         # 血条文字
@@ -251,18 +269,18 @@ class UIRenderer:
             # 职业名称背景
             career_text_width = len(career_name) * 10
             arcade.draw_lrbt_rectangle_filled(
-                entity_bar_x - career_text_width / 2 - 5,
-                entity_bar_x + career_text_width / 2 + 5,
-                bar_y_start - total_height * 2 - 15,
-                bar_y_start - total_height * 2 - 3,
+                self.sx(entity_bar_x - career_text_width / 2 - 5),
+                self.sx(entity_bar_x + career_text_width / 2 + 5),
+                self.sy(bar_y_start - total_height * 2 - 15),
+                self.sy(bar_y_start - total_height * 2 - 3),
                 (255, 255, 200, 200)
             )
             arcade.draw_lrbt_rectangle_outline(
-                entity_bar_x - career_text_width / 2 - 5,
-                entity_bar_x + career_text_width / 2 + 5,
-                bar_y_start - total_height * 2 - 15,
-                bar_y_start - total_height * 2 - 3,
-                arcade.color.BLACK, 1
+                self.sx(entity_bar_x - career_text_width / 2 - 5),
+                self.sx(entity_bar_x + career_text_width / 2 + 5),
+                self.sy(bar_y_start - total_height * 2 - 15),
+                self.sy(bar_y_start - total_height * 2 - 3),
+                arcade.color.BLACK, self.ss(1)
             )
             # 职业名称文字
             self.draw_text(
@@ -298,11 +316,11 @@ class UIRenderer:
                 if texture:
                     arcade.draw_texture_rect(
                         texture,
-                        arcade.XYWH(x_pos - 10, ap_y_pos - 10, 20, 20)
+                        arcade.XYWH(self.sx(x_pos - 10), self.sy(ap_y_pos - 10), self.ss(20), self.ss(20))
                     )
                 else:
-                    arcade.draw_circle_filled(x_pos, ap_y_pos, 8, arcade.color.BLUE)
-                    arcade.draw_circle_outline(x_pos, ap_y_pos, 8, arcade.color.WHITE, 2)
+                    arcade.draw_circle_filled(self.sx(x_pos), self.sy(ap_y_pos), self.ss(8), arcade.color.BLUE)
+                    arcade.draw_circle_outline(self.sx(x_pos), self.sy(ap_y_pos), self.ss(8), arcade.color.WHITE, self.ss(2))
     
     def _draw_mp_display(self, battle: BattleSystem):
         """绘制MP显示"""
@@ -355,14 +373,14 @@ class UIRenderer:
         box_width = 180
         box_height = 60
         arcade.draw_lrbt_rectangle_filled(
-            info_x, info_x + box_width,
-            info_y, info_y + box_height,
+            self.sx(info_x), self.sx(info_x + box_width),
+            self.sy(info_y), self.sy(info_y + box_height),
             (255, 255, 255, 200)
         )
         arcade.draw_lrbt_rectangle_outline(
-            info_x, info_x + box_width,
-            info_y, info_y + box_height,
-            arcade.color.BLACK, 2
+            self.sx(info_x), self.sx(info_x + box_width),
+            self.sy(info_y), self.sy(info_y + box_height),
+            arcade.color.BLACK, self.ss(2)
         )
         
         # 标题
@@ -398,12 +416,12 @@ class UIRenderer:
         
         # 日志背景
         arcade.draw_lrbt_rectangle_filled(
-            log_x, log_x + log_width, log_y, log_y + log_height,
+            self.sx(log_x), self.sx(log_x + log_width), self.sy(log_y), self.sy(log_y + log_height),
             (255, 255, 255, 230)
         )
         arcade.draw_lrbt_rectangle_outline(
-            log_x, log_x + log_width, log_y, log_y + log_height,
-            arcade.color.BLACK, 2
+            self.sx(log_x), self.sx(log_x + log_width), self.sy(log_y), self.sy(log_y + log_height),
+            arcade.color.BLACK, self.ss(2)
         )
         
         # 日志标题
@@ -473,12 +491,12 @@ class UIRenderer:
         
         # 绘制背景
         arcade.draw_lrbt_rectangle_filled(
-            info_x, info_x + info_width, info_y, info_y + info_height,
+            self.sx(info_x), self.sx(info_x + info_width), self.sy(info_y), self.sy(info_y + info_height),
             (255, 255, 255, 240)
         )
         arcade.draw_lrbt_rectangle_outline(
-            info_x, info_x + info_width, info_y, info_y + info_height,
-            arcade.color.BLACK, 2
+            self.sx(info_x), self.sx(info_x + info_width), self.sy(info_y), self.sy(info_y + info_height),
+            arcade.color.BLACK, self.ss(2)
         )
         
         # 绘制实体信息
@@ -536,14 +554,14 @@ class UIRenderer:
             # 职业信息背景
             career_box_y = info_y + info_height - 210
             arcade.draw_lrbt_rectangle_filled(
-                info_x + 5, info_x + info_width - 5,
-                career_box_y - 35, career_box_y - 5,
+                self.sx(info_x + 5), self.sx(info_x + info_width - 5),
+                self.sy(career_box_y - 35), self.sy(career_box_y - 5),
                 (255, 255, 200, 150)
             )
             arcade.draw_lrbt_rectangle_outline(
-                info_x + 5, info_x + info_width - 5,
-                career_box_y - 35, career_box_y - 5,
-                arcade.color.DARK_GOLDENROD, 1
+                self.sx(info_x + 5), self.sx(info_x + info_width - 5),
+                self.sy(career_box_y - 35), self.sy(career_box_y - 5),
+                arcade.color.DARK_GOLDENROD, self.ss(1)
             )
             
             # 职业名称
@@ -603,18 +621,18 @@ class UIRenderer:
                     arcade.draw_texture_rect(
                         self.ap_16_texture,
                         arcade.XYWH(
-                            buff_x,
-                            buff_start_y,
-                            buff_icon_size,
-                            buff_icon_size
+                            self.sx(buff_x),
+                            self.sy(buff_start_y),
+                            self.ss(buff_icon_size),
+                            self.ss(buff_icon_size)
                         )
                     )
                 else:
                     # 如果没有纹理，绘制圆形
                     arcade.draw_circle_filled(
-                        buff_x + buff_icon_size // 2,
-                        buff_start_y + buff_icon_size // 2,
-                        buff_icon_size // 2,
+                        self.sx(buff_x + buff_icon_size // 2),
+                        self.sy(buff_start_y + buff_icon_size // 2),
+                        self.ss(buff_icon_size // 2),
                         arcade.color.PURPLE
                     )
                 
@@ -634,7 +652,12 @@ class UIRenderer:
         """绘制战斗结束消息"""
         overlay_color = (0, 0, 0, 150)
         arcade.draw_rect_filled(
-            arcade.XYWH(0, 0, self.window_width, self.window_height),
+            arcade.XYWH(
+                self.sx(0),
+                self.sy(0),
+                self.window_width * self.ui_scale.scale,
+                self.window_height * self.ui_scale.scale
+            ),
             overlay_color
         )
         

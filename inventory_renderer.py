@@ -6,14 +6,16 @@ import arcade
 from typing import Optional, Tuple
 from inventory import Inventory, InventoryItem, ItemShape
 from config import CONSTANTS
+from ui_scale import UIScale
 
 
 class InventoryRenderer:
     """背包UI渲染器"""
     
-    def __init__(self, window_width: int, window_height: int):
+    def __init__(self, window_width: int, window_height: int, ui_scale: Optional[UIScale] = None):
         self.window_width = window_width
         self.window_height = window_height
+        self.ui_scale = ui_scale or UIScale(window_width, window_height, CONSTANTS.WINDOW_WIDTH, CONSTANTS.WINDOW_HEIGHT)
         
         # 背包显示状态
         self.inventory_visible = False
@@ -28,8 +30,8 @@ class InventoryRenderer:
     
     def _calculate_panel_position(self):
         """计算背包面板的位置"""
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = self.ui_scale.ss(CONSTANTS.INVENTORY_SLOT_SIZE)
+        padding = self.ui_scale.ss(CONSTANTS.INVENTORY_PADDING)
         grid_width = CONSTANTS.INVENTORY_WIDTH
         grid_height = CONSTANTS.INVENTORY_HEIGHT
         
@@ -52,6 +54,13 @@ class InventoryRenderer:
         
         if self.inventory_visible:
             self._calculate_panel_position()
+
+    def update_window_size(self, window_width: int, window_height: int):
+        """窗口尺寸变化时更新缩放和布局"""
+        self.window_width = window_width
+        self.window_height = window_height
+        self.ui_scale.update(window_width, window_height)
+        self._calculate_panel_position()
     
     def close_inventory(self):
         """关闭背包"""
@@ -76,8 +85,8 @@ class InventoryRenderer:
         if not self.inventory_visible or not self.current_inventory:
             return None
         
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = self.ui_scale.ss(CONSTANTS.INVENTORY_SLOT_SIZE)
+        padding = self.ui_scale.ss(CONSTANTS.INVENTORY_PADDING)
         
         # 遍历网格查找点击的物品
         for grid_y in range(self.current_inventory.grid_height):
@@ -108,8 +117,8 @@ class InventoryRenderer:
     
     def _draw_background(self):
         """绘制背包背景"""
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = self.ui_scale.ss(CONSTANTS.INVENTORY_SLOT_SIZE)
+        padding = self.ui_scale.ss(CONSTANTS.INVENTORY_PADDING)
         grid_width = CONSTANTS.INVENTORY_WIDTH
         grid_height = CONSTANTS.INVENTORY_HEIGHT
         
@@ -132,7 +141,7 @@ class InventoryRenderer:
         arcade.draw_lrbt_rectangle_outline(
             left, right, bottom, top,
             arcade.color.WHITE,
-            border_width=3
+            border_width=self.ui_scale.ss(3)
         )
     
     def _draw_title(self):
@@ -140,26 +149,26 @@ class InventoryRenderer:
         title_text = f"背包 - {self.current_inventory.owner_name}"
         arcade.draw_text(
             title_text,
-            self.panel_x + CONSTANTS.INVENTORY_PADDING,
-            self.panel_y + 40,
+            self.panel_x + self.ui_scale.ss(CONSTANTS.INVENTORY_PADDING),
+            self.panel_y + self.ui_scale.ss(40),
             arcade.color.WHITE,
-            font_size=20,
+            font_size=self.ui_scale.ss(20),
             bold=True
         )
     
     def _draw_status_bars(self):
         """绘制状态条（体积和重量）"""
         info = self.current_inventory.get_usage_info()
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = self.ui_scale.ss(CONSTANTS.INVENTORY_SLOT_SIZE)
+        padding = self.ui_scale.ss(CONSTANTS.INVENTORY_PADDING)
         grid_width = CONSTANTS.INVENTORY_WIDTH
         
-        bar_y = self.panel_y + 15
-        bar_width = (grid_width * slot_size + (grid_width + 1) * padding) // 2 - 20
-        bar_height = 15
+        bar_y = self.panel_y + self.ui_scale.ss(15)
+        bar_width = (grid_width * slot_size + (grid_width + 1) * padding) // 2 - self.ui_scale.ss(20)
+        bar_height = self.ui_scale.ss(15)
         
         # 体积条
-        volume_x = self.panel_x + padding + 10
+        volume_x = self.panel_x + padding + self.ui_scale.ss(10)
         self._draw_status_bar(
             volume_x, bar_y, bar_width, bar_height,
             info['volume_used'], info['volume_max'],
@@ -167,7 +176,7 @@ class InventoryRenderer:
         )
         
         # 重量条
-        weight_x = volume_x + bar_width + 20
+        weight_x = volume_x + bar_width + self.ui_scale.ss(20)
         self._draw_status_bar(
             weight_x, bar_y, bar_width, bar_height,
             info['weight_used'], info['weight_max'],
@@ -185,7 +194,7 @@ class InventoryRenderer:
         
         # 背景
         arcade.draw_lrbt_rectangle_filled(left, right, bottom, top, arcade.color.DARK_GRAY)
-        arcade.draw_lrbt_rectangle_outline(left, right, bottom, top, arcade.color.WHITE, border_width=1)
+        arcade.draw_lrbt_rectangle_outline(left, right, bottom, top, arcade.color.WHITE, border_width=self.ui_scale.ss(1))
         
         # 填充
         if maximum > 0:
@@ -201,13 +210,13 @@ class InventoryRenderer:
         arcade.draw_text(
             text, x + 5, y + 2,
             arcade.color.WHITE,
-            font_size=10
+            font_size=self.ui_scale.ss(10)
         )
     
     def _draw_grid(self):
         """绘制背包网格"""
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = self.ui_scale.ss(CONSTANTS.INVENTORY_SLOT_SIZE)
+        padding = self.ui_scale.ss(CONSTANTS.INVENTORY_PADDING)
         
         for y in range(self.current_inventory.grid_height):
             for x in range(self.current_inventory.grid_width):
@@ -229,12 +238,12 @@ class InventoryRenderer:
                 arcade.draw_lrbt_rectangle_filled(left, right, bottom, top, color)
                 
                 # 格子边框
-                arcade.draw_lrbt_rectangle_outline(left, right, bottom, top, arcade.color.WHITE, border_width=1)
+                arcade.draw_lrbt_rectangle_outline(left, right, bottom, top, arcade.color.WHITE, border_width=self.ui_scale.ss(1))
     
     def _draw_items(self):
         """绘制所有物品"""
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = self.ui_scale.ss(CONSTANTS.INVENTORY_SLOT_SIZE)
+        padding = self.ui_scale.ss(CONSTANTS.INVENTORY_PADDING)
         
         for item in self.current_inventory.items:
             # 找到物品在网格中的位置
@@ -276,7 +285,7 @@ class InventoryRenderer:
         arcade.draw_lrbt_rectangle_outline(
             left, right, bottom, top,
             arcade.color.WHITE,
-            border_width=2
+            border_width=self.ui_scale.ss(2)
         )
         
         # 绘制物品名称（如果空间足够）
@@ -285,7 +294,7 @@ class InventoryRenderer:
             if item.stackable and item.stack_count > 1:
                 display_name += f"x{item.stack_count}"
             
-            font_size = max(8, min(12, actual_width // len(display_name)))
+            font_size = max(self.ui_scale.ss(8), min(self.ui_scale.ss(12), actual_width // max(1, len(display_name))))
             arcade.draw_text(
                 display_name,
                 x + actual_width // 2, y + actual_height // 2,
