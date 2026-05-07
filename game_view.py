@@ -14,6 +14,7 @@ from card_display import CardDisplay
 from input_handlers import InputHandler
 from inventory_renderer import InventoryRenderer
 from equipment_renderer import EquipmentRenderer
+from ui_scale import S, update_scale
 
 
 class CardView(arcade.View):
@@ -27,6 +28,9 @@ class CardView(arcade.View):
         screen_width, screen_height = arcade.get_display_size()
         self.window_width = screen_width if screen_width else CONSTANTS.WINDOW_WIDTH
         self.window_height = screen_height if screen_height else CONSTANTS.WINDOW_HEIGHT
+        
+        # 调试 overlay（按 F3 切换）
+        self.debug_overlay_visible: bool = False
         
         # 瓦片地图相关
         self.tile_map = TileMap(width=20, height=15)
@@ -61,6 +65,18 @@ class CardView(arcade.View):
         
         # 将tile_map传递给battle系统
         self.battle.tile_map = self.tile_map
+    
+    def on_resize(self, width: int, height: int):
+        """窗口尺寸变化时更新内部尺寸并刷新各子模块。"""
+        self.window_width = width
+        self.window_height = height
+        self.ui_renderer.on_resize(width, height)
+        self.tile_map.setup_cameras(width, height)
+        self.inventory_renderer.window_width = width
+        self.inventory_renderer.window_height = height
+        self.equipment_renderer.window_width = width
+        self.equipment_renderer.window_height = height
+        self.equipment_renderer._calculate_panel_position()
     
 
     
@@ -115,6 +131,10 @@ class CardView(arcade.View):
         
         # 重置相机（确保下次绘制正确）
         arcade.Camera2D().use()  # 使用默认相机
+        
+        # 调试 overlay（按 F3 切换，便于验证 4K/高 DPI 缩放是否正确）
+        if self.debug_overlay_visible:
+            self._draw_debug_overlay()
     
     def _draw_ui_background(self):
         """绘制UI背景"""
@@ -122,12 +142,40 @@ class CardView(arcade.View):
         # 如果需要背景，可以使用淡色
         pass
     
+    def _draw_debug_overlay(self):
+        """调试 overlay：显示当前窗口尺寸和 UIScale 缩放系数（按 F3 切换）。"""
+        lines = [
+            f"窗口: {self.window_width} × {self.window_height} px",
+            f"缩放: sx={S.sx:.3f}  sy={S.sy:.3f}  s={S.s:.3f}",
+            f"设计分辨率: 1920 × 1080",
+            f"字体示例: font(16) = {S.font(16)}  font(24) = {S.font(24)}",
+        ]
+        bg_w, bg_h = S.px(400), S.py(100)
+        bg_x, bg_y = S.px(10), self.window_height - bg_h - S.py(10)
+        arcade.draw_lrbt_rectangle_filled(
+            bg_x, bg_x + bg_w, bg_y, bg_y + bg_h,
+            (0, 0, 0, 180)
+        )
+        arcade.draw_lrbt_rectangle_outline(
+            bg_x, bg_x + bg_w, bg_y, bg_y + bg_h,
+            arcade.color.YELLOW, 2
+        )
+        for i, line in enumerate(lines):
+            arcade.draw_text(
+                line,
+                bg_x + S.px(8),
+                bg_y + bg_h - S.py(16) - i * S.py(20),
+                arcade.color.YELLOW,
+                S.font(11),
+                anchor_x="left", anchor_y="center"
+            )
+    
     def _draw_restart_button(self):
         """绘制重新开始按钮"""
-        button_width = 200
-        button_height = 50
+        button_width = S.px(200)
+        button_height = S.py(50)
         button_x = self.window_width // 2 - button_width // 2
-        button_y = self.window_height // 2 - 100
+        button_y = self.window_height // 2 - S.py(100)
         
         # 绘制按钮背景
         arcade.draw_rectangle_filled(
@@ -154,7 +202,7 @@ class CardView(arcade.View):
             button_x + button_width // 2,
             button_y + button_height // 2,
             arcade.color.WHITE,
-            24,
+            S.font(24),
             anchor_x="center",
             anchor_y="center",
             bold=True
@@ -307,6 +355,10 @@ class CardView(arcade.View):
     
     def on_key_press(self, key, modifiers):
         """键盘按键事件"""
+        # F3 切换调试 overlay（显示窗口尺寸和缩放系数）
+        if key == arcade.key.F3:
+            self.debug_overlay_visible = not self.debug_overlay_visible
+            return
         should_close = self.input_handler.on_key_press(key, modifiers)
         if should_close:
             self.window.close()
@@ -325,10 +377,10 @@ class CardView(arcade.View):
     
     def _check_restart_button_click(self, x: float, y: float) -> bool:
         """检查是否点击了重新开始按钮"""
-        button_width = 200
-        button_height = 50
+        button_width = S.px(200)
+        button_height = S.py(50)
         button_x = self.window_width // 2 - button_width // 2
-        button_y = self.window_height // 2 - 100
+        button_y = self.window_height // 2 - S.py(100)
         
         return (button_x <= x <= button_x + button_width and
                 button_y <= y <= button_y + button_height)

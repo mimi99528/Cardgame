@@ -93,6 +93,7 @@
 ```
 /workspace/
 ├── main.py              # 主程序入口
+├── ui_scale.py          # ★ UI 缩放工具模块（4K/高 DPI 支持）
 ├── config.py            # 配置和常量定义
 ├── models.py            # 核心数据模型（实体、卡牌、装备等）
 ├── battle_system.py     # 战斗系统逻辑
@@ -119,6 +120,83 @@
 ├── design.md            # 游戏设计文档
 └── roadmap.md           # 开发路线图
 ```
+
+---
+
+## 4K / 高 DPI 屏幕支持
+
+### 问题背景
+
+在 Windows 4K 屏幕（或系统缩放为 150%/200%）下，Arcade/pyglet 默认不启用 Per-Monitor DPI 感知，导致：
+- 逻辑坐标与物理像素不一致，UI 元素错位
+- 字体、按钮、卡牌尺寸在不同屏幕上比例失调
+
+### 解决方案：`ui_scale.py`
+
+项目新增了 **`ui_scale.py`** 模块，提供全局 UI 缩放单例，所有 UI 坐标和字体都经过统一换算。
+
+**设计分辨率**：`1920 × 1080`（所有"设计像素"以此为基准）
+
+**API 速查**：
+
+```python
+from ui_scale import S, update_scale
+
+# 在窗口初始化 / on_resize 时更新（main.py 已自动调用）
+update_scale(window_width, window_height)
+
+# 水平坐标或宽度换算
+S.px(x)       # 设计像素 → 实际像素（水平）
+S.py(y)       # 设计像素 → 实际像素（垂直）
+S.font(size)  # 字体大小缩放（等比）
+S.scale(v)    # 等比缩放（圆半径、边框等）
+S.rect(w, h)  # 返回 (scaled_w, scaled_h)
+```
+
+**在新增 UI 元素时使用**：
+
+```python
+# 绘制文字
+arcade.draw_text("Hello", S.px(100), S.py(50), color, S.font(24))
+
+# 绘制矩形
+arcade.draw_lrbt_rectangle_filled(
+    S.px(20), S.px(420), S.py(30), S.py(80), color
+)
+
+# 绘制按钮（位置 + 尺寸均换算）
+btn_x = window_width * 0.85   # 比例定位，不需换算
+btn_y = S.py(80)              # 绝对 y 偏移需换算
+arcade.draw_lrbt_rectangle_filled(
+    btn_x - S.px(75), btn_x + S.px(75),
+    btn_y - S.py(25), btn_y + S.py(25),
+    arcade.color.GREEN
+)
+```
+
+### 缩放策略
+
+| 值类型 | 换算方法 | 说明 |
+|--------|----------|------|
+| 水平坐标/宽度 | `S.px(v)` | 独立水平缩放 |
+| 垂直坐标/高度 | `S.py(v)` | 独立垂直缩放 |
+| 字体大小 | `S.font(v)` | 等比缩放（取 min(sx, sy)） |
+| 圆半径/边框 | `S.scale(v)` | 等比缩放 |
+| 百分比布局 | 直接使用 `window_width * ratio` | 已自适应，无需额外换算 |
+
+### Windows DPI 感知
+
+`main.py` 在启动时自动调用 `SetProcessDpiAwarenessContext`（Per-Monitor V2），使 arcade/pyglet 获取真实物理分辨率，确保在 150%/200% 系统缩放下坐标映射正确。
+
+### 调试 Overlay
+
+游戏运行中按 **F3** 可打开/关闭调试 overlay，显示：
+- 当前窗口物理尺寸
+- 水平/垂直/等比缩放系数（sx, sy, s）
+- 设计分辨率基准
+- 字体缩放示例
+
+这有助于验证 4K / 高 DPI 下 UI 缩放是否正确。
 
 ---
 
@@ -173,6 +251,9 @@ python main.py
 - **ESC 键**：如果背包打开则先关闭背包
 - **查看状态**：顶部显示体积和重量使用情况
 - **物品管理**：查看和管理角色拥有的物品
+
+### 调试功能
+- **F3 键**：切换调试 overlay（显示当前窗口尺寸、缩放系数），便于在 4K / 高 DPI 下验证 UI 比例
 
 ---
 

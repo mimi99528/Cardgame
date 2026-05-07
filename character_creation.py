@@ -9,6 +9,7 @@ from career_system import Career, CareerType, CareerFactory
 from card_database import create_weapon_database, create_armor_database
 from inventory import Inventory, InventoryItem, ItemType, ItemShape
 from config import CONSTANTS, Rarity
+from ui_scale import S, update_scale
 
 
 class CharacterCreationView(arcade.View):
@@ -23,6 +24,9 @@ class CharacterCreationView(arcade.View):
         screen_width, screen_height = arcade.get_display_size()
         self.window_width = screen_width if screen_width else CONSTANTS.WINDOW_WIDTH
         self.window_height = screen_height if screen_height else CONSTANTS.WINDOW_HEIGHT
+        
+        # 确保缩放单例与当前窗口同步
+        update_scale(self.window_width, self.window_height)
         
         # 创建阶段: 0=职业选择, 1=属性分配, 2=装备选择
         self.creation_stage = 0
@@ -54,24 +58,30 @@ class CharacterCreationView(arcade.View):
         self.hovered_equipment_index = -1
     
     def _calculate_layout(self):
-        """计算UI布局"""
+        """计算UI布局（所有绝对像素值通过 UIScale 换算，支持 4K/高 DPI）"""
         self.layout_center_x = self.window_width // 2
         self.layout_center_y = self.window_height // 2
         
         # 职业选择界面布局
         self.career_list_x = self.window_width * 0.25
         self.career_list_y_start = self.window_height * 0.7
-        self.career_item_height = 60
+        self.career_item_height = S.py(60)
         self.career_description_x = self.window_width * 0.55
         self.career_description_y = self.window_height * 0.5
         
         # 属性分配界面布局
-        self.stat_row_height = 80
+        self.stat_row_height = S.py(80)
         self.stat_rows_start_y = self.window_height * 0.65
         
         # 装备选择界面布局
-        self.equipment_option_height = 150
+        self.equipment_option_height = S.py(150)
         self.equipment_options_start_y = self.window_height * 0.6
+    
+    def on_resize(self, width: int, height: int):
+        """窗口尺寸变化时重新计算布局。"""
+        self.window_width = width
+        self.window_height = height
+        self._calculate_layout()
     
     def on_draw(self):
         """绘制角色创建界面"""
@@ -97,7 +107,7 @@ class CharacterCreationView(arcade.View):
             self.layout_center_x,
             self.window_height * 0.9,
             arcade.color.GOLD,
-            48,
+            S.font(48),
             anchor_x="center",
             anchor_y="center",
             bold=True
@@ -116,10 +126,10 @@ class CharacterCreationView(arcade.View):
             # 绘制职业选项背景
             if is_hovered:
                 arcade.draw_lrbt_rectangle_filled(
-                    self.career_list_x - 150,
-                    self.career_list_x + 150,
-                    y_pos - 25,
-                    y_pos + 25,
+                    self.career_list_x - S.px(150),
+                    self.career_list_x + S.px(150),
+                    y_pos - S.py(25),
+                    y_pos + S.py(25),
                     arcade.color.DARK_SLATE_GRAY
                 )
             
@@ -130,7 +140,7 @@ class CharacterCreationView(arcade.View):
                 self.career_list_x,
                 y_pos,
                 color,
-                24,
+                S.font(24),
                 anchor_x="center",
                 anchor_y="center",
                 bold=is_hovered
@@ -144,9 +154,9 @@ class CharacterCreationView(arcade.View):
             arcade.draw_text(
                 career.name,
                 self.career_description_x,
-                self.career_description_y + 100,
+                self.career_description_y + S.py(100),
                 arcade.color.GOLD,
-                36,
+                S.font(36),
                 anchor_x="center",
                 anchor_y="center",
                 bold=True
@@ -158,35 +168,35 @@ class CharacterCreationView(arcade.View):
                 arcade.draw_text(
                     line,
                     self.career_description_x,
-                    self.career_description_y + 50 - i * 30,
+                    self.career_description_y + S.py(50) - i * S.py(30),
                     arcade.color.WHITE,
-                    20,
+                    S.font(20),
                     anchor_x="center",
                     anchor_y="center"
                 )
             
             # 被动技能
             if career.passives:
-                passive_y = self.career_description_y - 50
+                passive_y = self.career_description_y - S.py(50)
                 arcade.draw_text(
                     "被动技能:",
                     self.career_description_x,
                     passive_y,
                     arcade.color.LIGHT_GREEN,
-                    24,
+                    S.font(24),
                     anchor_x="center",
                     anchor_y="center",
                     bold=True
                 )
                 
                 for i, passive in enumerate(career.passives):
-                    passive_y -= 40
+                    passive_y -= S.py(40)
                     arcade.draw_text(
                         f"• {passive.name}",
                         self.career_description_x,
                         passive_y,
                         arcade.color.YELLOW,
-                        18,
+                        S.font(18),
                         anchor_x="center",
                         anchor_y="center",
                         bold=True
@@ -198,21 +208,21 @@ class CharacterCreationView(arcade.View):
                         arcade.draw_text(
                             line,
                             self.career_description_x,
-                            passive_y - 25 - j * 20,
+                            passive_y - S.py(25) - j * S.py(20),
                             arcade.color.LIGHT_GRAY,
-                            16,
+                            S.font(16),
                             anchor_x="center",
                             anchor_y="center"
                         )
-                    passive_y -= len(passive_desc_lines) * 20
+                    passive_y -= len(passive_desc_lines) * S.py(20)
         
         # 提示文字
         arcade.draw_text(
             "点击职业进行选择，然后点击右下角的'下一步'",
             self.layout_center_x,
-            50,
+            S.py(50),
             arcade.color.GRAY,
-            16,
+            S.font(16),
             anchor_x="center",
             anchor_y="center"
         )
@@ -226,10 +236,10 @@ class CharacterCreationView(arcade.View):
             text_color = arcade.color.GRAY
         
         button_x = self.window_width * 0.85
-        button_y = 80
+        button_y = S.py(80)
         arcade.draw_lrbt_rectangle_filled(
-            button_x - 75, button_x + 75,
-            button_y - 25, button_y + 25,
+            button_x - S.px(75), button_x + S.px(75),
+            button_y - S.py(25), button_y + S.py(25),
             button_color
         )
         arcade.draw_text(
@@ -237,7 +247,7 @@ class CharacterCreationView(arcade.View):
             button_x,
             button_y,
             text_color,
-            20,
+            S.font(20),
             anchor_x="center",
             anchor_y="center",
             bold=True
@@ -251,7 +261,7 @@ class CharacterCreationView(arcade.View):
             self.layout_center_x,
             self.window_height * 0.9,
             arcade.color.GOLD,
-            48,
+            S.font(48),
             anchor_x="center",
             anchor_y="center",
             bold=True
@@ -265,7 +275,7 @@ class CharacterCreationView(arcade.View):
             self.layout_center_x,
             self.window_height * 0.82,
             color,
-            32,
+            S.font(32),
             anchor_x="center",
             anchor_y="center",
             bold=True
@@ -279,7 +289,7 @@ class CharacterCreationView(arcade.View):
                 self.layout_center_x,
                 self.window_height * 0.76,
                 arcade.color.LIGHT_BLUE,
-                20,
+                S.font(20),
                 anchor_x="center",
                 anchor_y="center"
             )
@@ -299,14 +309,14 @@ class CharacterCreationView(arcade.View):
                 
                 arcade.draw_text(
                     f"{stat_display_name}: {suggested_value}",
-                    self.layout_center_x - 200,
+                    self.layout_center_x - S.px(200),
                     sugg_y,
                     color,
-                    18,
+                    S.font(18),
                     anchor_x="left",
                     anchor_y="center"
                 )
-                sugg_y -= 30
+                sugg_y -= S.py(30)
         
         # 绘制属性行
         stat_names = ["strength", "dexterity", "intelligence", "charisma"]
@@ -322,7 +332,7 @@ class CharacterCreationView(arcade.View):
                 self.window_width * 0.3,
                 y_pos,
                 arcade.color.WHITE,
-                28,
+                S.font(28),
                 anchor_x="right",
                 anchor_y="center",
                 bold=True
@@ -334,7 +344,7 @@ class CharacterCreationView(arcade.View):
                 self.layout_center_x,
                 y_pos,
                 arcade.color.YELLOW,
-                32,
+                S.font(32),
                 anchor_x="center",
                 anchor_y="center",
                 bold=True
@@ -348,7 +358,7 @@ class CharacterCreationView(arcade.View):
                 self.window_width * 0.7,
                 y_pos,
                 arcade.color.LIGHT_GRAY,
-                20,
+                S.font(20),
                 anchor_x="left",
                 anchor_y="center"
             )
@@ -358,10 +368,10 @@ class CharacterCreationView(arcade.View):
             can_increase = (self.available_points >= cost and current_value < self.max_stat)
             
             btn_color = arcade.color.GREEN if can_increase else arcade.color.DARK_GRAY
-            btn_x = self.layout_center_x + 100
+            btn_x = self.layout_center_x + S.px(100)
             arcade.draw_lrbt_rectangle_filled(
-                btn_x - 20, btn_x + 20,
-                y_pos - 20, y_pos + 20,
+                btn_x - S.px(20), btn_x + S.px(20),
+                y_pos - S.py(20), y_pos + S.py(20),
                 btn_color
             )
             arcade.draw_text(
@@ -369,7 +379,7 @@ class CharacterCreationView(arcade.View):
                 btn_x,
                 y_pos,
                 arcade.color.WHITE,
-                24,
+                S.font(24),
                 anchor_x="center",
                 anchor_y="center",
                 bold=True
@@ -378,10 +388,10 @@ class CharacterCreationView(arcade.View):
             # 减少按钮
             can_decrease = (current_value > self.base_stat)
             btn_color = arcade.color.RED if can_decrease else arcade.color.DARK_GRAY
-            btn_x = self.layout_center_x + 160
+            btn_x = self.layout_center_x + S.px(160)
             arcade.draw_lrbt_rectangle_filled(
-                btn_x - 20, btn_x + 20,
-                y_pos - 20, y_pos + 20,
+                btn_x - S.px(20), btn_x + S.px(20),
+                y_pos - S.py(20), y_pos + S.py(20),
                 btn_color
             )
             arcade.draw_text(
@@ -389,7 +399,7 @@ class CharacterCreationView(arcade.View):
                 btn_x,
                 y_pos,
                 arcade.color.WHITE,
-                24,
+                S.font(24),
                 anchor_x="center",
                 anchor_y="center",
                 bold=True
@@ -400,10 +410,10 @@ class CharacterCreationView(arcade.View):
                 cost_text = f"花费: {cost}"
                 arcade.draw_text(
                     cost_text,
-                    btn_x + 80,
+                    btn_x + S.px(80),
                     y_pos,
                     arcade.color.ORANGE,
-                    16,
+                    S.font(16),
                     anchor_x="left",
                     anchor_y="center"
                 )
@@ -412,9 +422,9 @@ class CharacterCreationView(arcade.View):
         arcade.draw_text(
             "从10点开始，提升属性需要消耗点数（越高越贵），最高16点",
             self.layout_center_x,
-            100,
+            S.py(100),
             arcade.color.GRAY,
-            16,
+            S.font(16),
             anchor_x="center",
             anchor_y="center"
         )
@@ -422,10 +432,10 @@ class CharacterCreationView(arcade.View):
         # 上一步和下一步按钮
         # 上一步
         button_x = self.window_width * 0.15
-        button_y = 80
+        button_y = S.py(80)
         arcade.draw_lrbt_rectangle_filled(
-            button_x - 75, button_x + 75,
-            button_y - 25, button_y + 25,
+            button_x - S.px(75), button_x + S.px(75),
+            button_y - S.py(25), button_y + S.py(25),
             arcade.color.BLUE
         )
         arcade.draw_text(
@@ -433,7 +443,7 @@ class CharacterCreationView(arcade.View):
             button_x,
             button_y,
             arcade.color.WHITE,
-            20,
+            S.font(20),
             anchor_x="center",
             anchor_y="center",
             bold=True
@@ -442,10 +452,10 @@ class CharacterCreationView(arcade.View):
         # 下一步
         button_color = arcade.color.GREEN if self.available_points >= 0 else arcade.color.DARK_GRAY
         button_x = self.window_width * 0.85
-        button_y = 80
+        button_y = S.py(80)
         arcade.draw_lrbt_rectangle_filled(
-            button_x - 75, button_x + 75,
-            button_y - 25, button_y + 25,
+            button_x - S.px(75), button_x + S.px(75),
+            button_y - S.py(25), button_y + S.py(25),
             button_color
         )
         text_color = arcade.color.WHITE if self.available_points >= 0 else arcade.color.GRAY
@@ -454,7 +464,7 @@ class CharacterCreationView(arcade.View):
             button_x,
             button_y,
             text_color,
-            20,
+            S.font(20),
             anchor_x="center",
             anchor_y="center",
             bold=True
@@ -516,7 +526,7 @@ class CharacterCreationView(arcade.View):
                 bg_color = arcade.color.DARK_GRAY
             
             box_width = self.window_width * 0.7
-            box_height = 120
+            box_height = S.py(120)
             arcade.draw_lrbt_rectangle_filled(
                 self.layout_center_x - box_width / 2,
                 self.layout_center_x + box_width / 2,
@@ -541,9 +551,9 @@ class CharacterCreationView(arcade.View):
             arcade.draw_text(
                 equip_set["name"],
                 self.layout_center_x - box_width * 0.35,
-                y_pos + 30,
+                y_pos + S.py(30),
                 name_color,
-                24,
+                S.font(24),
                 anchor_x="left",
                 anchor_y="center",
                 bold=True
@@ -558,19 +568,19 @@ class CharacterCreationView(arcade.View):
                     self.layout_center_x - box_width * 0.35,
                     desc_y,
                     arcade.color.LIGHT_GRAY,
-                    16,
+                    S.font(16),
                     anchor_x="left",
                     anchor_y="center"
                 )
-                desc_y -= 22
+                desc_y -= S.py(22)
             
             # 偏好
             arcade.draw_text(
                 f"偏好: {equip_set['preference']}",
                 self.layout_center_x - box_width * 0.35,
-                desc_y - 10,
+                desc_y - S.py(10),
                 arcade.color.LIGHT_BLUE,
-                14,
+                S.font(14),
                 anchor_x="left",
                 anchor_y="center",
                 italic=True
@@ -583,27 +593,27 @@ class CharacterCreationView(arcade.View):
             arcade.draw_text(
                 "背包预览:",
                 preview_x,
-                preview_y + 40,
+                preview_y + S.py(40),
                 arcade.color.GREEN,
-                18,
+                S.font(18),
                 anchor_x="left",
                 anchor_y="center",
                 bold=True
             )
             
             # 显示装备
-            item_y = preview_y + 10
+            item_y = preview_y + S.py(10)
             if equip_set["armor"]:
                 arcade.draw_text(
                     f"🛡️ {equip_set['armor']}",
                     preview_x,
                     item_y,
                     arcade.color.WHITE,
-                    16,
+                    S.font(16),
                     anchor_x="left",
                     anchor_y="center"
                 )
-                item_y -= 25
+                item_y -= S.py(25)
             
             if equip_set["weapon"]:
                 arcade.draw_text(
@@ -611,11 +621,11 @@ class CharacterCreationView(arcade.View):
                     preview_x,
                     item_y,
                     arcade.color.WHITE,
-                    16,
+                    S.font(16),
                     anchor_x="left",
                     anchor_y="center"
                 )
-                item_y -= 25
+                item_y -= S.py(25)
             
             # 显示卡牌
             for card in equip_set["cards"]:
@@ -624,19 +634,19 @@ class CharacterCreationView(arcade.View):
                     preview_x,
                     item_y,
                     arcade.color.CYAN,
-                    16,
+                    S.font(16),
                     anchor_x="left",
                     anchor_y="center"
                 )
-                item_y -= 22
+                item_y -= S.py(22)
         
         # 说明文字
         arcade.draw_text(
             "点击装备套装进行选择，然后点击右下角的'开始游戏'",
             self.layout_center_x,
-            50,
+            S.py(50),
             arcade.color.GRAY,
-            16,
+            S.font(16),
             anchor_x="center",
             anchor_y="center"
         )
@@ -644,10 +654,10 @@ class CharacterCreationView(arcade.View):
         # 上一步和开始游戏按钮
         # 上一步
         button_x = self.window_width * 0.15
-        button_y = 80
+        button_y = S.py(80)
         arcade.draw_lrbt_rectangle_filled(
-            button_x - 75, button_x + 75,
-            button_y - 25, button_y + 25,
+            button_x - S.px(75), button_x + S.px(75),
+            button_y - S.py(25), button_y + S.py(25),
             arcade.color.BLUE
         )
         arcade.draw_text(
@@ -655,7 +665,7 @@ class CharacterCreationView(arcade.View):
             button_x,
             button_y,
             arcade.color.WHITE,
-            20,
+            S.font(20),
             anchor_x="center",
             anchor_y="center",
             bold=True
@@ -663,10 +673,10 @@ class CharacterCreationView(arcade.View):
         
         # 开始游戏
         button_x = self.window_width * 0.85
-        button_y = 80
+        button_y = S.py(80)
         arcade.draw_lrbt_rectangle_filled(
-            button_x - 75, button_x + 75,
-            button_y - 25, button_y + 25,
+            button_x - S.px(75), button_x + S.px(75),
+            button_y - S.py(25), button_y + S.py(25),
             arcade.color.GREEN
         )
         arcade.draw_text(
@@ -674,7 +684,7 @@ class CharacterCreationView(arcade.View):
             button_x,
             button_y,
             arcade.color.WHITE,
-            20,
+            S.font(20),
             anchor_x="center",
             anchor_y="center",
             bold=True
@@ -782,8 +792,8 @@ class CharacterCreationView(arcade.View):
             
             for i, career in enumerate(careers):
                 y_pos = self.career_list_y_start - i * self.career_item_height
-                if (abs(x - self.career_list_x) < 150 and 
-                    abs(y - y_pos) < 25):
+                if (abs(x - self.career_list_x) < S.px(150) and 
+                    abs(y - y_pos) < S.py(25)):
                     self.hovered_career_index = i
                     break
         
@@ -794,7 +804,7 @@ class CharacterCreationView(arcade.View):
             for i in range(3):
                 y_pos = self.equipment_options_start_y - i * self.equipment_option_height
                 box_width = self.window_width * 0.7
-                box_height = 120
+                box_height = S.py(120)
                 
                 if (abs(x - self.layout_center_x) < box_width / 2 and 
                     abs(y - y_pos) < box_height / 2):
@@ -816,15 +826,15 @@ class CharacterCreationView(arcade.View):
         careers = CareerFactory.get_all_careers()
         for i, career in enumerate(careers):
             y_pos = self.career_list_y_start - i * self.career_item_height
-            if (abs(x - self.career_list_x) < 150 and 
-                abs(y - y_pos) < 25):
+            if (abs(x - self.career_list_x) < S.px(150) and 
+                abs(y - y_pos) < S.py(25)):
                 self.selected_career = career
                 return
         
         # 检查是否点击了下一步按钮
         button_x = self.window_width * 0.85
-        button_y = 80
-        if (abs(x - button_x) < 75 and abs(y - button_y) < 25):
+        button_y = S.py(80)
+        if (abs(x - button_x) < S.px(75) and abs(y - button_y) < S.py(25)):
             if self.selected_career:
                 self.creation_stage = 1
     
@@ -837,8 +847,8 @@ class CharacterCreationView(arcade.View):
             current_value = getattr(self.stats, stat_name)
             
             # 检查增加按钮
-            btn_x = self.layout_center_x + 100
-            if (abs(x - btn_x) < 20 and abs(y - y_pos) < 20):
+            btn_x = self.layout_center_x + S.px(100)
+            if (abs(x - btn_x) < S.px(20) and abs(y - y_pos) < S.py(20)):
                 cost = self._get_stat_cost(current_value)
                 if self.available_points >= cost and current_value < self.max_stat:
                     setattr(self.stats, stat_name, current_value + 1)
@@ -846,8 +856,8 @@ class CharacterCreationView(arcade.View):
                 return
             
             # 检查减少按钮
-            btn_x = self.layout_center_x + 160
-            if (abs(x - btn_x) < 20 and abs(y - y_pos) < 20):
+            btn_x = self.layout_center_x + S.px(160)
+            if (abs(x - btn_x) < S.px(20) and abs(y - y_pos) < S.py(20)):
                 if current_value > self.base_stat:
                     # 返还点数
                     prev_value = current_value - 1
@@ -858,15 +868,15 @@ class CharacterCreationView(arcade.View):
         
         # 检查上一步按钮
         button_x = self.window_width * 0.15
-        button_y = 80
-        if (abs(x - button_x) < 75 and abs(y - button_y) < 25):
+        button_y = S.py(80)
+        if (abs(x - button_x) < S.px(75) and abs(y - button_y) < S.py(25)):
             self.creation_stage = 0
             return
         
         # 检查下一步按钮
         button_x = self.window_width * 0.85
-        button_y = 80
-        if (abs(x - button_x) < 75 and abs(y - button_y) < 25):
+        button_y = S.py(80)
+        if (abs(x - button_x) < S.px(75) and abs(y - button_y) < S.py(25)):
             if self.available_points >= 0:
                 self.creation_stage = 2
     
@@ -876,7 +886,7 @@ class CharacterCreationView(arcade.View):
         for i in range(3):
             y_pos = self.equipment_options_start_y - i * self.equipment_option_height
             box_width = self.window_width * 0.7
-            box_height = 120
+            box_height = S.py(120)
                         
             if (abs(x - self.layout_center_x) < box_width / 2 and
                 abs(y - y_pos) < box_height / 2):
@@ -885,15 +895,15 @@ class CharacterCreationView(arcade.View):
         
         # 检查上一步按钮
         button_x = self.window_width * 0.15
-        button_y = 80
-        if (abs(x - button_x) < 75 and abs(y - button_y) < 25):
+        button_y = S.py(80)
+        if (abs(x - button_x) < S.px(75) and abs(y - button_y) < S.py(25)):
             self.creation_stage = 1
             return
         
         # 检查开始游戏按钮
         button_x = self.window_width * 0.85
-        button_y = 80
-        if (abs(x - button_x) < 75 and abs(y - button_y) < 25):
+        button_y = S.py(80)
+        if (abs(x - button_x) < S.px(75) and abs(y - button_y) < S.py(25)):
             self._create_character_and_start()
     
     def _create_character_and_start(self):

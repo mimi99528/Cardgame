@@ -8,6 +8,7 @@ from equipment_manager import EquipmentManager, EquipmentSlot
 from inventory import Inventory, InventoryItem, ItemType
 from models import Stats
 from config import CONSTANTS
+from ui_scale import S
 
 
 class EquipmentRenderer:
@@ -37,24 +38,25 @@ class EquipmentRenderer:
     
     def _calculate_panel_position(self):
         """计算装备面板的位置"""
-        # 面板尺寸
-        self.panel_width = 400
-        self.panel_height = 600
+        # 面板尺寸（按缩放比例换算）
+        self.panel_width = S.px(400)
+        self.panel_height = S.py(600)
         
         # 靠右显示，留出边距
-        self.panel_x = self.window_width - self.panel_width - 20
+        self.panel_x = self.window_width - self.panel_width - S.px(20)
         self.panel_y = (self.window_height - self.panel_height) // 2
         
         # 分区高度
-        self.stats_section_height = 150      # 属性区
-        self.equipment_section_height = 220  # 装备区（增加高度以容纳格子布局）
-        self.inventory_section_height = 230  # 背包物品区
+        self.stats_section_height = S.py(150)      # 属性区
+        self.equipment_section_height = S.py(220)  # 装备区（增加高度以容纳格子布局）
+        self.inventory_section_height = S.py(230)  # 背包物品区
         
         # 装备格子配置
-        self.slot_size = 80  # 每个装备格子的大小
-        self.slot_padding = 15  # 格子间距
-        self.equipment_grid_start_x = self.panel_x + 30  # 装备网格起始X
-        self.equipment_grid_start_y = self.panel_y + self.panel_height - 70 - self.stats_section_height - 40  # 装备网格起始Y
+        self.slot_size = S.scale(80)   # 每个装备格子的大小
+        self.slot_padding = S.px(15)   # 格子间距
+        self.equipment_grid_start_x = self.panel_x + S.px(30)  # 装备网格起始X
+        self.equipment_grid_start_y = (self.panel_y + self.panel_height
+                                       - S.py(70) - self.stats_section_height - S.py(40))
     
     def toggle_visibility(self, entity):
         """切换装备界面显示"""
@@ -123,7 +125,7 @@ class EquipmentRenderer:
             self.panel_x + 15,
             self.panel_y + self.panel_height - 30,
             arcade.color.WHITE,
-            font_size=18,
+            font_size=S.font(18),
             bold=True
         )
     
@@ -137,7 +139,7 @@ class EquipmentRenderer:
             self.panel_x + 15,
             section_y,
             arcade.color.YELLOW,
-            font_size=14,
+            font_size=S.font(14),
             bold=True
         )
         
@@ -159,7 +161,7 @@ class EquipmentRenderer:
                 self.panel_x + 20,
                 stat_y,
                 arcade.color.WHITE,
-                font_size=12
+                font_size=S.font(12)
             )
             stat_y -= 25
         
@@ -170,7 +172,7 @@ class EquipmentRenderer:
             self.panel_x + 20,
             hp_ap_y,
             arcade.color.RED,
-            font_size=12,
+            font_size=S.font(12),
             bold=True
         )
         
@@ -179,7 +181,7 @@ class EquipmentRenderer:
             self.panel_x + 200,
             hp_ap_y,
             arcade.color.BLUE,
-            font_size=12,
+            font_size=S.font(12),
             bold=True
         )
     
@@ -193,7 +195,7 @@ class EquipmentRenderer:
             self.panel_x + 15,
             section_top,
             arcade.color.YELLOW,
-            font_size=14,
+            font_size=S.font(14),
             bold=True
         )
         
@@ -254,7 +256,7 @@ class EquipmentRenderer:
                 slot_left + self.slot_size // 2,
                 slot_top - 12,
                 arcade.color.LIGHT_GRAY,
-                font_size=10,
+                font_size=S.font(10),
                 anchor_x="center"
             )
             
@@ -266,7 +268,7 @@ class EquipmentRenderer:
                     slot_left + self.slot_size // 2,
                     slot_top - self.slot_size // 2 + 5,
                     arcade.color.WHITE,
-                    font_size=11,
+                    font_size=S.font(11),
                     bold=True,
                     anchor_x="center",
                     anchor_y="center",
@@ -286,7 +288,7 @@ class EquipmentRenderer:
                     slot_left + self.slot_size // 2,
                     slot_bottom + 12,
                     type_color,
-                    font_size=9,
+                    font_size=S.font(9),
                     anchor_x="center"
                 )
             else:
@@ -295,7 +297,7 @@ class EquipmentRenderer:
                     slot_left + self.slot_size // 2,
                     slot_top - self.slot_size // 2,
                     arcade.color.DARK_GRAY,
-                    font_size=11,
+                    font_size=S.font(11),
                     anchor_x="center",
                     anchor_y="center"
                 )
@@ -310,7 +312,7 @@ class EquipmentRenderer:
             self.panel_x + 15,
             section_top,
             arcade.color.YELLOW,
-            font_size=14,
+            font_size=S.font(14),
             bold=True
         )
         
@@ -366,7 +368,7 @@ class EquipmentRenderer:
                     item_left + 5,
                     item_top - 12,
                     item_color,
-                    font_size=11,
+                    font_size=S.font(11),
                     bold=True
                 )
                 
@@ -378,7 +380,7 @@ class EquipmentRenderer:
                         item_left + 5,
                         item_bottom + 3,
                         arcade.color.LIGHT_GRAY,
-                        font_size=9
+                        font_size=S.font(9)
                     )
                 
                 item_y -= 30
@@ -389,7 +391,7 @@ class EquipmentRenderer:
                     self.panel_x + 15,
                     section_top - 50,
                     arcade.color.DARK_GRAY,
-                    font_size=12
+                    font_size=S.font(12)
                 )
     
     def _draw_hover_tooltip(self):
@@ -714,7 +716,7 @@ class EquipmentRenderer:
             mouse_x,
             mouse_y,
             arcade.color.WHITE,
-            font_size=11,
+            font_size=S.font(11),
             bold=True,
             anchor_x="center",
             anchor_y="center"
