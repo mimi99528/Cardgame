@@ -8,6 +8,7 @@ from models import Entity, Card
 from battle_system import BattleSystem
 from config import CONSTANTS, CARD_TYPE_NAMES, RARITY_COLORS, TargetType
 from tile_map import TileMap
+from ui_scale import S
 
 
 class UIRenderer:
@@ -17,19 +18,31 @@ class UIRenderer:
         self.window_width = window_width
         self.window_height = window_height
         
-        # 字体大小（根据屏幕高度调整）
-        scale_factor = self.window_height / 1080.0
-        self.headtitle_font_size = int(24 * scale_factor)
-        self.title_font_size = int(18 * scale_factor)
-        self.text_font_size = int(12 * scale_factor)
-        self.number_font_size = int(18 * scale_factor)
-        self.normal_font_size = int(16 * scale_factor)
+        # 字体大小（通过全局缩放单例计算，自动适应 4K/高 DPI 屏幕）
+        self.headtitle_font_size = S.font(24)
+        self.title_font_size = S.font(18)
+        self.text_font_size = S.font(12)
+        self.number_font_size = S.font(18)
+        self.normal_font_size = S.font(16)
         
         # 文本对象缓存
         self.text_objects: Dict[str, arcade.Text] = {}
         
         # 加载图片素材
         self._load_textures()
+    
+    def on_resize(self, width: int, height: int):
+        """窗口尺寸变化时更新内部状态（S 已由 CardGame.on_resize 刷新）。"""
+        self.window_width = width
+        self.window_height = height
+        # 重新计算字体大小
+        self.headtitle_font_size = S.font(24)
+        self.title_font_size = S.font(18)
+        self.text_font_size = S.font(12)
+        self.number_font_size = S.font(18)
+        self.normal_font_size = S.font(16)
+        # 清除文本缓存，使字体大小立即生效
+        self.text_objects.clear()
     
     def _load_textures(self):
         """加载图片素材"""
@@ -154,9 +167,9 @@ class UIRenderer:
         """绘制战斗信息（血条、AP等）"""
         status = battle.get_battle_status()
         
-        top_margin = 50
+        top_margin = S.py(50)
         bar_y_start = self.window_height - top_margin
-        bar_height = 25
+        bar_height = S.py(25)
         
         # 回合数
         current_entity_name = status.get('current_entity', '未知')
@@ -274,48 +287,50 @@ class UIRenderer:
     
     def _draw_ap_display(self, battle: BattleSystem):
         """绘制AP显示"""
-        ap_icon_size = 16
-        ap_y_pos = 30
+        ap_icon_size = S.scale(16)
+        ap_y_pos = S.py(30)
+        ap_spacing = S.px(25)
         
         current_entity = battle.current_entity
         if current_entity and current_entity.is_alive():
             is_player_side = current_entity in battle.player_team
             
             if is_player_side:
-                ap_start_x = 20
+                ap_start_x = S.px(20)
             else:
-                ap_start_x = self.window_width - 20
+                ap_start_x = self.window_width - S.px(20)
             
             # 尝试使用图片
             texture = self.ap_16_texture if hasattr(self, 'ap_16_texture') else None
             
             for i in range(current_entity.ap):
                 if is_player_side:
-                    x_pos = ap_start_x + i * 25
+                    x_pos = ap_start_x + i * ap_spacing
                 else:
-                    x_pos = ap_start_x - i * 25
+                    x_pos = ap_start_x - i * ap_spacing
                 
                 if texture:
                     arcade.draw_texture_rect(
                         texture,
-                        arcade.XYWH(x_pos - 10, ap_y_pos - 10, 20, 20)
+                        arcade.XYWH(x_pos - ap_icon_size / 2, ap_y_pos - ap_icon_size / 2,
+                                    ap_icon_size, ap_icon_size)
                     )
                 else:
-                    arcade.draw_circle_filled(x_pos, ap_y_pos, 8, arcade.color.BLUE)
-                    arcade.draw_circle_outline(x_pos, ap_y_pos, 8, arcade.color.WHITE, 2)
+                    arcade.draw_circle_filled(x_pos, ap_y_pos, S.scale(8), arcade.color.BLUE)
+                    arcade.draw_circle_outline(x_pos, ap_y_pos, S.scale(8), arcade.color.WHITE, 2)
     
     def _draw_mp_display(self, battle: BattleSystem):
         """绘制MP显示"""
-        mp_y_pos = 60  # MP显示在AP上方
+        mp_y_pos = S.py(60)  # MP显示在AP上方
         
         current_entity = battle.current_entity
         if current_entity and current_entity.is_alive():
             is_player_side = current_entity in battle.player_team
             
             if is_player_side:
-                mp_start_x = 20
+                mp_start_x = S.px(20)
             else:
-                mp_start_x = self.window_width - 20
+                mp_start_x = self.window_width - S.px(20)
             
             # 绘制MP文本
             if is_player_side:
@@ -348,12 +363,12 @@ class UIRenderer:
         hand_count = deck_info['hand_count']
         
         # 确定显示位置（左下角）
-        info_x = 20
-        info_y = 80
+        info_x = S.px(20)
+        info_y = S.py(80)
         
         # 背景框
-        box_width = 180
-        box_height = 60
+        box_width = S.px(180)
+        box_height = S.py(60)
         arcade.draw_lrbt_rectangle_filled(
             info_x, info_x + box_width,
             info_y, info_y + box_height,
@@ -368,7 +383,7 @@ class UIRenderer:
         # 标题
         self.draw_text(
             f"{current_entity.name} 卡牌信息",
-            info_x + box_width / 2, info_y + box_height - 12,
+            info_x + box_width / 2, info_y + box_height - S.py(12),
             arcade.color.BLACK, self.text_font_size,
             anchor_x="center", anchor_y="center", bold=True
         )
@@ -376,7 +391,7 @@ class UIRenderer:
         # 卡组数量
         self.draw_text(
             f"卡组: {deck_count}",
-            info_x + 10, info_y + 35,
+            info_x + S.px(10), info_y + S.py(35),
             arcade.color.DARK_BLUE, self.text_font_size,
             anchor_x="left", anchor_y="center"
         )
@@ -384,17 +399,17 @@ class UIRenderer:
         # 弃牌堆数量
         self.draw_text(
             f"弃牌堆: {discard_count}",
-            info_x + 10, info_y + 18,
+            info_x + S.px(10), info_y + S.py(18),
             arcade.color.DARK_RED, self.text_font_size,
             anchor_x="left", anchor_y="center"
         )
     
     def draw_battle_log(self, battle: BattleSystem):
         """绘制战斗日志"""
-        log_width = 450
-        log_height = 220
-        log_x = 20
-        log_y = self.window_height - log_height - 200
+        log_width = S.px(450)
+        log_height = S.py(220)
+        log_x = S.px(20)
+        log_y = self.window_height - log_height - S.py(200)
         
         # 日志背景
         arcade.draw_lrbt_rectangle_filled(
@@ -409,7 +424,7 @@ class UIRenderer:
         # 日志标题
         self.draw_text(
             "战斗日志",
-            log_x + log_width / 2, log_y + log_height - 20,
+            log_x + log_width / 2, log_y + log_height - S.py(20),
             arcade.color.BLACK, self.text_font_size,
             anchor_x="center", anchor_y="center", bold=True
         )
@@ -417,8 +432,8 @@ class UIRenderer:
         # 日志内容
         log_entries = battle.battle_log.get_last_entries(10)
         if log_entries:
-            y_offset = log_y + log_height - 40
-            line_height = 15
+            y_offset = log_y + log_height - S.py(40)
+            line_height = S.py(15)
             
             # 定义颜色映射
             color_map = {
@@ -445,7 +460,7 @@ class UIRenderer:
                     bold = False
                 
                 self.draw_text(
-                    message, log_x + 8, y_offset,
+                    message, log_x + S.px(8), y_offset,
                     color, self.text_font_size,
                     anchor_x="left", anchor_y="top", bold=bold
                 )
@@ -460,16 +475,16 @@ class UIRenderer:
         is_player_side = entity in battle.player_team
         
         if is_player_side:
-            info_x = 20
-            info_y = self.window_height - 300
+            info_x = S.px(20)
+            info_y = self.window_height - S.py(300)
         else:
-            info_x = self.window_width - 320
-            info_y = self.window_height - 300
+            info_x = self.window_width - S.px(320)
+            info_y = self.window_height - S.py(300)
         
-        info_width = 300
+        info_width = S.px(300)
         # 根据是否有职业调整高度
         has_career = hasattr(entity, 'career') and entity.career is not None
-        info_height = 200 if has_career else 180
+        info_height = S.py(200) if has_career else S.py(180)
         
         # 绘制背景
         arcade.draw_lrbt_rectangle_filled(
@@ -485,7 +500,7 @@ class UIRenderer:
         control_type_text = "玩家控制" if entity.control_type.value == "player" else "AI控制"
         self.draw_text(
             f"{entity.name} ({control_type_text})",
-            info_x + info_width / 2, info_y + info_height - 25,
+            info_x + info_width / 2, info_y + info_height - S.py(25),
             arcade.color.BLACK, self.title_font_size,
             anchor_x="center", anchor_y="center", bold=True
         )
@@ -495,35 +510,35 @@ class UIRenderer:
         
         self.draw_text(
             f"HP: {entity.hp}/{entity.max_hp}",
-            info_x + 10, info_y + info_height - 60,
+            info_x + S.px(10), info_y + info_height - S.py(60),
             hp_color, self.text_font_size,
             anchor_x="left", anchor_y="center", bold=True
         )
         
         self.draw_text(
             f"AP: {entity.ap}/{entity.max_ap}",
-            info_x + 10, info_y + info_height - 90,
+            info_x + S.px(10), info_y + info_height - S.py(90),
             arcade.color.BLUE, self.text_font_size,
             anchor_x="left", anchor_y="center", bold=True
         )
         
         self.draw_text(
             f"MD: {entity.md}/{entity.max_md}",
-            info_x + 10, info_y + info_height - 120,
+            info_x + S.px(10), info_y + info_height - S.py(120),
             arcade.color.ORANGE, self.text_font_size,
             anchor_x="left", anchor_y="center", bold=True
         )
         
         self.draw_text(
             f"格挡: {entity.block}",
-            info_x + 10, info_y + info_height - 150,
+            info_x + S.px(10), info_y + info_height - S.py(150),
             arcade.color.GRAY, self.text_font_size,
             anchor_x="left", anchor_y="center"
         )
         
         self.draw_text(
             f"位置: {entity.position}",
-            info_x + 10, info_y + info_height - 180,
+            info_x + S.px(10), info_y + info_height - S.py(180),
             arcade.color.DARK_GRAY, self.text_font_size,
             anchor_x="left", anchor_y="center"
         )
@@ -534,22 +549,22 @@ class UIRenderer:
             career_desc = entity.career.description[:30] + "..." if len(entity.career.description) > 30 else entity.career.description
             
             # 职业信息背景
-            career_box_y = info_y + info_height - 210
+            career_box_y = info_y + info_height - S.py(210)
             arcade.draw_lrbt_rectangle_filled(
-                info_x + 5, info_x + info_width - 5,
-                career_box_y - 35, career_box_y - 5,
+                info_x + S.px(5), info_x + info_width - S.px(5),
+                career_box_y - S.py(35), career_box_y - S.py(5),
                 (255, 255, 200, 150)
             )
             arcade.draw_lrbt_rectangle_outline(
-                info_x + 5, info_x + info_width - 5,
-                career_box_y - 35, career_box_y - 5,
+                info_x + S.px(5), info_x + info_width - S.px(5),
+                career_box_y - S.py(35), career_box_y - S.py(5),
                 arcade.color.DARK_GOLDENROD, 1
             )
             
             # 职业名称
             self.draw_text(
                 f"职业: {career_name}",
-                info_x + 10, career_box_y - 15,
+                info_x + S.px(10), career_box_y - S.py(15),
                 arcade.color.DARK_GOLDENROD, self.text_font_size - 2,
                 anchor_x="left", anchor_y="center", bold=True
             )
@@ -557,8 +572,8 @@ class UIRenderer:
             # 职业描述
             self.draw_text(
                 career_desc,
-                info_x + 10, career_box_y - 30,
-                arcade.color.BROWN, self.text_font_size - 4,
+                info_x + S.px(10), career_box_y - S.py(30),
+                arcade.color.BROWN, max(1, self.text_font_size - 1),
                 anchor_x="left", anchor_y="center"
             )
         
@@ -570,33 +585,33 @@ class UIRenderer:
             armor = equip_mgr.get_equipped_item(EquipmentSlot.BODY)
             
             # 根据是否有职业调整装备信息的Y坐标
-            equipment_y = info_y + info_height - 210 if has_career else info_y + info_height - 180
+            equipment_y = info_y + info_height - S.py(210) if has_career else info_y + info_height - S.py(180)
             
             if weapon:
                 self.draw_text(
                     f"武器: {weapon.name}",
-                    info_x + 10, equipment_y,
+                    info_x + S.px(10), equipment_y,
                     arcade.color.ORANGE, self.text_font_size,
                     anchor_x="left", anchor_y="center"
                 )
-                equipment_y -= 20
+                equipment_y -= S.py(20)
             
             if armor:
                 self.draw_text(
                     f"防具: {armor.name}",
-                    info_x + 10, equipment_y,
+                    info_x + S.px(10), equipment_y,
                     arcade.color.BLUE, self.text_font_size,
                     anchor_x="left", anchor_y="center"
                 )
         
         # 绘制Buff图标
         if entity.buffs:
-            buff_start_y = info_y + 10
-            buff_icon_size = 24
-            buff_spacing = 30
+            buff_start_y = info_y + S.py(10)
+            buff_icon_size = S.scale(24)
+            buff_spacing = S.px(30)
             
             for i, (buff_key, buff) in enumerate(entity.buffs.items()):
-                buff_x = info_x + 10 + i * buff_spacing
+                buff_x = info_x + S.px(10) + i * buff_spacing
                 
                 # 绘制AP图标作为buff图标（暂时使用ap_16.png）
                 if self.ap_16_texture:
@@ -612,19 +627,19 @@ class UIRenderer:
                 else:
                     # 如果没有纹理，绘制圆形
                     arcade.draw_circle_filled(
-                        buff_x + buff_icon_size // 2,
-                        buff_start_y + buff_icon_size // 2,
-                        buff_icon_size // 2,
+                        buff_x + buff_icon_size / 2,
+                        buff_start_y + buff_icon_size / 2,
+                        buff_icon_size / 2,
                         arcade.color.PURPLE
                     )
                 
                 # 显示层数
                 self.draw_text(
                     str(buff.stacks),
-                    buff_x + buff_icon_size // 2,
-                    buff_start_y + buff_icon_size // 2,
+                    buff_x + buff_icon_size / 2,
+                    buff_start_y + buff_icon_size / 2,
                     arcade.color.WHITE,
-                    10,
+                    S.font(10),
                     anchor_x="center",
                     anchor_y="center",
                     bold=True
@@ -643,14 +658,14 @@ class UIRenderer:
         
         self.draw_text(
             message,
-            self.window_width / 2, self.window_height / 2 + 50,
-            arcade.color.GOLD, 36,
+            self.window_width / 2, self.window_height / 2 + S.py(50),
+            arcade.color.GOLD, S.font(36),
             anchor_x="center", anchor_y="center", bold=True
         )
         
         self.draw_text(
             "按 ESC 退出",
-            self.window_width / 2, self.window_height / 2 - 50,
+            self.window_width / 2, self.window_height / 2 - S.py(50),
             arcade.color.WHITE, self.normal_font_size,
             anchor_x="center", anchor_y="center"
         )

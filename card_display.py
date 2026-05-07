@@ -8,6 +8,7 @@ from typing import Dict, Optional, List
 from models import Card, Entity
 from battle_system import BattleSystem
 from config import CONSTANTS, CARD_TYPE_NAMES, RARITY_COLORS, CardTag
+from ui_scale import S
 
 
 class CardDisplay:
@@ -58,10 +59,10 @@ class CardDisplay:
         if not hand:
             return
         
-        # 计算卡牌位置
-        card_width = CONSTANTS.CARD_WIDTH
-        card_height = CONSTANTS.CARD_HEIGHT
-        spacing = CONSTANTS.CARD_SPACING
+        # 计算卡牌位置（通过 UIScale 换算，适应 4K/高 DPI 屏幕）
+        card_width = S.px(CONSTANTS.CARD_WIDTH)
+        card_height = S.py(CONSTANTS.CARD_HEIGHT)
+        spacing = S.px(CONSTANTS.CARD_SPACING)
         
         # 根据手牌数量动态调整间距（>=6张时启用重叠）
         if len(hand) >= 6:
@@ -76,15 +77,15 @@ class CardDisplay:
             total_width = len(hand) * (card_width + spacing) - spacing
         
         start_x = (self.ui_renderer.window_width - total_width) / 2
-        base_y = 60
+        base_y = S.py(60)
         
         for i, card in enumerate(hand):
             # 跳过正在拖动的卡牌(不绘制在手牌中)
             if card == self.dragged_card:
                 continue
                     
+            base_y = S.py(60)
             x = start_x + i * actual_spacing + card_width / 2
-            base_y = 60
                     
             # 使用卡牌的唯一ID作为键
             card_id = id(card)
@@ -111,7 +112,6 @@ class CardDisplay:
                     
             # 使用当前动画位置
             y = self.card_display_posis[card_id]['current_y']
-            # print(card, y)
                     
             # 保存基础位置(不含悬停偏移)用于点击检测
             self.card_positions[card_id] = (x, y)
@@ -119,7 +119,7 @@ class CardDisplay:
             # 如果卡牌被悬停,上移(仅用于绘制)
             draw_y = y
             if id(card) == id(self.hovered_card):
-                draw_y += CONSTANTS.CARD_HOVER_OFFSET
+                draw_y += S.py(CONSTANTS.CARD_HOVER_OFFSET)
                     
             # 绘制卡牌
             self._draw_card(card, x, draw_y, card_width, card_height)
@@ -164,15 +164,15 @@ class CardDisplay:
             )
         
         # 卡牌名称背景
-        name_bg_y_bottom = y - height / 2 + 110
-        name_bg_y_top = y - height / 2 + 150
+        name_bg_y_bottom = y - height / 2 + S.py(110)
+        name_bg_y_top = y - height / 2 + S.py(150)
         arcade.draw_lrbt_rectangle_filled(
-            x - 100, x + 100,
+            x - S.px(100), x + S.px(100),
             name_bg_y_bottom, name_bg_y_top,
             arcade.color.DARK_GRAY
         )
         arcade.draw_lrbt_rectangle_outline(
-            x - 100, x + 100,
+            x - S.px(100), x + S.px(100),
             name_bg_y_bottom, name_bg_y_top,
             arcade.color.WHITE, 5
         )
@@ -180,7 +180,7 @@ class CardDisplay:
         # 卡牌名称
         self.ui_renderer.draw_text(
             card.name,
-            x, name_bg_y_bottom + 20,
+            x, name_bg_y_bottom + S.py(20),
             arcade.color.WHITE,
             self.ui_renderer.title_font_size,
             anchor_x="center", anchor_y="center", bold=True
@@ -220,8 +220,10 @@ class CardDisplay:
     
     def _draw_ap_cost(self, card: Card, x, y, width, height):
         """绘制AP消耗"""
-        ap_x = x + width / 2 - 15
-        ap_y = y + height / 2 - 15
+        ap_x = x + width / 2 - S.px(15)
+        ap_y = y + height / 2 - S.py(15)
+        ap_step = S.py(25)
+        icon_sz = S.scale(20)
         
         texture = self.ui_renderer.ap_32_texture if hasattr(self.ui_renderer, 'ap_32_texture') else None
         
@@ -229,11 +231,12 @@ class CardDisplay:
             if texture:
                 arcade.draw_texture_rect(
                     texture,
-                    arcade.XYWH(ap_x - 10, ap_y - i * 25 - 10, 20, 20)
+                    arcade.XYWH(ap_x - icon_sz / 2, ap_y - i * ap_step - icon_sz / 2,
+                                icon_sz, icon_sz)
                 )
             else:
-                arcade.draw_circle_filled(ap_x, ap_y - i * 25, 8, arcade.color.BLUE)
-                arcade.draw_circle_outline(ap_x, ap_y - i * 25, 8, arcade.color.WHITE, 2)
+                arcade.draw_circle_filled(ap_x, ap_y - i * ap_step, S.scale(8), arcade.color.BLUE)
+                arcade.draw_circle_outline(ap_x, ap_y - i * ap_step, S.scale(8), arcade.color.WHITE, 2)
     
     def _draw_card_tags(self, card: Card, x, y, width, height):
         """绘制卡牌标签（在卡牌底部）"""
@@ -242,8 +245,8 @@ class CardDisplay:
         
         # 标签显示区域：卡牌底部
         tag_start_y = y - height / 4
-        tag_height = 18
-        tag_spacing = 5
+        tag_height = S.py(18)
+        tag_spacing = S.px(5)
         max_tags_per_row = 3  # 每行最多显示3个标签
         
         # 定义标签颜色映射（根据标签类型）
@@ -315,9 +318,8 @@ class CardDisplay:
             row = i // max_tags_per_row
             col = i % max_tags_per_row
             
-            # 计算标签位置
-            tag_width = 50
-            tag_x = x - width / 2 + 10 + col * (tag_width + tag_spacing)
+            # 计算标签位置（使用函数开头定义的 tag_width/height/spacing）
+            tag_x = x - width / 2 + S.px(10) + col * (tag_width + tag_spacing)
             tag_y = tag_start_y - row * (tag_height + tag_spacing)
             
             # 获取标签颜色
@@ -343,7 +345,7 @@ class CardDisplay:
                 tag_x + tag_width / 2,
                 tag_y + tag_height / 2,
                 arcade.color.WHITE,
-                10,
+                S.font(10),
                 anchor_x="center",
                 anchor_y="center",
                 bold=True
@@ -353,40 +355,43 @@ class CardDisplay:
         """绘制效果值（HP、格挡等）"""
         if "hp" in card.effects:
             value = abs(card.effects["hp"])
-            icon_x = x - width / 2 + 30
-            icon_y = y + height / 2 - 30
+            icon_x = x - width / 2 + S.px(30)
+            icon_y = y + height / 2 - S.py(30)
+            icon_hw = S.px(27)   # box half-width
+            icon_hh = S.py(15)   # box half-height
+            icon_sz = S.scale(20)  # icon size (fits within left half of box)
             
             # 白色背景框
             arcade.draw_lrbt_rectangle_filled(
-                icon_x - 27, icon_x + 27,
-                icon_y - 15, icon_y + 15,
+                icon_x - icon_hw, icon_x + icon_hw,
+                icon_y - icon_hh, icon_y + icon_hh,
                 arcade.color.WHITE
             )
             arcade.draw_lrbt_rectangle_outline(
-                icon_x - 27, icon_x + 27,
-                icon_y - 15, icon_y + 15,
+                icon_x - icon_hw, icon_x + icon_hw,
+                icon_y - icon_hh, icon_y + icon_hh,
                 arcade.color.BLACK, 2
             )
             
-            # 图标
+            # 图标（位于背景框左侧，与原版保持一致的偏移比例）
             phy_texture = self.ui_renderer.phy_texture if hasattr(self.ui_renderer, 'phy_texture') else None
             def_texture = self.ui_renderer.def_texture if hasattr(self.ui_renderer, 'def_texture') else None
             
             if "phy" in card.card_type.value and phy_texture:
                 arcade.draw_texture_rect(
                     phy_texture,
-                    arcade.XYWH(icon_x - 20, icon_y - 10, 20, 20)
+                    arcade.XYWH(icon_x - S.px(20), icon_y - icon_sz / 2, icon_sz, icon_sz)
                 )
             elif def_texture:
                 arcade.draw_texture_rect(
                     def_texture,
-                    arcade.XYWH(icon_x - 20, icon_y - 10, 20, 20)
+                    arcade.XYWH(icon_x - S.px(20), icon_y - icon_sz / 2, icon_sz, icon_sz)
                 )
             
             # 数值
             self.ui_renderer.draw_text(
                 str(value),
-                icon_x + 10, icon_y,
+                icon_x + S.px(10), icon_y,
                 arcade.color.BLACK,
                 self.ui_renderer.number_font_size,
                 anchor_x="center", anchor_y="center", bold=True
@@ -394,33 +399,36 @@ class CardDisplay:
         
         if "block" in card.effects:
             value = card.effects["block"]
-            icon_x = x - width / 2 + 30
-            icon_y = y + height / 2 - 30
+            icon_x = x - width / 2 + S.px(30)
+            icon_y = y + height / 2 - S.py(30)
+            icon_hw = S.px(27)
+            icon_hh = S.py(15)
+            icon_sz = S.scale(20)
             
             # 白色背景框
             arcade.draw_lrbt_rectangle_filled(
-                icon_x - 27, icon_x + 27,
-                icon_y - 15, icon_y + 15,
+                icon_x - icon_hw, icon_x + icon_hw,
+                icon_y - icon_hh, icon_y + icon_hh,
                 arcade.color.WHITE
             )
             arcade.draw_lrbt_rectangle_outline(
-                icon_x - 27, icon_x + 27,
-                icon_y - 15, icon_y + 15,
+                icon_x - icon_hw, icon_x + icon_hw,
+                icon_y - icon_hh, icon_y + icon_hh,
                 arcade.color.BLACK, 2
             )
             
-            # 图标
+            # 图标（位于背景框左侧）
             def_texture = self.ui_renderer.def_texture if hasattr(self.ui_renderer, 'def_texture') else None
             if def_texture:
                 arcade.draw_texture_rect(
                     def_texture,
-                    arcade.XYWH(icon_x - 20, icon_y - 10, 20, 20)
+                    arcade.XYWH(icon_x - S.px(20), icon_y - icon_sz / 2, icon_sz, icon_sz)
                 )
             
             # 数值
             self.ui_renderer.draw_text(
                 str(value),
-                icon_x + 10, icon_y,
+                icon_x + S.px(10), icon_y,
                 arcade.color.BLACK,
                 self.ui_renderer.number_font_size,
                 anchor_x="center", anchor_y="center", bold=True
@@ -429,7 +437,7 @@ class CardDisplay:
 
     def _draw_card_description(self, card: Card, x, y, width, height):
         """绘制卡牌描述（悬停时显示）"""
-        description_y = y + height / 2 + 10
+        description_y = y + height / 2 + S.py(10)
         
         # 计算预期效果值（使用保存的battle引用）
         expected = self._calculate_expected_values(card, self.current_battle)
@@ -489,28 +497,28 @@ class CardDisplay:
             desc_lines.append("无描述")
         
         # 绘制多行描述
-        line_height = 18
-        max_line_width = width - 20  # 留出边距
+        line_height = S.py(18)
+        max_line_width = width - S.px(20)  # 留出边距
         
         # 计算总高度
-        total_height = len(desc_lines) * line_height + 10
+        total_height = len(desc_lines) * line_height + S.py(10)
         
         # 背景框
         arcade.draw_lrbt_rectangle_filled(
-            x - width / 2 - 5, x + width / 2 + 5,
+            x - width / 2 - S.px(5), x + width / 2 + S.px(5),
             description_y, description_y + total_height,
             (0, 0, 0, 220)  # 半透明黑色背景
         )
         
         # 绘制每一行
         for i, line in enumerate(desc_lines):
-            line_y = description_y + total_height - 10 - i * line_height
+            line_y = description_y + total_height - S.py(10) - i * line_height
             # 如果是标题行（如"预期效果:"），使用稍大字体和不同颜色
             if line.endswith(":"):
                 font_size = self.ui_renderer.text_font_size
                 color = arcade.color.YELLOW
             else:
-                font_size = self.ui_renderer.text_font_size - 1
+                font_size = max(1, self.ui_renderer.text_font_size - 1)
                 color = arcade.color.WHITE
             
             self.ui_renderer.draw_text(
@@ -667,13 +675,13 @@ class CardDisplay:
         if hand_size == 0:
             return
         
-        box_width = 80
-        box_height = 100
-        spacing = 15
+        box_width = S.px(80)
+        box_height = S.py(100)
+        spacing = S.px(15)
         
         total_width = hand_size * (box_width + spacing) - spacing
         start_x = (self.ui_renderer.window_width - total_width) / 2
-        base_y = 60
+        base_y = S.py(60)
         
         for i in range(hand_size):
             x = start_x + i * (box_width + spacing) + box_width / 2
@@ -697,7 +705,7 @@ class CardDisplay:
         self.ui_renderer.draw_text(
             f"手牌: {hand_size}",
             self.ui_renderer.window_width / 2,
-            base_y + box_height / 2 + 20,
+            base_y + box_height / 2 + S.py(20),
             arcade.color.WHITE,
             self.ui_renderer.title_font_size,
             anchor_x="center", anchor_y="center", bold=True
@@ -716,13 +724,13 @@ class CardDisplay:
             if card is None:
                 continue
             
-            half_width = CONSTANTS.CARD_WIDTH / 2
-            half_height = CONSTANTS.CARD_HEIGHT / 2
+            half_width = S.px(CONSTANTS.CARD_WIDTH) / 2
+            half_height = S.py(CONSTANTS.CARD_HEIGHT) / 2
             
             # 考虑悬停偏移
             check_y = card_y
             if id(card) == id(old_hovered):
-                check_y += CONSTANTS.CARD_HOVER_OFFSET
+                check_y += S.py(CONSTANTS.CARD_HOVER_OFFSET)
             
             if (card_x - half_width <= x <= card_x + half_width and
                 check_y - half_height <= y <= check_y + half_height):
@@ -741,13 +749,13 @@ class CardDisplay:
             if card is None:
                 continue
             
-            half_width = CONSTANTS.CARD_WIDTH / 2
-            half_height = CONSTANTS.CARD_HEIGHT / 2
+            half_width = S.px(CONSTANTS.CARD_WIDTH) / 2
+            half_height = S.py(CONSTANTS.CARD_HEIGHT) / 2
             
             # 考虑悬停偏移
             check_y = card_y
             if id(card) == id(self.hovered_card):
-                check_y += CONSTANTS.CARD_HOVER_OFFSET
+                check_y += S.py(CONSTANTS.CARD_HOVER_OFFSET)
             
             if (card_x - half_width <= x <= card_x + half_width and
                 check_y - half_height <= y <= check_y + half_height):
@@ -843,7 +851,7 @@ class CardDisplay:
         # 获取或创建卡牌位置数据
         if card_id not in self.card_display_posis:
             self.card_display_posis[card_id] = {
-                'target_y': 60,  # 默认目标位置
+                'target_y': S.py(60),  # 默认目标位置
                 'current_y': start_y_position,  # 从屏幕下方开始
                 'animating': True,
                 'anim_start_time': time.time(),
@@ -857,7 +865,7 @@ class CardDisplay:
             # 关键修复:无论卡牌当前在哪里,都从屏幕下方开始动画
             pos_data['start_y'] = start_y_position
             pos_data['current_y'] = start_y_position  # 重置当前位置到下方
-            pos_data['target_y'] = 60  # 确保目标位置正确
+            pos_data['target_y'] = S.py(60)  # 确保目标位置正确
             pos_data['animating'] = True
             pos_data['anim_start_time'] = time.time()
             pos_data['anim_duration'] = duration
@@ -932,9 +940,9 @@ class CardDisplay:
             card: 正在拖动的卡牌
             x, y: 鼠标当前位置
         """
-        # 缩小版的卡牌尺寸
-        drag_width = CONSTANTS.CARD_WIDTH * 0.6  # 60% 大小
-        drag_height = CONSTANTS.CARD_HEIGHT * 0.6
+        # 缩小版的卡牌尺寸（基于缩放后的设计尺寸）
+        drag_width = S.px(CONSTANTS.CARD_WIDTH) * 0.6  # 60% 大小
+        drag_height = S.py(CONSTANTS.CARD_HEIGHT) * 0.6
         
         # 卡牌背景（使用稀有度颜色）
         rarity_color = RARITY_COLORS.get(card.rarity, arcade.color.WHITE)

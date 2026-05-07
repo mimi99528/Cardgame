@@ -2,6 +2,7 @@
 卡牌战斗游戏 - 主程序入口
 使用 Arcade 引擎重构版本
 """
+import sys
 import arcade
 from battle_system import BattleSystem
 from card_database import create_player_character, create_enemy, create_ally_ai, create_enemy_2
@@ -12,6 +13,27 @@ from career_system import CareerFactory
 from careers.farmer_passive import setup_farmer_passives
 from careers.scholar_passive import setup_scholar_passives
 from character_creation import CharacterCreationView
+from ui_scale import update_scale
+
+
+def _enable_dpi_awareness():
+    """在 Windows 上启用 Per-Monitor DPI 感知，确保 arcade/pyglet 获取真实物理分辨率。
+    
+    若不启用，Python 进程默认为 DPI 不感知，Windows 会将逻辑分辨率报告给应用，
+    导致在 150%/200% 缩放屏幕下坐标与实际像素不符。
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        # SetProcessDpiAwarenessContext: DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+    except Exception:
+        try:
+            # 回退到旧版 API：PROCESS_PER_MONITOR_DPI_AWARE = 2
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except Exception:
+            pass  # 非 Windows 或 API 不可用时忽略
 
 
 def demo_serialization():
@@ -91,11 +113,22 @@ class CardGame(arcade.Window):
             fullscreen=True  # 全屏模式
         )
         
+        # 初始化全局 UI 缩放（以实际窗口尺寸为准）
+        update_scale(self.width, self.height)
+        
         # 设置背景色为白色（与原版一致）
         arcade.set_background_color(arcade.color.WHITE)
         
         # 初始化游戏
         self.setup_game()
+    
+    def on_resize(self, width: int, height: int):
+        """窗口尺寸变化时重新计算缩放因子，并刷新当前视图布局。"""
+        super().on_resize(width, height)
+        update_scale(width, height)
+        # 通知当前视图刷新布局（若视图实现了 on_resize）
+        if self.current_view and hasattr(self.current_view, 'on_resize'):
+            self.current_view.on_resize(width, height)
     
     def setup_game(self):
         """设置游戏 - 先显示角色创建界面"""
@@ -142,6 +175,9 @@ def main():
     print("- ESC键：退出游戏（战斗结束后）")
     print("- 鼠标悬停在卡牌上查看详细信息")
     print("\n" + "=" * 60)
+    
+    # 在 Windows 上启用 DPI 感知，确保获取正确的物理分辨率
+    _enable_dpi_awareness()
     
     # 初始化职业系统
     CareerFactory.initialize()

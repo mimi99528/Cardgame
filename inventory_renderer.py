@@ -6,6 +6,7 @@ import arcade
 from typing import Optional, Tuple
 from inventory import Inventory, InventoryItem, ItemShape
 from config import CONSTANTS
+from ui_scale import S
 
 
 class InventoryRenderer:
@@ -28,22 +29,26 @@ class InventoryRenderer:
     
     def _calculate_panel_position(self):
         """计算背包面板的位置"""
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = S.scale(CONSTANTS.INVENTORY_SLOT_SIZE)
+        padding = S.scale(CONSTANTS.INVENTORY_PADDING)
         grid_width = CONSTANTS.INVENTORY_WIDTH
         grid_height = CONSTANTS.INVENTORY_HEIGHT
         
         # 面板总尺寸
         panel_width = grid_width * slot_size + (grid_width + 1) * padding
-        panel_height = grid_height * slot_size + (grid_height + 1) * padding + 80  # 额外空间给标题和状态条
+        panel_height = grid_height * slot_size + (grid_height + 1) * padding + S.py(80)
         
         # 居中位置
         self.panel_x = (self.window_width - panel_width) // 2
         self.panel_y = (self.window_height - panel_height) // 2
         
+        # 保存缩放后的尺寸供绘制用
+        self._slot_size = slot_size
+        self._padding = padding
+        
         # 网格起始位置
         self.grid_start_x = self.panel_x + padding
-        self.grid_start_y = self.panel_y + padding + 60  # 留出顶部空间
+        self.grid_start_y = self.panel_y + padding + S.py(60)  # 留出顶部空间
     
     def toggle_inventory(self, inventory: Inventory):
         """切换背包显示"""
@@ -76,8 +81,8 @@ class InventoryRenderer:
         if not self.inventory_visible or not self.current_inventory:
             return None
         
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = getattr(self, '_slot_size', S.scale(CONSTANTS.INVENTORY_SLOT_SIZE))
+        padding = getattr(self, '_padding', S.scale(CONSTANTS.INVENTORY_PADDING))
         
         # 遍历网格查找点击的物品
         for grid_y in range(self.current_inventory.grid_height):
@@ -108,13 +113,13 @@ class InventoryRenderer:
     
     def _draw_background(self):
         """绘制背包背景"""
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = getattr(self, '_slot_size', S.scale(CONSTANTS.INVENTORY_SLOT_SIZE))
+        padding = getattr(self, '_padding', S.scale(CONSTANTS.INVENTORY_PADDING))
         grid_width = CONSTANTS.INVENTORY_WIDTH
         grid_height = CONSTANTS.INVENTORY_HEIGHT
         
         panel_width = grid_width * slot_size + (grid_width + 1) * padding
-        panel_height = grid_height * slot_size + (grid_height + 1) * padding + 80
+        panel_height = grid_height * slot_size + (grid_height + 1) * padding + S.py(80)
         
         # 计算矩形的left, right, bottom, top
         left = self.panel_x
@@ -140,26 +145,26 @@ class InventoryRenderer:
         title_text = f"背包 - {self.current_inventory.owner_name}"
         arcade.draw_text(
             title_text,
-            self.panel_x + CONSTANTS.INVENTORY_PADDING,
-            self.panel_y + 40,
+            self.panel_x + getattr(self, '_padding', S.scale(CONSTANTS.INVENTORY_PADDING)),
+            self.panel_y + S.py(40),
             arcade.color.WHITE,
-            font_size=20,
+            font_size=S.font(20),
             bold=True
         )
     
     def _draw_status_bars(self):
         """绘制状态条（体积和重量）"""
         info = self.current_inventory.get_usage_info()
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = getattr(self, '_slot_size', S.scale(CONSTANTS.INVENTORY_SLOT_SIZE))
+        padding = getattr(self, '_padding', S.scale(CONSTANTS.INVENTORY_PADDING))
         grid_width = CONSTANTS.INVENTORY_WIDTH
         
-        bar_y = self.panel_y + 15
-        bar_width = (grid_width * slot_size + (grid_width + 1) * padding) // 2 - 20
-        bar_height = 15
+        bar_y = self.panel_y + S.py(15)
+        bar_width = (grid_width * slot_size + (grid_width + 1) * padding) // 2 - S.px(20)
+        bar_height = S.py(15)
         
         # 体积条
-        volume_x = self.panel_x + padding + 10
+        volume_x = self.panel_x + getattr(self, '_padding', S.scale(CONSTANTS.INVENTORY_PADDING)) + S.px(10)
         self._draw_status_bar(
             volume_x, bar_y, bar_width, bar_height,
             info['volume_used'], info['volume_max'],
@@ -199,15 +204,15 @@ class InventoryRenderer:
         # 文字
         text = f"{label}: {current:.1f}/{maximum:.1f}"
         arcade.draw_text(
-            text, x + 5, y + 2,
+            text, x + S.px(5), y + S.py(2),
             arcade.color.WHITE,
-            font_size=10
+            font_size=S.font(10)
         )
     
     def _draw_grid(self):
         """绘制背包网格"""
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = getattr(self, '_slot_size', S.scale(CONSTANTS.INVENTORY_SLOT_SIZE))
+        padding = getattr(self, '_padding', S.scale(CONSTANTS.INVENTORY_PADDING))
         
         for y in range(self.current_inventory.grid_height):
             for x in range(self.current_inventory.grid_width):
@@ -233,8 +238,8 @@ class InventoryRenderer:
     
     def _draw_items(self):
         """绘制所有物品"""
-        slot_size = CONSTANTS.INVENTORY_SLOT_SIZE
-        padding = CONSTANTS.INVENTORY_PADDING
+        slot_size = getattr(self, '_slot_size', S.scale(CONSTANTS.INVENTORY_SLOT_SIZE))
+        padding = getattr(self, '_padding', S.scale(CONSTANTS.INVENTORY_PADDING))
         
         for item in self.current_inventory.items:
             # 找到物品在网格中的位置
@@ -280,12 +285,12 @@ class InventoryRenderer:
         )
         
         # 绘制物品名称（如果空间足够）
-        if actual_width > 40 and actual_height > 40:
+        if actual_width > S.px(40) and actual_height > S.py(40):
             display_name = item.name[:6] if len(item.name) > 6 else item.name
             if item.stackable and item.stack_count > 1:
                 display_name += f"x{item.stack_count}"
             
-            font_size = max(8, min(12, actual_width // len(display_name)))
+            font_size = max(S.font(8), min(S.font(12), int(actual_width // len(display_name))))
             arcade.draw_text(
                 display_name,
                 x + actual_width // 2, y + actual_height // 2,
