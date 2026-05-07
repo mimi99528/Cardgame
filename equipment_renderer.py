@@ -46,6 +46,11 @@ class EquipmentRenderer:
         self.panel_x = self.window_width - self.panel_width - S.px(20)
         self.panel_y = (self.window_height - self.panel_height) // 2
         
+        # 分区标题相对于顶部的偏移（设计像素 70）
+        self.section_title_offset = S.py(70)
+        # 面板底部安全边距（设计像素 20）
+        self.panel_bottom_margin = S.py(20)
+        
         # 分区高度
         self.stats_section_height = S.py(150)      # 属性区
         self.equipment_section_height = S.py(220)  # 装备区（增加高度以容纳格子布局）
@@ -56,7 +61,7 @@ class EquipmentRenderer:
         self.slot_padding = S.px(15)   # 格子间距
         self.equipment_grid_start_x = self.panel_x + S.px(30)  # 装备网格起始X
         self.equipment_grid_start_y = (self.panel_y + self.panel_height
-                                       - S.py(70) - self.stats_section_height - S.py(40))
+                                       - self.section_title_offset - self.stats_section_height - S.py(40))
     
     def toggle_visibility(self, entity):
         """切换装备界面显示"""
@@ -131,7 +136,7 @@ class EquipmentRenderer:
     
     def _draw_stats_section(self):
         """绘制属性区域"""
-        section_y = self.panel_y + self.panel_height - S.py(70)
+        section_y = self.panel_y + self.panel_height - self.section_title_offset
         
         # 标题
         arcade.draw_text(
@@ -187,7 +192,7 @@ class EquipmentRenderer:
     
     def _draw_equipment_section(self):
         """绘制装备区域（方形格子布局）"""
-        section_top = self.panel_y + self.panel_height - S.py(70) - self.stats_section_height
+        section_top = self.panel_y + self.panel_height - self.section_title_offset - self.stats_section_height
         
         # 标题
         arcade.draw_text(
@@ -304,7 +309,7 @@ class EquipmentRenderer:
     
     def _draw_inventory_section(self):
         """绘制背包物品区域（可装备的物品）"""
-        section_top = self.panel_y + self.panel_height - S.py(70) - self.stats_section_height - self.equipment_section_height
+        section_top = self.panel_y + self.panel_height - self.section_title_offset - self.stats_section_height - self.equipment_section_height
         
         # 标题
         arcade.draw_text(
@@ -330,7 +335,7 @@ class EquipmentRenderer:
             max_display = 6  # 最多显示6个物品
             
             for i, item in enumerate(equippable_items[:max_display]):
-                if item_y < self.panel_y + S.py(20):
+                if item_y < self.panel_y + self.panel_bottom_margin:
                     break
                 
                 # 物品背景
@@ -445,7 +450,7 @@ class EquipmentRenderer:
             if item.item_type in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY]
         ]
         
-        section_top = self.panel_y + self.panel_height - S.py(70) - self.stats_section_height - self.equipment_section_height
+        section_top = self.panel_y + self.panel_height - self.section_title_offset - self.stats_section_height - self.equipment_section_height
         item_y = section_top - S.py(30)
         
         for i, item in enumerate(equippable_items[:6]):
