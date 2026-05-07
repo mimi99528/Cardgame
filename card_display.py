@@ -144,7 +144,7 @@ class CardDisplay:
         arcade.draw_lrbt_rectangle_outline(
             x - width / 2, x + width / 2,
             y - height / 2, y + height / 2,
-            border_color, 10
+            border_color, S.scale(10)
         )
         
         # 卡牌图片（使用card_test.png）
@@ -157,7 +157,7 @@ class CardDisplay:
                 card_test_texture,
                 arcade.XYWH(
                     x - image_width / 2,
-                    y + 10 - image_height / 2,
+                    y + S.py(10) - image_height / 2,
                     image_width,
                     image_height
                 )

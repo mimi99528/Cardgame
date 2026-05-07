@@ -176,7 +176,7 @@ class UIRenderer:
         self.draw_text(
             f"第{battle.current_round}回合 - {current_entity_name}",
             self.window_width / 2,
-            self.window_height - 30,
+            self.window_height - S.py(30),
             arcade.color.BLACK,
             self.headtitle_font_size,
             anchor_x="center", anchor_y="center", bold=True
@@ -262,25 +262,25 @@ class UIRenderer:
         if has_career:
             career_name = entity.career.name
             # 职业名称背景
-            career_text_width = len(career_name) * 10
+            career_text_width = len(career_name) * S.scale(10)
             arcade.draw_lrbt_rectangle_filled(
-                entity_bar_x - career_text_width / 2 - 5,
-                entity_bar_x + career_text_width / 2 + 5,
-                bar_y_start - total_height * 2 - 15,
-                bar_y_start - total_height * 2 - 3,
+                entity_bar_x - career_text_width / 2 - S.px(5),
+                entity_bar_x + career_text_width / 2 + S.px(5),
+                bar_y_start - total_height * 2 - S.py(15),
+                bar_y_start - total_height * 2 - S.py(3),
                 (255, 255, 200, 200)
             )
             arcade.draw_lrbt_rectangle_outline(
-                entity_bar_x - career_text_width / 2 - 5,
-                entity_bar_x + career_text_width / 2 + 5,
-                bar_y_start - total_height * 2 - 15,
-                bar_y_start - total_height * 2 - 3,
+                entity_bar_x - career_text_width / 2 - S.px(5),
+                entity_bar_x + career_text_width / 2 + S.px(5),
+                bar_y_start - total_height * 2 - S.py(15),
+                bar_y_start - total_height * 2 - S.py(3),
                 arcade.color.BLACK, 1
             )
             # 职业名称文字
             self.draw_text(
                 career_name,
-                entity_bar_x, bar_y_start - total_height * 2 - 9,
+                entity_bar_x, bar_y_start - total_height * 2 - S.py(9),
                 arcade.color.DARK_GOLDENROD, self.text_font_size - 4,
                 anchor_x="center", anchor_y="center", bold=True
             )

@@ -172,7 +172,7 @@ class InventoryRenderer:
         )
         
         # 重量条
-        weight_x = volume_x + bar_width + 20
+        weight_x = volume_x + bar_width + S.px(20)
         self._draw_status_bar(
             weight_x, bar_y, bar_width, bar_height,
             info['weight_used'], info['weight_max'],

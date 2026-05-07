@@ -477,7 +477,7 @@ class CharacterCreationView(arcade.View):
             self.layout_center_x,
             self.window_height * 0.9,
             arcade.color.GOLD,
-            48,
+            S.font(48),
             anchor_x="center",
             anchor_y="center",
             bold=True
