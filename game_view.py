@@ -47,8 +47,7 @@ class CardView(arcade.View):
         self.entity_positions: Dict[Entity, tuple] = {}
         
         # 初始化UI模块
-        self.ui_renderer = UIRenderer(self.window_width, self.window_height)
-        self.ui_renderer.ui_scale = self.ui_scale
+        self.ui_renderer = UIRenderer(self.window_width, self.window_height, self.ui_scale)
         self.card_display = CardDisplay(self.ui_renderer)
         self.inventory_renderer = InventoryRenderer(self.window_width, self.window_height, self.ui_scale)
         self.equipment_renderer = EquipmentRenderer(self.window_width, self.window_height, self.ui_scale)
@@ -175,17 +174,17 @@ class CardView(arcade.View):
             f"offset: ({self.ui_scale.offset_x:.1f}, {self.ui_scale.offset_y:.1f})",
         ]
         x = 10
-        y = self.window_height - self.ui_scale.ss(20)
+        y = self.window_height - 20
         for line in debug_lines:
             arcade.draw_text(
                 line,
                 x,
                 y,
                 arcade.color.BLACK,
-                self.ui_scale.ss(16),
+                16,
                 bold=True
             )
-            y -= self.ui_scale.ss(20)
+            y -= 20
     
     def _handle_inventory_item_use(self, x: float, y: float):
         """处理背包物品使用（右键点击）"""

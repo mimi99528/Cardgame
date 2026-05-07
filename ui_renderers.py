@@ -14,10 +14,14 @@ from ui_scale import UIScale
 class UIRenderer:
     """UI渲染器 - 处理所有绘制逻辑"""
     
-    def __init__(self, window_width: int, window_height: int):
-        self.ui_scale = UIScale(window_width, window_height, CONSTANTS.WINDOW_WIDTH, CONSTANTS.WINDOW_HEIGHT)
-        self.window_width = CONSTANTS.WINDOW_WIDTH
-        self.window_height = CONSTANTS.WINDOW_HEIGHT
+    def __init__(self, window_width: int, window_height: int, ui_scale: Optional[UIScale] = None):
+        self.ui_scale = ui_scale or UIScale(window_width, window_height, CONSTANTS.WINDOW_WIDTH, CONSTANTS.WINDOW_HEIGHT)
+        self.design_width = CONSTANTS.WINDOW_WIDTH
+        self.design_height = CONSTANTS.WINDOW_HEIGHT
+        self.window_width = self.design_width
+        self.window_height = self.design_height
+        self.current_window_width = window_width
+        self.current_window_height = window_height
         
         # 字体大小（根据屏幕高度调整）
         self.headtitle_font_size = 24
@@ -34,6 +38,8 @@ class UIRenderer:
 
     def update_window_size(self, window_width: int, window_height: int):
         """窗口尺寸变化时更新缩放参数"""
+        self.current_window_width = window_width
+        self.current_window_height = window_height
         self.ui_scale.update(window_width, window_height)
 
     def sx(self, x: float) -> float:
@@ -653,10 +659,10 @@ class UIRenderer:
         overlay_color = (0, 0, 0, 150)
         arcade.draw_rect_filled(
             arcade.XYWH(
-                self.sx(0),
-                self.sy(0),
-                self.window_width * self.ui_scale.scale,
-                self.window_height * self.ui_scale.scale
+                0,
+                0,
+                self.ui_scale.window_width,
+                self.ui_scale.window_height
             ),
             overlay_color
         )
