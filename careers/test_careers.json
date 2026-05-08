@@ -1,0 +1,136 @@
+[
+  {
+    "career_type": "drifter",
+    "name": "流浪者",
+    "description": "轻装简从的旅行者，擅长生存和探索",
+    "passives": [
+      {
+        "name": "轻装简从",
+        "description": "手牌中[移动/探索]标签卡不计入手牌软上限（最多2张）；大地图节点间食物消耗-1fu(food unit)",
+        "career_type": "drifter",
+        "effect_handler": "drifter_light_pack_handler",
+        "required_cards": [
+          "应急包扎"
+        ]
+      }
+    ],
+    "special_cards": [
+      "应急包扎"
+    ],
+    "initial_deck_config": {
+      "精准打击": 3,
+      "刺击": 1,
+      "疾风步": 2,
+      "野外求生": 1,
+      "灵巧闪避": 2,
+      "格挡": 1
+    }
+  },
+  {
+    "career_type": "artisan",
+    "name": "手艺人",
+    "description": "精通装备使用的工匠，善于资源管理",
+    "passives": [
+      {
+        "name": "物尽其用",
+        "description": "装备赋予的卡牌效果+1（伤害/回复）；在安全节点可消耗1份[材料]标签的物品，将1张手牌临时添加[工具]标签（持续1次遭遇）",
+        "career_type": "artisan",
+        "effect_handler": "artisan_make_best_use_handler",
+        "required_cards": [
+          "临时加固"
+        ]
+      }
+    ],
+    "special_cards": [
+      "临时加固"
+    ],
+    "initial_deck_config": {
+      "重击": 2,
+      "劈砍": 2,
+      "工具修理": 2,
+      "坚固防御": 2,
+      "格挡": 1,
+      "刺击": 1
+    }
+  },
+  {
+    "career_type": "pedlar",
+    "name": "行商/说书人",
+    "description": "见多识广的商人，擅长社交和情报收集",
+    "passives": [
+      {
+        "name": "见多识广",
+        "description": "魅力相关检定结果距(Margin)+1；非主线剧情类社交检定失败时可消耗1点幸运重掷（每场遭遇限1次）",
+        "career_type": "pedlar",
+        "effect_handler": "pedlar_well_traveled_handler",
+        "required_cards": [
+          "讨价还价"
+        ]
+      }
+    ],
+    "special_cards": [
+      "讨价还价"
+    ],
+    "initial_deck_config": {
+      "洞察弱点": 3,
+      "巧言令色": 2,
+      "贿赂": 1,
+      "格挡": 2,
+      "刺击": 2
+    }
+  },
+  {
+    "career_type": "farmer",
+    "name": "农民",
+    "description": "深耕沃土的耕作者，擅长生存和资源管理",
+    "passives": [
+      {
+        "name": "深耕沃土",
+        "description": "打出带[生存]标签的卡牌时，目标获得的治疗/格挡值+2。打出带[群体]标签的卡牌时，作用范围+1（仅对农民自身生效）",
+        "career_type": "farmer",
+        "effect_handler": "farmer_deep_plow_handler",
+        "required_cards": [
+          "粮草调度"
+        ]
+      }
+    ],
+    "special_cards": [
+      "粮草调度"
+    ],
+    "initial_deck_config": {
+      "丰收之击": 2,
+      "劈砍": 1,
+      "坚韧不拔": 2,
+      "群体鼓舞": 1,
+      "大地守护": 2,
+      "格挡": 2
+    }
+  },
+  {
+    "career_type": "scholar",
+    "name": "游学青年",
+    "description": "博闻强记的学者，擅长知识和法术",
+    "passives": [
+      {
+        "name": "博闻强记",
+        "description": "①每场遭遇首次打出[知识]或[法术]卡时，额外抽1张牌（限1次）；②心智调整值用于社交检定时，+1加值；③大地图移动至知识节点时资源消耗-1",
+        "career_type": "scholar",
+        "effect_handler": "scholar_erudite_handler",
+        "required_cards": [
+          "应急咒文"
+        ]
+      }
+    ],
+    "special_cards": [
+      "应急咒文"
+    ],
+    "initial_deck_config": {
+      "奥术冲击": 3,
+      "心灵震爆": 1,
+      "知识汲取": 2,
+      "思维加速": 1,
+      "法力护盾": 2,
+      "点火术": 1
+    }
+  }
+]

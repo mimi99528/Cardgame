@@ -1,0 +1,70 @@
+[
+  {
+    "id": 1002,
+    "name": "火球术",
+    "category": "combat",
+    "type": "atk_mag",
+    "description": "召唤一个火球轰炸目标区域，造成范围火焰伤害",
+    "rarity": "RARE",
+    "ap_cost": 3,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "dice": "3d8",
+        "damage_type": "fire"
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 8,
+    "atk_rnge": {"type": "circle", "radius": 2},
+    "target_type": "enemy",
+    "is_movement": false,
+    "mp_cost": 2,
+    "stat_ratios": {"int": 1.0},
+    "tags": ["法术", "火焰", "范围", "点燃"],
+    "narrative_actions": [
+      {
+        "name": "火球术",
+        "description": "用火球术轰击城门附近的草堆,制造大规模混乱",
+        "tags": ["火球术", "法术", "范围", "火焰"],
+        "check_type": "心智",
+        "difficulty": "困难",
+        "stat_ratios": {"int": 1.0},
+        "is_hidden": true,
+        "hidden_condition": "需要手牌中有带'火焰'标签的卡牌",
+        "required_tags": ["火焰"]
+      }
+    ]
+  },
+  {
+    "id": 1003,
+    "name": "点火术",
+    "category": "utility",
+    "type": "skl",
+    "description": "点燃附近的易燃物，可用于照明或制造火光信号",
+    "rarity": "COMMON",
+    "ap_cost": 1,
+    "effects": [],
+    "play_conditions": [],
+    "atk_dis": 3,
+    "atk_rnge": {"type": "circle", "radius": 1},
+    "target_type": "self",
+    "is_movement": false,
+    "mp_cost": 0,
+    "stat_ratios": {},
+    "tags": ["法术", "火焰", "实用", "火焰"],
+    "narrative_actions": [
+      {
+        "name": "点火术",
+        "description": "点燃一根火把扔向草丛,制造小型火源吸引守卫注意",
+        "tags": ["点火", "法术", "环境互动", "火焰"],
+        "check_type": "敏捷",
+        "difficulty": "简单",
+        "stat_ratios": {"dex": 1.0},
+        "is_hidden": true,
+        "hidden_condition": "需要手牌中有带'火焰'标签的卡牌",
+        "required_tags": ["火焰"]
+      }
+    ]
+  }
+]

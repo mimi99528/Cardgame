@@ -1,0 +1,39 @@
+[
+  {
+    "id": 1001,
+    "name": "火焰箭",
+    "category": "combat",
+    "type": "atk_mag",
+    "description": "射出一支燃烧的箭矢，可点燃环境物体",
+    "rarity": "UNCOMMON",
+    "ap_cost": 2,
+    "effects": [
+      {
+        "type": "emy_dmg",
+        "dice": "2d6",
+        "damage_type": "fire"
+      }
+    ],
+    "play_conditions": [],
+    "atk_dis": 5,
+    "atk_rnge": {"type": "circle", "radius": 1},
+    "target_type": "enemy",
+    "is_movement": false,
+    "mp_cost": 1,
+    "stat_ratios": {"int": 0.5, "dex": 0.5},
+    "tags": ["远程", "法术", "火焰", "环境互动", "点燃"],
+    "narrative_actions": [
+      {
+        "name": "火焰箭",
+        "description": "将火焰箭射向旁边的草丛,并告诉护卫那里着火了,趁乱溜进去",
+        "tags": ["火焰箭", "法术", "环境互动", "火焰"],
+        "check_type": "复合",
+        "difficulty": "中等",
+        "stat_ratios": {"int": 0.5, "dex": 0.5},
+        "is_hidden": true,
+        "hidden_condition": "需要手牌中有带'火焰'标签的卡牌",
+        "required_tags": ["火焰"]
+      }
+    ]
+  }
+]
