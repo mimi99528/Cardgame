@@ -744,7 +744,9 @@ class Card:
         mp_cost: int = 0,  # MP消耗（法术卡牌需要）
         card_id: Optional[int] = None,  # 卡牌唯一ID（可选，自动生成）
         stat_ratios: Optional[Dict[str, float]] = None,  # 属性比例 {"str": 1.0, "dex": 0.5, "int": 0.0, "cha": 0.0}
-        tags: Optional[List[CardTag]] = None  # 卡牌标签列表
+        tags: Optional[List[CardTag]] = None,  # 卡牌标签列表
+        # 叙事场景相关字段
+        narrative_actions: Optional[List[Dict[str, any]]] = None  # 叙事动作列表
     ):
         self.name = name
         self.card_type = card_type
@@ -760,6 +762,7 @@ class Card:
         self.mp_cost = mp_cost  # MP消耗
         self.stat_ratios = stat_ratios or {}  # 属性比例，如 {"str": 1.0, "dex": 0.5}
         self.tags = tags or []  # 卡牌标签列表
+        self.narrative_actions = narrative_actions or []  # 叙事动作列表
         
         # 分配唯一ID
         if card_id is not None:
@@ -1094,7 +1097,8 @@ class Card:
             is_movement=self.is_movement,
             mp_cost=self.mp_cost,  # 复制MP消耗
             stat_ratios=deepcopy(self.stat_ratios) if self.stat_ratios else {},  # 复制属性比例
-            tags=deepcopy(self.tags) if self.tags else []  # 复制标签列表
+            tags=deepcopy(self.tags) if self.tags else [],  # 复制标签列表
+            narrative_actions=deepcopy(self.narrative_actions) if self.narrative_actions else []  # 复制叙事动作
             # 不传递card_id，让副本获得新的唯一ID
         )
         

@@ -80,8 +80,20 @@ class TileMap:
         self.camera.position = (self.camera_center_x, self.camera_center_y)
         self.camera.zoom = self.view_scale
         
-        self.gui_camera.position = (window_width / 2, window_height / 2)
+        # GUI相机使用屏幕坐标系
+        # 关键：position设置为窗口中心，这样屏幕左下角(0,0)对应世界坐标(0,0)
+        # Camera2D的position是相机看向的中心点
+        self.gui_camera.position = (window_width /2, window_height /2)
         self.gui_camera.zoom = 1.0
+        
+        # 保存窗口尺寸供GUI相机使用
+        self.gui_window_width = window_width
+        self.gui_window_height = window_height
+        
+        # 调试输出
+        print(f"[DEBUG] Cameras setup: window={window_width}x{window_height}")
+        print(f"[DEBUG] Map camera position: {self.camera.position}, zoom: {self.camera.zoom}")
+        print(f"[DEBUG] GUI camera position: {self.gui_camera.position}, zoom: {self.gui_camera.zoom}")
     
     def _generate_map(self):
         """生成随机地图"""

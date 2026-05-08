@@ -67,41 +67,68 @@ class UIRenderer:
                   anchor_x: str = "left", anchor_y: str = "baseline", bold: bool = False,
                   multiline: bool = False, width: int = None):
         """绘制文本的辅助方法，使用Text对象提高性能"""
-        cache_key = f"{text}_{x}_{y}_{font_size}_{bold}"
+        # 不使用缓存，每次都创建新的Text对象以确保位置正确
+        try:
+            text_obj = arcade.Text(
+                text=text,
+                x=x,
+                y=y,
+                color=color,
+                font_size=font_size,
+                anchor_x=anchor_x,
+                anchor_y=anchor_y,
+                bold=bold,
+                multiline=multiline,
+                width=width
+            )
+            text_obj.draw()
+        except Exception as e:
+            # 如果Text对象创建失败，回退到draw_text
+            arcade.draw_text(
+                text, x, y, color, font_size,
+                anchor_x=anchor_x, anchor_y=anchor_y,
+                bold=bold, multiline=multiline, width=width
+            )
+    
+    def draw_test_ui(self):
+        """绘制测试UI，用于调试UI是否可见"""
+        # 在屏幕中央绘制一个明显的测试框
+        center_x = self.window_width / 2
+        center_y = self.window_height / 2
         
-        if cache_key not in self.text_objects:
-            try:
-                text_obj = arcade.Text(
-                    text=text,
-                    x=x,
-                    y=y,
-                    color=color,
-                    font_size=font_size,
-                    anchor_x=anchor_x,
-                    anchor_y=anchor_y,
-                    bold=bold,
-                    multiline=multiline,
-                    width=width
-                )
-                self.text_objects[cache_key] = text_obj
-            except TypeError:
-                arcade.draw_text(
-                    text, x, y, color, font_size,
-                    anchor_x=anchor_x, anchor_y=anchor_y,
-                    bold=bold, multiline=multiline, width=width
-                )
-                return
+        # 绘制红色背景框
+        arcade.draw_lrbt_rectangle_filled(
+            center_x - 100, center_x + 100,
+            center_y - 50, center_y + 50,
+            (255, 0, 0, 200)  # 半透明红色
+        )
         
-        text_obj = self.text_objects[cache_key]
-        text_obj.text = text
-        text_obj.x = x
-        text_obj.y = y
-        text_obj.color = color
-        text_obj.font_size = font_size
-        text_obj.anchor_x = anchor_x
-        text_obj.anchor_y = anchor_y
-        text_obj.bold = bold
-        text_obj.draw()
+        # 绘制白色边框
+        arcade.draw_lrbt_rectangle_outline(
+            center_x - 100, center_x + 100,
+            center_y - 50, center_y + 50,
+            arcade.color.WHITE, 3
+        )
+        
+        # 绘制测试文字
+        self.draw_text(
+            "UI TEST - 如果看到这个说明UI系统正常",
+            center_x, center_y,
+            arcade.color.WHITE, 20,
+            anchor_x="center", anchor_y="center", bold=True
+        )
+        
+        # 在四个角绘制标记
+        corners = [
+            (50, 50, "左下"),
+            (self.window_width - 50, 50, "右下"),
+            (50, self.window_height - 50, "左上"),
+            (self.window_width - 50, self.window_height - 50, "右上")
+        ]
+        
+        for x, y, label in corners:
+            arcade.draw_circle_filled(x, y, 10, arcade.color.YELLOW)
+            self.draw_text(label, x, y + 20, arcade.color.YELLOW, 12, anchor_x="center")
     
     def cleanup_text_cache(self):
         """清理过期的Text对象（防止内存泄漏）"""
@@ -165,19 +192,28 @@ class UIRenderer:
     
     def draw_battle_info(self, battle: BattleSystem):
         """绘制战斗信息（血条、AP等）"""
+        # 调试输出
+        print(f"[DEBUG] draw_battle_info called")
+        print(f"[DEBUG] Window size: {self.window_width} x {self.window_height}")
+        
         status = battle.get_battle_status()
         
         top_margin = S.py(50)
         bar_y_start = self.window_height - top_margin
         bar_height = S.py(25)
         
+        print(f"[DEBUG] top_margin={top_margin}, bar_y_start={bar_y_start}")
+        
         # 回合数
         current_entity_name = status.get('current_entity', '未知')
+        text_y = self.window_height - S.py(30)
+        print(f"[DEBUG] Round text Y: {text_y}")
+        
         self.draw_text(
             f"第{battle.current_round}回合 - {current_entity_name}",
             self.window_width / 2,
-            self.window_height - S.py(30),
-            arcade.color.BLACK,
+            text_y,
+            arcade.color.RED,  # 使用红色便于调试
             self.headtitle_font_size,
             anchor_x="center", anchor_y="center", bold=True
         )

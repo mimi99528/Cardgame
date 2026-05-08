@@ -53,7 +53,8 @@ class CardSerializer:
             "is_movement": card.is_movement,  # 是否为移动卡牌
             "mp_cost": card.mp_cost,  # MP消耗
             "stat_ratios": card.stat_ratios if card.stat_ratios else {},  # 属性比例
-            "tags": [tag.value for tag in card.tags] if card.tags else []  # 标签列表（存储中文值）
+            "tags": [tag.value for tag in card.tags] if card.tags else [],  # 标签列表（存储中文值）
+            "narrative_actions": card.narrative_actions if card.narrative_actions else []  # 叙事动作列表
         }
         
         # 添加升级信息（如果有）
@@ -142,7 +143,8 @@ class CardSerializer:
             is_movement=data.get("is_movement", False),
             mp_cost=data.get("mp_cost", 0),  # 默认MP消耗为0
             stat_ratios=data.get("stat_ratios", {}),  # 默认无属性比例
-            tags=tags  # 标签列表
+            tags=tags,  # 标签列表
+            narrative_actions=data.get("narrative_actions", [])  # 叙事动作列表
         )
         
         # 恢复升级信息（如果有）

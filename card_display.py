@@ -35,8 +35,15 @@ class CardDisplay:
         # 卡牌显示位置控制(统一管理卡牌的位置和动画)
         self.card_display_posis: Dict[int, dict] = {}  # {id(card): {'target_y': float, 'current_y': float, 'animating': bool, 'anim_start_time': float, 'anim_duration': float}}
     
-    def draw_hand(self, battle: BattleSystem):
-        """绘制手牌（根据当前行动的实体）"""
+    def draw_hand(self, battle: BattleSystem, narrative_mode: bool = False, current_node=None):
+        """
+        绘制手牌（根据当前行动的实体）
+        
+        Args:
+            battle: 战斗系统
+            narrative_mode: 是否为叙事模式（只显示带节点互动的卡牌）
+            current_node: 当前叙事节点（用于过滤卡牌）
+        """
         # 保存当前battle引用，供其他方法使用
         self.current_battle = battle
         
@@ -59,10 +66,45 @@ class CardDisplay:
         if not hand:
             return
         
+        # 在叙事模式下，过滤只显示带节点互动的卡牌
+        if narrative_mode and current_node:
+            # 获取整个卡组（包括手牌、弃牌堆和卡组中的卡牌）
+            full_deck = []
+            if hasattr(battle, 'player') and battle.player:
+                player = battle.player
+                # 添加手牌
+                if player.hand:
+                    full_deck.extend(player.hand)
+                # 添加卡组中的卡牌
+                if hasattr(player, 'deck') and player.deck:
+                    full_deck.extend(player.deck)
+                # 添加弃牌堆中的卡牌
+                if hasattr(player, 'discard_pile') and player.discard_pile:
+                    full_deck.extend(player.discard_pile)
+            
+            # print(f"\n[DEBUG] 叙事模式 - 检查整个卡组")
+            # print(f"[DEBUG] 手牌数量: {len(player.hand) if player else 0}")
+            # print(f"[DEBUG] 卡组数量: {len(player.deck) if player and hasattr(player, 'deck') else 0}")
+            # print(f"[DEBUG] 弃牌堆数量: {len(player.discard_pile) if player and hasattr(player, 'discard_pile') else 0}")
+            # print(f"[DEBUG] 总卡牌数量: {len(full_deck)}")
+            
+            filtered_hand = self._filter_narrative_cards(full_deck, current_node)
+            if not filtered_hand:
+                # 如果没有可用的互动卡牌，显示提示
+                self._draw_narrative_hint(battle)
+                return
+            hand = filtered_hand
+        
+        # 调试输出
+        print(f"[DEBUG] draw_hand called")
+        print(f"[DEBUG] Window size: {self.ui_renderer.window_width} x {self.ui_renderer.window_height}")
+        
         # 计算卡牌位置（通过 UIScale 换算，适应 4K/高 DPI 屏幕）
         card_width = S.px(CONSTANTS.CARD_WIDTH)
         card_height = S.py(CONSTANTS.CARD_HEIGHT)
         spacing = S.px(CONSTANTS.CARD_SPACING)
+        
+        print(f"[DEBUG] Card size: {card_width}x{card_height}, spacing={spacing}")
         
         # 根据手牌数量动态调整间距（>=6张时启用重叠）
         if len(hand) >= 6:
@@ -78,6 +120,8 @@ class CardDisplay:
         
         start_x = (self.ui_renderer.window_width - total_width) / 2
         base_y = S.py(60)
+        
+        print(f"[DEBUG] Hand cards: {len(hand)}, start_x={start_x}, base_y={base_y}")
         
         for i, card in enumerate(hand):
             # 跳过正在拖动的卡牌(不绘制在手牌中)
@@ -1001,4 +1045,101 @@ class CardDisplay:
             arcade.color.WHITE,
             int(self.ui_renderer.number_font_size * 0.7),
             anchor_x="center", anchor_y="center", bold=True
+        )
+    
+    def _filter_narrative_cards(self, hand: List[Card], current_node) -> List[Card]:
+        """
+        过滤卡牌，只显示带节点互动的卡牌
+        
+        Args:
+            hand: 卡牌列表（可以是整个卡组）
+            current_node: 当前叙事节点
+            
+        Returns:
+            过滤后的卡牌列表
+        """
+        from narrative_system import NarrativeResultEngine
+        
+        # print(f"\n[DEBUG] 开始过滤叙事卡牌")
+        # print(f"[DEBUG] 输入卡牌数量: {len(hand)}")
+        # print(f"[DEBUG] 当前节点: {current_node.title if current_node else 'None'}")
+        
+        filtered = []
+        checked_cards = set()  # 避免重复检查同一张卡牌
+        
+        for card in hand:
+            # 使用卡牌ID避免重复处理
+            card_id = id(card)
+            if card_id in checked_cards:
+                continue
+            checked_cards.add(card_id)
+            
+            # 检查卡牌是否有叙事动作
+            if hasattr(card, 'narrative_actions') and card.narrative_actions:
+                # print(f"[DEBUG] 卡牌 '{card.name}' 有 {len(card.narrative_actions)} 个叙事动作")
+                # 检查卡牌的叙事动作是否与当前节点的动作匹配
+                for action_data in card.narrative_actions:
+                    action_name = action_data.get('name', '')
+                    # print(f"[DEBUG]   检查动作: '{action_name}'")
+                    action = current_node.get_action_by_name(action_name)
+                    
+                    if action:
+                        # print(f"[DEBUG]   找到匹配的动作: {action.name}, is_hidden={action.is_hidden}")
+                        # 如果是隐藏动作，检查是否满足揭示条件
+                        if action.is_hidden and action.required_tags:
+                            # print(f"[DEBUG]   隐藏动作，需要标签: {action.required_tags}")
+                            # 检查整个输入列表中是否有带所需标签的卡牌
+                            has_tags = NarrativeResultEngine.check_hand_for_tags(hand, action.required_tags)
+                            # print(f"[DEBUG]   卡牌列表中是否有所需标签: {has_tags}")
+                            if has_tags:
+                                # print(f"[DEBUG]   ✓ 卡牌 '{card.name}' 通过过滤")
+                                filtered.append(card)
+                                break
+                            else:
+                                # print(f"[DEBUG]   ✗ 卡牌 '{card.name}' 被过滤（缺少标签）")
+                                pass
+                        else:
+                            # 非隐藏动作，直接添加
+                            # print(f"[DEBUG]   ✓ 卡牌 '{card.name}' 通过过滤（非隐藏动作）")
+                            filtered.append(card)
+                            break
+                    # else:
+                        # print(f"[DEBUG]   节点中没有找到动作 '{action_name}'")
+            # else:
+                # print(f"[DEBUG] 卡牌 '{card.name}' 没有叙事动作")
+        
+        # print(f"\n[DEBUG] 过滤结果: {len(filtered)} 张卡牌可用")
+        # for card in filtered:
+            # print(f"[DEBUG]   - {card.name}")
+        
+        return filtered
+    
+    def _draw_narrative_hint(self, battle: BattleSystem):
+        """
+        在叙事模式下显示提示信息（当没有可用的互动卡牌时）
+        
+        Args:
+            battle: 战斗系统
+        """
+        hint_text = "没有可用于当前场景的卡牌"
+        hint_x = self.ui_renderer.window_width / 2
+        hint_y = S.py(150)
+        
+        # 绘制提示背景
+        bg_width = S.px(300)
+        bg_height = S.py(40)
+        arcade.draw_lrbt_rectangle_filled(
+            hint_x - bg_width / 2, hint_x + bg_width / 2,
+            hint_y - bg_height / 2, hint_y + bg_height / 2,
+            (0, 0, 0, 180)
+        )
+        
+        # 绘制提示文本
+        self.ui_renderer.draw_text(
+            hint_text,
+            hint_x, hint_y,
+            arcade.color.YELLOW,
+            self.ui_renderer.text_font_size,
+            anchor_x="center", anchor_y="center",
+            bold=True
         )

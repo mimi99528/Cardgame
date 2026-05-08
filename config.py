@@ -139,25 +139,11 @@ class LogLevel(Enum):
 @dataclass
 class GameConstants:
     # 窗口设置 - 自动检测显示屏大小
-    def __post_init__(self):
-        """初始化后自动检测屏幕尺寸"""
-        try:
-            screen_width, screen_height = arcade.get_display_size()
-            if screen_width and screen_height:
-                # 使用屏幕尺寸的90%作为窗口大小，留出边距
-                self.WINDOW_WIDTH = int(screen_width * 0.9)
-                self.WINDOW_HEIGHT = int(screen_height * 0.9)
-                # 确保最小窗口尺寸
-                self.WINDOW_WIDTH = max(self.WINDOW_WIDTH, 1280)
-                self.WINDOW_HEIGHT = max(self.WINDOW_HEIGHT, 720)
-            else:
-                # 如果检测失败，使用默认值
-                self.WINDOW_WIDTH = 1920
-                self.WINDOW_HEIGHT = 1080
-        except Exception:
-            # 如果检测出错，使用默认值
-            self.WINDOW_WIDTH = 1920
-            self.WINDOW_HEIGHT = 1080
+    # def __post_init__(self):
+    #     """初始化 - 4K UHD (3840x2160)模拟模式"""
+    #     # 固定分辨率模式
+    #     self.WINDOW_WIDTH = 3840
+    #     self.WINDOW_HEIGHT = 2160
     
     WINDOW_WIDTH: int = field(default=1920, init=False)
     WINDOW_HEIGHT: int = field(default=1080, init=False)

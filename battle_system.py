@@ -79,6 +79,7 @@ class BattleSystem:
         self.is_player_turn = True
         self.battle_finished = False
         self.winner: Optional[List[Entity]] = None
+        self.player_defeated = False  # 标记玩家是否失败（用于显示再来一局按钮）
         
         # 当前行动的实体索引
         self.current_entity_index = 0
@@ -691,6 +692,7 @@ class BattleSystem:
             self.battle_finished = True
             self.winner = self.enemy_team
             self.battle_log.add("\n战斗结束！敌人获胜！")
+            self.player_defeated = True  # 标记玩家失败
             
             # 解锁所有实体的装备
             for entity in self.player_team + self.enemy_team:
@@ -701,6 +703,7 @@ class BattleSystem:
             self.battle_finished = True
             self.winner = self.player_team
             self.battle_log.add(f"\n战斗结束！{self.player.name}获胜！")
+            self.player_defeated = False  # 标记玩家胜利
             
             # 解锁所有实体的装备
             for entity in self.player_team + self.enemy_team:

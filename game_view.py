@@ -14,6 +14,8 @@ from card_display import CardDisplay
 from input_handlers import InputHandler
 from inventory_renderer import InventoryRenderer
 from equipment_renderer import EquipmentRenderer
+from narrative_renderer import NarrativeSceneRenderer
+from narrative_system import NarrativeNodeManager, NarrativeResultEngine
 from ui_scale import S, update_scale
 
 
@@ -51,6 +53,7 @@ class CardView(arcade.View):
         self.card_display = CardDisplay(self.ui_renderer)
         self.inventory_renderer = InventoryRenderer(self.window_width, self.window_height)
         self.equipment_renderer = EquipmentRenderer(self.window_width, self.window_height)
+        self.narrative_renderer = NarrativeSceneRenderer(self.window_width, self.window_height)
         self.input_handler = InputHandler(
             self.battle, 
             self.tile_map, 
@@ -64,6 +67,18 @@ class CardView(arcade.View):
         
         # 将tile_map传递给battle系统
         self.battle.tile_map = self.tile_map
+        
+        # 叙事场景相关
+        self.narrative_node_manager = NarrativeNodeManager()
+        self.current_narrative_node = None
+        self.narrative_mode = False  # 是否处于叙事模式
+        
+        # 加载叙事节点
+        try:
+            self.narrative_node_manager.load_from_file("narrative_nodes.json")
+            print(f"✓ 已加载 {len(self.narrative_node_manager.get_all_nodes())} 个叙事节点")
+        except Exception as e:
+            print(f"警告：加载叙事节点失败: {e}")
     
     def on_resize(self, width: int, height: int):
         """窗口尺寸变化时更新内部尺寸并刷新各子模块。"""
@@ -76,6 +91,7 @@ class CardView(arcade.View):
         self.equipment_renderer.window_width = width
         self.equipment_renderer.window_height = height
         self.equipment_renderer._calculate_panel_position()
+        self.narrative_renderer.on_resize(width, height)
     
 
     
@@ -99,6 +115,25 @@ class CardView(arcade.View):
         # 切换到GUI相机（用于UI元素）
         if self.tile_map.gui_camera:
             self.tile_map.gui_camera.use()
+            # 调试：确认GUI相机状态
+            print(f"[DEBUG] GUI camera after use: position={self.tile_map.gui_camera.position}, zoom={self.tile_map.gui_camera.zoom}")
+        
+        # 【调试】绘制测试框 - 左下角和右下角标记
+        # 左下角标记（应该显示在屏幕左下角）
+        arcade.draw_circle_filled(50, 50, 20, arcade.color.RED)
+        arcade.draw_text("左下角(50,50)", 50, 80, arcade.color.RED, 16, anchor_x="center")
+        
+        # 右下角标记（应该显示在屏幕右下角）
+        arcade.draw_circle_filled(self.window_width - 50, 50, 20, arcade.color.GREEN)
+        arcade.draw_text("右下角", self.window_width - 50, 80, arcade.color.GREEN, 16, anchor_x="center")
+        
+        # 左上角标记
+        arcade.draw_circle_filled(50, self.window_height - 50, 20, arcade.color.BLUE)
+        arcade.draw_text("左上角", 50, self.window_height - 20, arcade.color.BLUE, 16, anchor_x="center")
+        
+        # 右上角标记
+        arcade.draw_circle_filled(self.window_width - 50, self.window_height - 50, 20, arcade.color.YELLOW)
+        arcade.draw_text("右上角", self.window_width - 50, self.window_height - 20, arcade.color.YELLOW, 16, anchor_x="center")
         
         # 绘制UI背景
         self._draw_ui_background()
@@ -110,13 +145,22 @@ class CardView(arcade.View):
         self.ui_renderer.draw_battle_log(self.battle)
         
         # 绘制手牌（根据当前行动的实体）
-        self.card_display.draw_hand(self.battle)
+        # 如果在叙事模式下，传递叙事节点以过滤手牌
+        self.card_display.draw_hand(
+            self.battle,
+            narrative_mode=self.narrative_mode,
+            current_node=self.current_narrative_node
+        )
         
         # 绘制背包界面（如果在显示状态）
         self.inventory_renderer.draw()
         
         # 绘制装备界面（如果在显示状态）
         self.equipment_renderer.draw()
+        
+        # 绘制叙事场景（如果在叙事模式）
+        if self.narrative_mode and self.current_narrative_node:
+            self.narrative_renderer.draw()
         
         # 绘制悬停实体信息
         if self.input_handler.hovered_entity:
@@ -125,11 +169,12 @@ class CardView(arcade.View):
         # 绘制提示
         if self.battle.battle_finished:
             self.ui_renderer.draw_battle_end_message(self.battle)
-            # 绘制重新开始按钮
-            self._draw_restart_button()
-        
-        # 重置相机（确保下次绘制正确）
-        arcade.Camera2D().use()  # 使用默认相机
+            # 只在玩家失败时绘制重新开始按钮
+            if self.battle.player_defeated:
+                self._draw_restart_button()
+            else:
+                # 玩家胜利时绘制“结束战斗”按钮
+                self._draw_end_battle_button()
         
         # 调试 overlay（按 F3 切换，便于验证 4K/高 DPI 缩放是否正确）
         if self.debug_overlay_visible:
@@ -312,11 +357,33 @@ class CardView(arcade.View):
     
     def on_mouse_press(self, x, y, button, modifiers):
         """鼠标点击事件"""
-        # 如果战斗结束，检查是否点击了重新开始按钮
+        # 如果处于叙事模式，处理叙事场景的点击
+        if self.narrative_mode and self.current_narrative_node:
+            if button == arcade.MOUSE_BUTTON_LEFT:
+                # 检查是否点击了选项
+                action = self.narrative_renderer.handle_option_click(x, y)
+                if action:
+                    self._handle_narrative_action(action)
+                    return
+                
+                # 检查是否点击了确定按钮
+                if self.narrative_renderer.handle_confirm_click(x, y):
+                    self._handle_narrative_confirm()
+                    return
+            return
+        
+        # 如果战斗结束，检查是否点击了重新开始按钮或结束战斗按钮
         if self.battle.battle_finished and button == arcade.MOUSE_BUTTON_LEFT:
-            if self._check_restart_button_click(x, y):
-                self._restart_game()
-                return
+            if self.battle.player_defeated:
+                # 玩家失败，检查重新开始按钮
+                if self._check_restart_button_click(x, y):
+                    self._restart_game()
+                    return
+            else:
+                # 玩家胜利，检查结束战斗按钮
+                if self._check_end_battle_button_click(x, y):
+                    self._end_battle_and_start_narrative()
+                    return
         
         # 如果背包打开，处理背包内的点击
         if self.inventory_renderer.is_visible():
@@ -334,6 +401,15 @@ class CardView(arcade.View):
     def on_mouse_release(self, x, y, button, modifiers):
         """鼠标释放事件（用于拖动）"""
         if button == arcade.MOUSE_BUTTON_LEFT:
+            # 如果处于叙事模式，检查是否拖动了卡牌到场景视图
+            if self.narrative_mode and self.current_narrative_node:
+                if self.card_display.is_dragging():
+                    dragged_card = self.card_display.dragged_card
+                    if dragged_card:
+                        self._handle_card_drop_on_narrative(dragged_card)
+                    self.card_display.clear_drag()
+                    return
+            
             # 如果正在拖动卡牌，处理拖动结束
             if self.card_display.is_dragging():
                 self.input_handler.on_mouse_release(
@@ -356,6 +432,12 @@ class CardView(arcade.View):
         if key == arcade.key.F3:
             self.debug_overlay_visible = not self.debug_overlay_visible
             return
+        
+        # Shift+F3: Debug功能 - 跳过战斗直接胜利以测试叙事场景
+        if key == arcade.key.F1 and (modifiers & arcade.key.MOD_SHIFT):
+            self._debug_skip_battle_to_victory()
+            return
+        
         should_close = self.input_handler.on_key_press(key, modifiers)
         if should_close:
             self.window.close()
@@ -393,5 +475,199 @@ class CardView(arcade.View):
         # 创建新的角色创建视图
         character_creation_view = CharacterCreationView(window.on_character_created)
         window.show_view(character_creation_view)
+    
+    def _debug_skip_battle_to_victory(self):
+        """Debug功能：跳过战斗直接胜利并切换到叙事场景"""
+        print("\n[DEBUG] Shift+F3 pressed - Skipping battle to victory")
+            
+        # 标记战斗结束，玩家胜利
+        self.battle.battle_finished = True
+        self.battle.winner = self.battle.player_team
+        self.battle.player_defeated = False
+        self.battle.battle_log.add("\n[DEBUG] 战斗已跳过，玩家胜利！")
+            
+        # 直接切换到叙事场景（跳过点击按钮的步骤）
+        print("[DEBUG] 直接切换到叙事场景")
+        from scene_manager import NarrativeSceneView
+        narrative_scene = NarrativeSceneView(self.battle, "gate_guard_001")
+        self.window.show_view(narrative_scene)
+    
+    def _start_narrative_scene(self, node_id: str):
+        """
+        启动叙事场景
+        
+        Args:
+            node_id: 叙事节点ID
+        """
+        node = self.narrative_node_manager.get_node(node_id)
+        if not node:
+            print(f"警告：未找到叙事节点 {node_id}")
+            return
+        
+        print(f"\n[叙事] 启动场景: {node.title}")
+        
+        # 设置叙事模式
+        self.narrative_mode = True
+        self.current_narrative_node = node
+        
+        # 设置玩家实体到叙事渲染器
+        player = self.battle.player
+        if player:
+            self.narrative_renderer.set_node(node, player)
+        
+        # 清除拖动状态
+        self.card_display.clear_drag()
+        
+        print(f"[叙事] 场景 '{node.title}' 已启动，可用动作数: {len(node.actions)}")
+    
+    def _handle_narrative_action(self, action):
+        """
+        处理叙事动作选择
+        
+        Args:
+            action: 选中的叙事动作
+        """
+        print(f"\n[叙事] 选择动作: {action.name}")
+        
+        # 设置选中的动作
+        self.narrative_renderer.selected_action = action
+        
+        # 获取玩家实体
+        player = self.battle.player
+        if not player:
+            print("警告：未找到玩家实体")
+            return
+        
+        # 执行检定
+        dice_total, stat_bonus, final_result, outcome = NarrativeResultEngine.perform_check(action, player.stats)
+        
+        print(f"[叙事] 检定结果: 骰子={dice_total}, 加值={stat_bonus}, 最终={final_result}, 结果={outcome}")
+        
+        # 生成叙事结果
+        result = NarrativeResultEngine.generate_result(
+            self.current_narrative_node,
+            action,
+            outcome,
+            player.stats
+        )
+        
+        if result:
+            print(f"[叙事] 结果文本: {result.text[:80]}...")
+            self.narrative_renderer.current_result = result
+        else:
+            print(f"警告：未找到结果 (outcome={outcome})")
+    
+    def _handle_narrative_confirm(self):
+        """处理叙事确定按钮点击"""
+        print("\n[叙事] 点击确定按钮")
+        
+        if not self.narrative_renderer.current_result:
+            print("警告：没有当前结果")
+            return
+        
+        # 获取结果等级
+        outcome_level = self.narrative_renderer.current_result.outcome_level
+        
+        # 查找下一节点
+        next_node_id = self.current_narrative_node.next_nodes.get(outcome_level)
+        
+        if next_node_id:
+            print(f"[叙事] 跳转到下一节点: {next_node_id}")
+            # 切换到下一节点
+            self._start_narrative_scene(next_node_id)
+        else:
+            print(f"[叙事] 叙事结束（无下一节点）")
+            # 退出叙事模式
+            self._exit_narrative_mode()
+    
+    def _handle_card_drop_on_narrative(self, card: Card):
+        """
+        处理卡牌拖放到叙事场景
+        
+        Args:
+            card: 拖放的卡牌
+        """
+        print(f"\n[叙事] 卡牌拖放: {card.name}")
+        
+        if not self.current_narrative_node:
+            return
+        
+        # 检查卡牌是否有叙事动作
+        if hasattr(card, 'narrative_actions') and card.narrative_actions:
+            for action_data in card.narrative_actions:
+                action_name = action_data.get('name', '')
+                
+                # 检查节点中是否有同名动作
+                action = self.current_narrative_node.get_action_by_name(action_name)
+                if action and action.is_hidden:
+                    # 揭示隐藏动作
+                    self.narrative_renderer.reveal_hidden_action(action_name)
+                    print(f"[叙事] 揭示隐藏动作: {action_name}")
+                    
+                    # 显示提示
+                    self.battle.battle_log.add(f"揭示了隐藏选项: {action_name}", level=0)
+                    break
+    
+    def _exit_narrative_mode(self):
+        """退出叙事模式"""
+        print("\n[叙事] 退出叙事模式")
+        self.narrative_mode = False
+        self.current_narrative_node = None
+        self.narrative_renderer.hide()
+    
+    def _draw_end_battle_button(self):
+        """绘制结束战斗按钮（玩家胜利时显示）"""
+        button_width = S.px(200)
+        button_height = S.py(50)
+        button_x = self.window_width // 2 - button_width // 2
+        button_y = self.window_height // 2 - S.py(100)  # 比重试按钮高一些
+        left = button_x
+        right = button_x + button_width
+        bottom = button_y
+        top = button_y + button_height
+        
+        # 绘制按钮背景
+        arcade.draw_lrbt_rectangle_filled(
+            left, right, bottom, top,
+            arcade.color.DARK_GREEN
+        )
+        
+        # 绘制按钮边框
+        arcade.draw_lrbt_rectangle_outline(
+            left, right, bottom, top,
+            arcade.color.WHITE,
+            border_width=3
+        )
+        
+        # 绘制按钮文字
+        arcade.draw_text(
+            "结束战斗",
+            button_x + button_width // 2,
+            button_y + button_height // 2,
+            arcade.color.WHITE,
+            S.font(24),
+            anchor_x="center",
+            anchor_y="center",
+            bold=True
+        )
+    
+    def _check_end_battle_button_click(self, x: float, y: float) -> bool:
+        """检查是否点击了结束战斗按钮"""
+        button_width = S.px(200)
+        button_height = S.py(50)
+        button_x = self.window_width // 2 - button_width // 2
+        button_y = self.window_height // 2 - S.py(100)
+        
+        return (button_x <= x <= button_x + button_width and
+                button_y <= y <= button_y + button_height)
+    
+    def _end_battle_and_start_narrative(self):
+        """结束战斗并切换到叙事场景"""
+        print("\n[系统] 结束战斗，切换到叙事场景")
+        
+        # 使用场景管理器切换到叙事场景
+        from scene_manager import NarrativeSceneView
+        narrative_scene = NarrativeSceneView(self.battle, "gate_guard_001")
+        self.window.show_view(narrative_scene)
     
 

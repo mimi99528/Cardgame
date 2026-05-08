@@ -52,6 +52,16 @@ def create_card_database():
         except Exception as e:
             print(f"警告：扫描cards目录失败: {e}")
     
+    # 调试输出：显示加载的卡牌数量
+    # print(f"\n[DEBUG] 卡牌数据库加载完成，共 {len(cards)} 张卡牌")
+    # if "点火术" in cards:
+        # print(f"[DEBUG] ✓ 找到'点火术'卡牌")
+        # print(f"[DEBUG]   标签: {cards['点火术'].tags}")
+        # print(f"[DEBUG]   叙事动作: {cards['点火术'].narrative_actions}")
+    # else:
+        # print(f"[DEBUG] ✗ 未找到'点火术'卡牌")
+        # print(f"[DEBUG]   已加载的卡牌名称: {list(cards.keys())[:20]}...")  # 只显示前20个
+    
     return cards
 
 
@@ -335,159 +345,38 @@ def create_accessory_database():
 # ==================== 职业专属卡组 ====================
 
 def create_drifter_deck():
-    """创建流浪者专属卡组 - 敏捷型、生存导向"""
+    """创建流浪者专属卡组 - 使用通用构建函数"""
+    from career_system import CareerType, build_career_deck
     cards_db = create_card_database()
-    deck = []
-    
-    # 核心攻击卡
-    if "精准打击" in cards_db:
-        deck.extend([cards_db["精准打击"].copy() for _ in range(3)])
-    if "刺击" in cards_db:
-        deck.append(cards_db["刺击"].copy())
-    
-    # 移动和生存卡
-    if "疾风步" in cards_db:
-        deck.extend([cards_db["疾风步"].copy() for _ in range(2)])
-    if "野外求生" in cards_db:
-        deck.append(cards_db["野外求生"].copy())
-    
-    # 防御卡
-    if "灵巧闪避" in cards_db:
-        deck.extend([cards_db["灵巧闪避"].copy() for _ in range(2)])
-    if "格挡" in cards_db:
-        deck.append(cards_db["格挡"].copy())
-    
-    # 补充到10张（不包括基础移动，因为它是常驻牌）
-    while len(deck) < 10:
-        if "基础移动" in cards_db:
-            # 基础移动是常驻牌，不应该加入卡组
-            break
-        else:
-            break
-    
-    return deck
+    return build_career_deck(CareerType.DRIFTER, cards_db)
 
 
 def create_artisan_deck():
-    """创建手艺人专属卡组 - 力量型、装备导向"""
+    """创建手艺人专属卡组 - 使用通用构建函数"""
+    from career_system import CareerType, build_career_deck
     cards_db = create_card_database()
-    deck = []
-    
-    # 核心攻击卡
-    if "重击" in cards_db:
-        deck.extend([cards_db["重击"].copy() for _ in range(2)])
-    if "劈砍" in cards_db:
-        deck.extend([cards_db["劈砍"].copy() for _ in range(2)])
-    
-    # 装备交互卡
-    if "工具修理" in cards_db:
-        deck.extend([cards_db["工具修理"].copy() for _ in range(2)])
-    
-    # 防御卡
-    if "坚固防御" in cards_db:
-        deck.extend([cards_db["坚固防御"].copy() for _ in range(2)])
-    if "格挡" in cards_db:
-        deck.append(cards_db["格挡"].copy())
-    
-    # 补充到10张
-    while len(deck) < 10:
-        if "刺击" in cards_db:
-            deck.append(cards_db["刺击"].copy())
-        else:
-            break
-    
-    return deck
+    return build_career_deck(CareerType.ARTISAN, cards_db)
 
 
 def create_pedlar_deck():
-    """创建行商专属卡组 - 魅力型、控制导向"""
+    """创建行商专属卡组 - 使用通用构建函数"""
+    from career_system import CareerType, build_career_deck
     cards_db = create_card_database()
-    deck = []
-    
-    # 核心攻击卡
-    if "洞察弱点" in cards_db:
-        deck.extend([cards_db["洞察弱点"].copy() for _ in range(3)])
-    
-    # 社交和控制卡
-    if "巧言令色" in cards_db:
-        deck.extend([cards_db["巧言令色"].copy() for _ in range(2)])
-    if "贿赂" in cards_db:
-        deck.append(cards_db["贿赂"].copy())
-    
-    # 防御卡
-    if "格挡" in cards_db:
-        deck.extend([cards_db["格挡"].copy() for _ in range(2)])
-    
-    # 补充到10张
-    while len(deck) < 10:
-        if "刺击" in cards_db:
-            deck.append(cards_db["刺击"].copy())
-        else:
-            break
-    
-    return deck
+    return build_career_deck(CareerType.PEDLAR, cards_db)
 
 
 def create_farmer_deck():
-    """创建农民专属卡组 - 力量/心智型、坦克导向"""
+    """创建农民专属卡组 - 使用通用构建函数"""
+    from career_system import CareerType, build_career_deck
     cards_db = create_card_database()
-    deck = []
-    
-    # 核心攻击卡
-    if "丰收之击" in cards_db:
-        deck.extend([cards_db["丰收之击"].copy() for _ in range(2)])
-    if "劈砍" in cards_db:
-        deck.append(cards_db["劈砍"].copy())
-    
-    # 治疗和群体卡
-    if "坚韧不拔" in cards_db:
-        deck.extend([cards_db["坚韧不拔"].copy() for _ in range(2)])
-    if "群体鼓舞" in cards_db:
-        deck.append(cards_db["群体鼓舞"].copy())
-    
-    # 防御卡
-    if "大地守护" in cards_db:
-        deck.extend([cards_db["大地守护"].copy() for _ in range(2)])
-    
-    # 补充到10张
-    while len(deck) < 10:
-        if "格挡" in cards_db:
-            deck.append(cards_db["格挡"].copy())
-        else:
-            break
-    
-    return deck
+    return build_career_deck(CareerType.FARMER, cards_db)
 
 
 def create_scholar_deck():
-    """创建学者专属卡组 - 心智型、法术导向"""
+    """创建学者专属卡组 - 使用通用构建函数"""
+    from career_system import CareerType, build_career_deck
     cards_db = create_card_database()
-    deck = []
-    
-    # 核心法术卡
-    if "奥术冲击" in cards_db:
-        deck.extend([cards_db["奥术冲击"].copy() for _ in range(3)])
-    if "心灵震爆" in cards_db:
-        deck.append(cards_db["心灵震爆"].copy())
-    
-    # 资源管理卡
-    if "知识汲取" in cards_db:
-        deck.extend([cards_db["知识汲取"].copy() for _ in range(2)])
-    if "思维加速" in cards_db:
-        deck.append(cards_db["思维加速"].copy())
-    
-    # 防御卡
-    if "法力护盾" in cards_db:
-        deck.extend([cards_db["法力护盾"].copy() for _ in range(2)])
-    
-    # 补充到10张
-    while len(deck) < 10:
-        if "冰缀" in cards_db:
-            deck.append(cards_db["冰缀"].copy())
-        else:
-            break
-    
-    return deck
+    return build_career_deck(CareerType.SCHOLAR, cards_db)
 
 
 def get_career_deck(career_type):

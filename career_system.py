@@ -58,10 +58,20 @@ class Career:
         self.description = description
         self.passives: List[CareerPassive] = []
         self.special_cards: List[str] = []  # 职业特殊卡牌名称列表
+        self.initial_deck_config: Dict[str, Any] = {}  # 初始卡组配置
         
     def add_passive(self, passive: CareerPassive):
         """添加被动效果"""
         self.passives.append(passive)
+        
+    def set_initial_deck(self, deck_config: Dict[str, Any]):
+        """
+        设置初始卡组配置
+        
+        Args:
+            deck_config: 卡组配置字典，格式为 {"card_name": count}
+        """
+        self.initial_deck_config = deck_config
         
     def get_all_required_cards(self) -> List[str]:
         """获取所有需要的特殊卡牌"""
@@ -78,7 +88,8 @@ class Career:
             "name": self.name,
             "description": self.description,
             "passives": [p.to_dict() for p in self.passives],
-            "special_cards": self.special_cards
+            "special_cards": self.special_cards,
+            "initial_deck_config": self.initial_deck_config
         }
     
     @staticmethod
@@ -91,6 +102,7 @@ class Career:
         )
         career.passives = [CareerPassive.from_dict(p) for p in data.get("passives", [])]
         career.special_cards = data.get("special_cards", [])
+        career.initial_deck_config = data.get("initial_deck_config", {})
         return career
     
     def __str__(self):
@@ -120,6 +132,16 @@ def create_drifter_career() -> Career:
     # 特殊卡牌
     career.special_cards = ["应急包扎"]
     
+    # 初始卡组配置
+    career.set_initial_deck({
+        "精准打击": 3,
+        "刺击": 1,
+        "疾风步": 2,
+        "野外求生": 1,
+        "灵巧闪避": 2,
+        "格挡": 1
+    })
+    
     return career
 
 
@@ -143,6 +165,16 @@ def create_artisan_career() -> Career:
     
     # 特殊卡牌
     career.special_cards = ["临时加固"]
+    
+    # 初始卡组配置
+    career.set_initial_deck({
+        "重击": 2,
+        "劈砍": 2,
+        "工具修理": 2,
+        "坚固防御": 2,
+        "格挡": 1,
+        "刺击": 1
+    })
     
     return career
 
@@ -168,6 +200,15 @@ def create_pedlar_career() -> Career:
     # 特殊卡牌
     career.special_cards = ["讨价还价"]
     
+    # 初始卡组配置
+    career.set_initial_deck({
+        "洞察弱点": 3,
+        "巧言令色": 2,
+        "贿赂": 1,
+        "格挡": 2,
+        "刺击": 2
+    })
+    
     return career
 
 
@@ -192,6 +233,16 @@ def create_farmer_career() -> Career:
     # 特殊卡牌
     career.special_cards = ["粮草调度"]
     
+    # 初始卡组配置
+    career.set_initial_deck({
+        "丰收之击": 2,
+        "劈砍": 1,
+        "坚韧不拔": 2,
+        "群体鼓舞": 1,
+        "大地守护": 2,
+        "格挡": 2
+    })
+    
     return career
 
 
@@ -215,6 +266,16 @@ def create_scholar_career() -> Career:
     
     # 特殊卡牌
     career.special_cards = ["应急咒文"]
+    
+    # 初始卡组配置
+    career.set_initial_deck({
+        "奥术冲击": 3,
+        "心灵震爆": 1,
+        "知识汲取": 2,
+        "思维加速": 1,
+        "法力护盾": 2,
+        "点火术": 1
+    })
     
     return career
 
@@ -284,3 +345,69 @@ def get_career(career_type: CareerType) -> Optional[Career]:
 def get_all_careers() -> List[Career]:
     """便捷函数：获取所有职业"""
     return CareerFactory.get_all_careers()
+
+
+# ==================== 卡组构建工具函数 ====================
+
+def build_deck_from_config(deck_config: Dict[str, int], cards_db: Dict) -> list:
+    """
+    根据配置构建卡组（通用函数）
+    
+    Args:
+        deck_config: 卡组配置字典，格式为 {"卡牌名称": 数量}
+        cards_db: 卡牌数据库字典
+        
+    Returns:
+        构建好的卡组列表
+        
+    Example:
+        >>> config = {"精准打击": 3, "刺击": 2}
+        >>> deck = build_deck_from_config(config, cards_db)
+    """
+    deck = []
+    # print(f"\n[DEBUG] 开始构建卡组")
+    # print(f"[DEBUG] 卡组配置: {deck_config}")
+    
+    for card_name, count in deck_config.items():
+        if card_name in cards_db:
+            # 添加指定数量的卡牌副本
+            for i in range(count):
+                card_copy = cards_db[card_name].copy()
+                deck.append(card_copy)
+                # if i == 0:  # 只打印第一次
+                    # print(f"[DEBUG]   ✓ 添加 '{card_name}' x{count}")
+        else:
+            # print(f"[DEBUG]   ✗ 警告：卡牌 '{card_name}' 不存在于数据库中")
+            pass
+    
+    # print(f"[DEBUG] 卡组构建完成，共 {len(deck)} 张卡牌")
+    return deck
+
+
+def build_career_deck(career_type: CareerType, cards_db: Dict) -> list:
+    """
+    根据职业类型构建专属卡组（通用函数）
+    
+    Args:
+        career_type: 职业类型枚举
+        cards_db: 卡牌数据库字典
+        
+    Returns:
+        构建好的职业专属卡组
+        
+    Example:
+        >>> from career_system import CareerType
+        >>> deck = build_career_deck(CareerType.DRIFTER, cards_db)
+    """
+    # 获取职业信息
+    career = CareerFactory.get_career(career_type)
+    if not career:
+        print(f"警告：未找到职业 {career_type.value}")
+        return []
+    
+    # 使用职业的初始卡组配置构建卡组
+    if career.initial_deck_config:
+        return build_deck_from_config(career.initial_deck_config, cards_db)
+    else:
+        print(f"警告：职业 {career.name} 没有配置初始卡组")
+        return []
