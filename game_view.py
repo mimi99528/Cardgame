@@ -97,6 +97,9 @@ class CardView(arcade.View):
     
     def on_draw(self):
         """绘制游戏画面"""
+        # 调试：记录每次绘制时的视图状态
+        print(f"[DEBUG] CardView.on_draw called, current_view type: {type(self.window.current_view)}")
+        
         self.clear()
         
         # 定期清理过期的Text对象（防止内存泄漏）
@@ -173,8 +176,16 @@ class CardView(arcade.View):
             if self.battle.player_defeated:
                 self._draw_restart_button()
             else:
-                # 玩家胜利时绘制“结束战斗”按钮
-                self._draw_end_battle_button()
+                # 玩家胜利时，检查是否有生命骰回血需要处理
+                if hasattr(self.battle, 'hit_dice_recovery_queue') and self.battle.hit_dice_recovery_queue:
+                    # 有生命骰回血需要处理，不显示其他按钮
+                    pass
+                elif hasattr(self.battle, 'dropped_cards_for_selection') and self.battle.dropped_cards_for_selection:
+                    # 有掉落卡牌，显示战利品选择UI
+                    self._show_loot_selection()
+                # 如果已经显示过卡组编辑，不再显示结束战斗按钮（直接进入叙事）
+                elif not getattr(self, '_deck_edit_shown', False):
+                    self._draw_end_battle_button()
         
         # 调试 overlay（按 F3 切换，便于验证 4K/高 DPI 缩放是否正确）
         if self.debug_overlay_visible:
@@ -380,8 +391,16 @@ class CardView(arcade.View):
                     self._restart_game()
                     return
             else:
-                # 玩家胜利，检查结束战斗按钮
+                # 玩家胜利，检查是否有生命骰回血需要处理
+                if hasattr(self.battle, 'hit_dice_recovery_queue') and self.battle.hit_dice_recovery_queue:
+                    # 显示生命骰回血UI
+                    self._show_hit_dice_recovery()
+                    return
+                
+                # 检查结束战斗按钮
+                # 注意：即使有掉落卡牌，如果已经选择过了，也应该能点击结束战斗
                 if self._check_end_battle_button_click(x, y):
+                    print("[DEBUG] 点击了结束战斗按钮")
                     self._end_battle_and_start_narrative()
                     return
         
@@ -438,6 +457,11 @@ class CardView(arcade.View):
             self._debug_skip_battle_to_victory()
             return
         
+        # Shift+F2: Debug功能 - 跳过战斗直接进入领取奖励环节
+        if key == arcade.key.F2 and (modifiers & arcade.key.MOD_SHIFT):
+            self._debug_skip_battle_to_loot()
+            return
+        
         should_close = self.input_handler.on_key_press(key, modifiers)
         if should_close:
             self.window.close()
@@ -491,6 +515,62 @@ class CardView(arcade.View):
         from scene_manager import NarrativeSceneView
         narrative_scene = NarrativeSceneView(self.battle, "gate_guard_001")
         self.window.show_view(narrative_scene)
+    
+    def _debug_skip_battle_to_loot(self):
+        """Debug功能：跳过战斗直接进入领取奖励环节"""
+        print("\n[DEBUG] Shift+F2 pressed - Skipping battle to loot selection")
+        
+        # 标记战斗结束，玩家胜利
+        self.battle.battle_finished = True
+        self.battle.winner = self.battle.player_team
+        self.battle.player_defeated = False
+        self.battle.battle_log.add("\n[DEBUG] 战斗已跳过，进入奖励选择！")
+        
+        # 将所有敌人设为死亡状态，以便生成掉落
+        print("[DEBUG] 将所有敌人设为死亡状态")
+        for enemy in self.battle.enemy_team:
+            if enemy.is_alive():
+                enemy.current_health = 0
+                print(f"  - {enemy.name} 已设为死亡")
+        
+        # 生成战利品
+        print("[DEBUG] 生成战利品")
+        self.battle._generate_battle_loot()
+        
+        # 检查是否生成了掉落卡牌
+        if hasattr(self.battle, 'dropped_cards_for_selection') and self.battle.dropped_cards_for_selection:
+            print(f"[DEBUG] 成功生成 {len(self.battle.dropped_cards_for_selection)} 张掉落卡牌")
+        else:
+            print("[DEBUG] 警告：没有生成掉落卡牌，创建测试卡牌")
+            # 如果没生成，手动创建测试卡牌
+            from card_database import create_card_database
+            from models import Rarity
+            import random
+            
+            test_cards = []
+            cards_db = create_card_database()
+            all_cards = list(cards_db.values())
+            
+            if len(all_cards) >= 3:
+                # 尝试选择不同稀有度的卡牌
+                rarities = [Rarity.COMMON, Rarity.UNCOMMON, Rarity.RARE]
+                for rarity in rarities:
+                    cards_of_rarity = [c for c in all_cards if c.rarity == rarity]
+                    if cards_of_rarity:
+                        test_cards.append(random.choice(cards_of_rarity))
+                
+                # 如果不足3张，用随机卡牌补充
+                while len(test_cards) < 3 and all_cards:
+                    card = random.choice(all_cards)
+                    if card not in test_cards:
+                        test_cards.append(card)
+            
+            self.battle.dropped_cards_for_selection = test_cards[:3]
+            print(f"[DEBUG] 创建了 {len(test_cards[:3])} 张测试卡牌")
+        
+        # 显示战利品选择UI
+        print("[DEBUG] 显示战利品选择UI")
+        self._show_loot_selection()
     
     def _start_narrative_scene(self, node_id: str):
         """
@@ -661,13 +741,278 @@ class CardView(arcade.View):
         return (button_x <= x <= button_x + button_width and
                 button_y <= y <= button_y + button_height)
     
+    def _show_hit_dice_recovery(self):
+        """显示生命骰回血选择UI"""
+        print(f"\n>>> 显示生命骰回血UI <<<")
+        print(f"需要回血的实体数量: {len(self.battle.hit_dice_recovery_queue)}")
+        
+        for i, data in enumerate(self.battle.hit_dice_recovery_queue, 1):
+            print(f"  {i}. {data['name']}: HP={data['current_hp']}/{data['max_hp']}, "
+                  f"生命骰={data['current_hit_dice']}/{data['max_hit_dice']}")
+        
+        def on_recovery_complete():
+            """回血完成回调"""
+            print("\n✓ 生命骰回血完成")
+            # 清除回血队列
+            self.battle.hit_dice_recovery_queue = []
+            
+            # 回血完成后，直接进入卡组编辑界面
+            self._show_deck_edit()
+        
+        # 导入生命骰回血视图
+        from hit_dice_recovery_view import HitDiceRecoveryView
+        
+        # 保存当前游戏视图引用
+        self.window._game_view = self
+        
+        # 创建并显示生命骰回血视图
+        recovery_view = HitDiceRecoveryView(
+            self.battle.hit_dice_recovery_queue,
+            on_recovery_complete
+        )
+        self.window.show_view(recovery_view)
+    
+    def _return_cards_to_deck(self):
+        """将手牌和弃牌堆中的卡牌全部放回卡组"""
+        player = self.battle.player
+        if not player:
+            print("[ERROR] 玩家不存在，无法回收卡牌")
+            return
+        
+        print("\n" + "="*60)
+        print("[DEBUG] 开始回收卡牌到卡组")
+        print("="*60)
+        
+        print(f"[DEBUG] 回收前状态:")
+        print(f"  - 手牌数量: {len(player.hand)}")
+        if player.hand:
+            print(f"  - 手牌列表: {[c.name for c in player.hand]}")
+        else:
+            print(f"  - 手牌列表: (空)")
+        
+        print(f"  - 弃牌堆数量: {len(player.discard_pile)}")
+        if player.discard_pile:
+            print(f"  - 弃牌堆列表: {[c.name for c in player.discard_pile]}")
+        else:
+            print(f"  - 弃牌堆列表: (空)")
+        
+        print(f"  - 当前卡组大小: {len(player.deck)}")
+        if player.deck:
+            print(f"  - 卡组列表: {[c.name for c in player.deck]}")
+        else:
+            print(f"  - 卡组列表: (空)")
+        print("="*60)
+        
+        cards_returned_count = 0
+        
+        # 将手牌中的卡牌放回卡组（排除常驻卡牌）
+        hand_cards_to_return = []
+        for card in player.hand:
+            # 检查是否是常驻卡牌
+            if hasattr(player, 'permanent_cards') and card in player.permanent_cards:
+                print(f"[DEBUG] 跳过常驻卡牌: {card.name}")
+                continue
+            hand_cards_to_return.append(card)
+        
+        # 从手牌移除并加入卡组
+        if hand_cards_to_return:
+            print(f"\n[DEBUG] 开始回收手牌 ({len(hand_cards_to_return)} 张):")
+            for card in hand_cards_to_return:
+                player.hand.remove(card)
+                player.deck.append(card)
+                cards_returned_count += 1
+                print(f"  [✓] 手牌 -> 卡组: {card.name}")
+        else:
+            print("\n[DEBUG] 手牌中没有可回收的卡牌")
+        
+        # 将弃牌堆中的卡牌放回卡组
+        discard_cards_to_return = list(player.discard_pile)
+        if discard_cards_to_return:
+            print(f"\n[DEBUG] 开始回收弃牌堆 ({len(discard_cards_to_return)} 张):")
+            for card in discard_cards_to_return:
+                player.discard_pile.remove(card)
+                player.deck.append(card)
+                cards_returned_count += 1
+                print(f"  [✓] 弃牌堆 -> 卡组: {card.name}")
+        else:
+            print("\n[DEBUG] 弃牌堆中没有可回收的卡牌")
+        
+        print("\n" + "="*60)
+        print(f"[DEBUG] 卡牌回收完成")
+        print(f"[DEBUG] 总共回收: {cards_returned_count} 张卡牌")
+        print(f"[DEBUG] 回收后状态:")
+        print(f"  - 最终手牌数量: {len(player.hand)}")
+        print(f"  - 最终弃牌堆数量: {len(player.discard_pile)}")
+        print(f"  - 最终卡组大小: {len(player.deck)}")
+        if player.deck:
+            print(f"  - 最终卡组列表: {[c.name for c in player.deck]}")
+        else:
+            print(f"  - 最终卡组列表: (空)")
+        print("="*60 + "\n")
+    
     def _end_battle_and_start_narrative(self):
         """结束战斗并切换到叙事场景"""
-        print("\n[系统] 结束战斗，切换到叙事场景")
+        print("\n" + "#"*60)
+        print("[系统] 结束战斗，切换到叙事场景")
+        print("#"*60)
+        print(f"[DEBUG] 当前窗口: {self.window}")
+        print(f"[DEBUG] 当前视图: {self.window.current_view}")
+        print(f"[DEBUG] 准备切换到 NarrativeSceneView")
         
-        # 使用场景管理器切换到叙事场景
+        # 标记已经完成所有战后流程（战利品选择 + 卡组编辑）
+        self._deck_edit_shown = True
+        
+        # 再次回收卡牌（编辑完成后手牌可能还有残留）
+        print("\n[DEBUG] 编辑完成后再次回收卡牌...")
+        self._return_cards_to_deck()
+        print("[DEBUG] 第二次回收完成")
+        
+        # 使用场景管理器切换到叙事场景，传递窗口引用
         from scene_manager import NarrativeSceneView
-        narrative_scene = NarrativeSceneView(self.battle, "gate_guard_001")
+        narrative_scene = NarrativeSceneView(self.battle, "gate_guard_001", window=self.window)
+        print(f"[DEBUG] 已创建 NarrativeSceneView: {narrative_scene}")
+        print(f"[DEBUG] NarrativeSceneView.window: {narrative_scene.window}")
+        
+        # 关键修复：先隐藏当前视图，再显示新视图
+        # 这样可以确保Arcade框架正确处理视图切换
         self.window.show_view(narrative_scene)
+        
+        # 验证切换是否成功
+        print(f"[DEBUG] 切换后的当前视图: {self.window.current_view}")
+        print(f"[DEBUG] 视图类型: {type(self.window.current_view)}")
+        print(f"[DEBUG] 视图是否相同: {self.window.current_view is narrative_scene}")
+        print(f"[DEBUG] 已调用 show_view，应该已切换")
+    
+    def _show_loot_selection(self):
+        """显示战利品选择UI"""
+        print(f"[DEBUG] _show_loot_selection called")
+        print(f"[DEBUG] dropped_cards_for_selection: {self.battle.dropped_cards_for_selection}")
+        print(f"[DEBUG] _loot_selection_shown: {getattr(self, '_loot_selection_shown', False)}")
+        
+        if not hasattr(self.battle, 'dropped_cards_for_selection') or not self.battle.dropped_cards_for_selection:
+            print(f"[DEBUG] 没有掉落卡牌，只绘制结束按钮")
+            self._draw_end_battle_button()
+            return
+        
+        # 检查是否已经显示了战利品选择UI（防止重复显示）
+        if hasattr(self, '_loot_selection_shown') and self._loot_selection_shown:
+            # 已经显示过了，只绘制结束战斗按钮
+            print(f"[DEBUG] 已经显示过战利品选择，只绘制结束按钮")
+            self._draw_end_battle_button()
+            return
+        
+        dropped_cards = self.battle.dropped_cards_for_selection
+        
+        print(f"\n>>> 显示战利品选择UI <<<")
+        print(f"掉落卡牌数量: {len(dropped_cards)}")
+        for i, card in enumerate(dropped_cards, 1):
+            print(f"  {i}. {card.name} ({['普通', '优秀', '稀有', '传说'][card.rarity.value]})")
+        
+        def on_selection_complete(selected_card):
+            """选择完成回调"""
+            # 立即标记已显示过，防止重复显示
+            self._loot_selection_shown = True
+            
+            if selected_card:
+                print(f"\n✓ 选择了卡牌: {selected_card.name}")
+                print(f"  稀有度: {['普通', '优秀', '稀有', '传说'][selected_card.rarity.value]}")
+                
+                # 将选中的卡牌加入玩家牌库
+                player = self.battle.player
+                if player:
+                    # 如果玩家有牌库系统，使用牌库添加
+                    if hasattr(player, 'card_library') and player.card_library:
+                        # 先添加到牌库
+                        player.card_library.add_card_to_library(selected_card)
+                        print(f"  已加入牌库")
+                        
+                        # 尝试自动添加到卡组（如果符合条件）
+                        if player.card_library.can_add_to_deck(selected_card.name):
+                            if player.card_library.add_card_to_deck(selected_card.name):
+                                print(f"  已自动添加到卡组")
+                            else:
+                                print(f"  无法自动添加到卡组（可能已达上限）")
+                        else:
+                            print(f"  未自动添加到卡组（可在卡组编辑界面手动添加）")
+                    else:
+                        # 原有逻辑（向后兼容）
+                        if hasattr(player, 'deck'):
+                            player.deck.append(selected_card)
+                            print(f"  已加入牌库，当前牌库大小: {len(player.deck)}")
+            else:
+                print("\n✗ 跳过选择")
+            
+            # 清除掉落卡牌数据，防止再次触发选择界面
+            self.battle.dropped_cards_for_selection = []
+            print("[DEBUG] 已清除掉落卡牌数据")
+            
+            # 标记已经进入过卡组编辑，防止返回GameView后显示结束战斗按钮
+            self._deck_edit_shown = True
+            
+            # 选择完成后，先检查是否有生命骰回血需要处理
+            if hasattr(self.battle, 'hit_dice_recovery_queue') and self.battle.hit_dice_recovery_queue:
+                print("[DEBUG] 战利品选择完成，准备显示生命骰回血UI")
+                self._show_hit_dice_recovery()
+            else:
+                # 没有生命骰回血，直接进入卡组编辑界面
+                self._show_deck_edit()
+        
+        # 导入战利品选择视图
+        from loot_selection_view import LootSelectionView
+        
+        # 保存当前游戏视图引用，以便LootSelectionView可以返回
+        self.window._game_view = self
+        
+        # 创建并显示战利品选择视图
+        loot_view = LootSelectionView(dropped_cards, on_selection_complete)
+        self.window.show_view(loot_view)
+    
+    def _show_deck_edit(self):
+        """显示卡组编辑界面"""
+        print("\n" + "*"*60)
+        print("[DEBUG] >>> 显示卡组编辑UI <<<")
+        print("*"*60)
+        
+        player = self.battle.player
+        if not player:
+            print("[ERROR] 玩家不存在，无法编辑卡组")
+            return
+        
+        # 在显示卡组编辑界面之前，先将手牌和弃牌堆的卡牌回收到卡组
+        print("\n[DEBUG] 进入卡组编辑前，先回收卡牌...")
+        self._return_cards_to_deck()
+        
+        print(f"[DEBUG] 进入卡组编辑前的状态:")
+        print(f"  - 卡组大小: {len(player.deck)}")
+        print(f"  - 卡组列表: {[c.name for c in player.deck]}")
+        print(f"  - 手牌数量: {len(player.hand)}")
+        print(f"  - 弃牌堆数量: {len(player.discard_pile)}")
+        if hasattr(player, 'card_library') and player.card_library:
+            print(f"  - 牌库系统: 存在")
+            print(f"  - 牌库卡牌: {list(player.card_library.library.keys())}")
+        else:
+            print(f"  - 牌库系统: 不存在")
+        print("*"*60)
+        
+        def on_edit_complete():
+            """编辑完成回调"""
+            print(f"\n✓ 卡组编辑完成")
+            print(f"  最终卡组大小: {len(player.deck)}")
+            
+            # 清除掉落卡牌数据（如果还有）
+            self.battle.dropped_cards_for_selection = []
+            
+            # 编辑完成后，自动进入叙事场景
+            self._end_battle_and_start_narrative()
+        
+        # 导入卡组编辑视图
+        from deck_edit_view import DeckEditView
+        
+        # 保存当前游戏视图引用
+        self.window._game_view = self
+        
+        # 创建并显示卡组编辑视图
+        deck_edit_view = DeckEditView(player, on_edit_complete)
+        self.window.show_view(deck_edit_view)
     
 

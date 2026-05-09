@@ -85,6 +85,7 @@ class ScholarPassiveHandler:
             import random
             drawn_card = random.choice(entity.deck)
             entity.deck.remove(drawn_card)
+            drawn_card.owner = entity  # 设置卡牌所有者
             entity.hand.append(drawn_card)
             
             # 记录被动触发到战斗日志

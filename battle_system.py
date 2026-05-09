@@ -335,8 +335,17 @@ class BattleSystem:
         if self.battle_finished or not ai_entity.is_alive():
             return
         
-        # 选择一张能支付的卡牌
-        playable_cards = [c for c in ai_entity.hand if c.ap_cost <= ai_entity.ap]
+        # 选择一张能支付的卡牌（检查AP和MP）
+        playable_cards = []
+        for c in ai_entity.hand:
+            # 检查AP是否足够
+            if c.ap_cost > ai_entity.ap:
+                continue
+            # 检查MP是否足够（法术卡牌需要）
+            if hasattr(c, 'mp_cost') and c.mp_cost > 0:
+                if ai_entity.mp < c.mp_cost:
+                    continue
+            playable_cards.append(c)
         
         self.battle_log.add(f"{ai_entity.name}检查出牌 - 手牌:{len(ai_entity.hand)}张, AP:{ai_entity.ap}, 可出:{len(playable_cards)}张", level=2)
         
@@ -400,10 +409,11 @@ class BattleSystem:
                             # 出牌成功，不结束回合，让AI可以继续出牌
                             return
                         else:
-                            # 出牌失败，将卡牌放入弃牌堆（正常流程）
-                            if card not in ai_entity.permanent_cards and card not in ai_entity.equipment_cards:
-                                ai_entity.discard_pile.append(card)
-                            self.battle_log.add(f"{ai_entity.name}出牌失败，卡牌进入弃牌堆", level=2)
+                            # 出牌失败，结束AI回合
+                            self.battle_log.add(f"{ai_entity.name}出牌失败，结束回合", level=1)
+                            self.ai_playing = False
+                            self.end_current_entity_turn()
+                            return
                     # 移动后仍然无法出牌，保留卡牌，结束本回合
                     self.ai_playing = False
                     self.end_current_entity_turn()
@@ -428,10 +438,10 @@ class BattleSystem:
                     # 出牌成功，不结束回合，让AI可以继续出牌
                     return
                 else:
-                    # 出牌失败，将卡牌放入弃牌堆（正常流程）
-                    if card not in ai_entity.permanent_cards and card not in ai_entity.equipment_cards:
-                        ai_entity.discard_pile.append(card)
-                    self.battle_log.add(f"{ai_entity.name}出牌失败，卡牌进入弃牌堆", level=2)
+                    # 出牌失败，结束AI回合
+                    self.battle_log.add(f"{ai_entity.name}出牌失败，结束回合", level=1)
+                    self.ai_playing = False
+                    self.end_current_entity_turn()
                     return
             else:
                 # 仍然不在范围内，保留卡牌到下回合，结束回合
@@ -709,6 +719,102 @@ class BattleSystem:
             for entity in self.player_team + self.enemy_team:
                 if hasattr(entity, 'equipment_manager'):
                     entity.equipment_manager.in_combat = False
+            
+            # 生成战利品（战斗结算）
+            self._generate_battle_loot()
+            
+            # 战斗胜利后，提示玩家可以使用生命骰回血
+            self._prompt_hit_dice_recovery()
+    
+    def _generate_battle_loot(self):
+        """
+        生成战斗战利品
+        在所有敌人死亡后调用，为每个被击败的敌人生成掉落
+        注意：所有敌人共享最多3张卡牌的上限
+        """
+        from battle_loot_system import BattleLootSystem
+        
+        loot_system = BattleLootSystem()
+        
+        # 获取玩家背包（如果有）
+        player_inventory = None
+        if self.player and hasattr(self.player, 'inventory'):
+            player_inventory = self.player.inventory
+        
+        # 收集所有掉落的卡牌（限制总数为3张）
+        all_dropped_cards = []
+        total_loot_message = []
+        max_card_count = 3  # 所有敌人共享的上限
+        
+        for enemy in self.enemy_team:
+            if not enemy.is_alive():
+                # 生成战利品
+                loot = loot_system.generate_loot(enemy, player_inventory)
+                
+                # 收集掉落的卡牌（但不超过上限）
+                if loot["cards"]:
+                    remaining_slots = max_card_count - len(all_dropped_cards)
+                    if remaining_slots > 0:
+                        # 只添加剩余名额内的卡牌
+                        cards_to_add = loot["cards"][:remaining_slots]
+                        all_dropped_cards.extend(cards_to_add)
+                        
+                        # 如果截断了，记录日志
+                        if len(loot["cards"]) > remaining_slots:
+                            self.battle_log.add(f"  （超出卡牌上限，丢弃{len(loot['cards']) - remaining_slots}张卡牌）", level=1)
+                
+                # 格式化掉落信息
+                if loot["items"] or loot["equipments"] or loot["cards"]:
+                    message = f"\n{enemy.name} 掉落:"
+                    
+                    if loot["items"]:
+                        item_names = [item.name for item in loot["items"]]
+                        message += f"\n  • 物品: {', '.join(item_names)}"
+                    
+                    if loot["equipments"]:
+                        equip_names = [equip.name for equip in loot["equipments"]]
+                        message += f"\n  • 装备: {', '.join(equip_names)}"
+                    
+                    if loot["cards"]:
+                        # 只显示实际添加的卡牌
+                        displayed_cards = loot["cards"][:max(0, max_card_count - (len(all_dropped_cards) - len(loot["cards"])))]
+                        card_names = [card.name for card in displayed_cards]
+                        if card_names:
+                            message += f"\n  • 卡牌: {', '.join(card_names)}"
+                    
+                    total_loot_message.append(message)
+        
+        # 在战斗日志中显示所有掉落信息
+        if total_loot_message:
+            for msg in total_loot_message:
+                self.battle_log.add(msg)
+        
+        # 保存掉落的卡牌，等待玩家选择
+        self.dropped_cards_for_selection = all_dropped_cards
+    
+    def _prompt_hit_dice_recovery(self):
+        """
+        提示玩家使用生命骰回血
+        在战斗胜利后调用
+        """
+        # 为每个存活的玩家实体准备生命骰恢复数据
+        recovery_data = []
+        for entity in self.player_team:
+            if entity.is_alive() and hasattr(entity, 'current_hit_dice'):
+                if entity.current_hit_dice > 0 and entity.hp < entity.max_hp:
+                    recovery_data.append({
+                        'entity': entity,
+                        'name': entity.name,
+                        'current_hp': entity.hp,
+                        'max_hp': entity.max_hp,
+                        'current_hit_dice': entity.current_hit_dice,
+                        'max_hit_dice': entity.max_hit_dice,
+                        'level': entity.level,
+                        'hit_dice_type': entity.hit_dice_type
+                    })
+        
+        # 保存需要回血的实体数据，等待UI处理
+        self.hit_dice_recovery_queue = recovery_data
     
     def skip_turn(self):
         """跳过当前回合"""

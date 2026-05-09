@@ -291,6 +291,7 @@ class EffectExecutor:
                 for card in drawn_cards:
                     if card in source.deck:
                         source.deck.remove(card)
+                        card.owner = source  # 设置卡牌所有者
                         source.hand.append(card)
                 
                 results.append(EffectResult(

@@ -121,6 +121,9 @@ class CardTag(Enum):
     LIGHTNING_DAMAGE = "雷电"    # 雷电伤害
     SHADOW_DAMAGE = "暗影"       # 暗影伤害
     HOLY_DAMAGE = "神圣"         # 神圣伤害
+    
+    # 特殊来源标签
+    EQUIPMENT_GRANTED = "赋予"   # 只能由装备赋予的卡牌，不应从卡池抽取
 
 
 # Buff/Debuff 类型

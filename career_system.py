@@ -52,13 +52,14 @@ class CareerPassive:
 class Career:
     """职业基类"""
     
-    def __init__(self, career_type: CareerType, name: str, description: str):
+    def __init__(self, career_type: CareerType, name: str, description: str, hit_dice_type: int = 8):
         self.career_type = career_type
         self.name = name
         self.description = description
         self.passives: List[CareerPassive] = []
         self.special_cards: List[str] = []  # 职业特殊卡牌名称列表
         self.initial_deck_config: Dict[str, Any] = {}  # 初始卡组配置
+        self.hit_dice_type = hit_dice_type  # 生命骰类型（d4, d6, d8, d10, d12等）
         
     def add_passive(self, passive: CareerPassive):
         """添加被动效果"""
@@ -89,7 +90,8 @@ class Career:
             "description": self.description,
             "passives": [p.to_dict() for p in self.passives],
             "special_cards": self.special_cards,
-            "initial_deck_config": self.initial_deck_config
+            "initial_deck_config": self.initial_deck_config,
+            "hit_dice_type": self.hit_dice_type
         }
     
     @staticmethod
@@ -98,7 +100,8 @@ class Career:
         career = Career(
             career_type=CareerType(data["career_type"]),
             name=data["name"],
-            description=data["description"]
+            description=data["description"],
+            hit_dice_type=data.get("hit_dice_type", 8)
         )
         career.passives = [CareerPassive.from_dict(p) for p in data.get("passives", [])]
         career.special_cards = data.get("special_cards", [])
@@ -116,7 +119,8 @@ def create_drifter_career() -> Career:
     career = Career(
         career_type=CareerType.DRIFTER,
         name="流浪者",
-        description="轻装简从的旅行者，擅长生存和探索"
+        description="轻装简从的旅行者，擅长生存和探索",
+        hit_dice_type=8  # d8生命骰
     )
     
     # 被动1：轻装简从
@@ -150,7 +154,8 @@ def create_artisan_career() -> Career:
     career = Career(
         career_type=CareerType.ARTISAN,
         name="手艺人",
-        description="精通装备使用的工匠，善于资源管理"
+        description="精通装备使用的工匠，善于资源管理",
+        hit_dice_type=6  # d6生命骰
     )
     
     # 被动1：物尽其用
@@ -184,7 +189,8 @@ def create_pedlar_career() -> Career:
     career = Career(
         career_type=CareerType.PEDLAR,
         name="行商/说书人",
-        description="见多识广的商人，擅长社交和情报收集"
+        description="见多识广的商人，擅长社交和情报收集",
+        hit_dice_type=6  # d6生命骰
     )
     
     # 被动1：见多识广
@@ -217,7 +223,8 @@ def create_farmer_career() -> Career:
     career = Career(
         career_type=CareerType.FARMER,
         name="农民",
-        description="深耕沃土的耕作者，擅长生存和资源管理"
+        description="深耕沃土的耕作者，擅长生存和资源管理",
+        hit_dice_type=10  # d10生命骰
     )
     
     # 被动1：深耕沃土
@@ -251,7 +258,8 @@ def create_scholar_career() -> Career:
     career = Career(
         career_type=CareerType.SCHOLAR,
         name="游学青年",
-        description="博闻强记的学者，擅长知识和法术"
+        description="博闻强记的学者，擅长知识和法术",
+        hit_dice_type=4  # d4生命骰
     )
     
     # 被动1：博闻强记

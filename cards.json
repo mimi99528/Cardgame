@@ -13,7 +13,7 @@
     "atk_rnge": {"type": "circle", "radius": 1},
     "target_type": "enemy",
     "stat_ratios": {"str": 1.0},
-    "tags": ["近战", "战斗", "单体", "力量", "物理"]
+    "tags": ["近战", "战斗", "单体", "力量", "物理", "赋予"]
   },
   {
     "id": 2,
@@ -29,7 +29,7 @@
     "atk_rnge": {"type": "circle", "radius": 1},
     "target_type": "enemy",
     "stat_ratios": {"str": 1.0},
-    "tags": ["近战", "战斗", "单体", "力量", "物理"]
+    "tags": ["近战", "战斗", "单体", "力量", "物理", "赋予"]
   },
   {
     "id": 3,
@@ -44,7 +44,7 @@
     "atk_dis": 3,
     "atk_rnge": {"type": "circle", "radius": 3},
     "target_type": "enemy",
-    "tags": ["远程", "战斗", "单体", "状态", "敏捷"]
+    "tags": ["远程", "战斗", "单体", "状态", "敏捷", "赋予"]
   },
   {
     "id": 4,
@@ -92,7 +92,7 @@
     "atk_rnge": {"type": "circle", "radius": 0},
     "target_type": "all",
     "is_movement": true,
-    "tags": ["移动", "泛用"]
+    "tags": ["移动", "泛用", "赋予"]
   },
   {
     "id": 7,
@@ -108,7 +108,7 @@
     "atk_rnge": {"type": "circle", "radius": 0},
     "target_type": "self",
     "stat_ratios": {"dex": 1.0},
-    "tags": ["格挡", "战斗", "自身", "敏捷", "装备交互"]
+    "tags": ["格挡", "战斗", "自身", "敏捷", "装备交互", "赋予"]
   },
   {
     "id": 8,

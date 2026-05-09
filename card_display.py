@@ -9,6 +9,7 @@ from models import Card, Entity
 from battle_system import BattleSystem
 from config import CONSTANTS, CARD_TYPE_NAMES, RARITY_COLORS, CardTag
 from ui_scale import S
+from chinese_text_helper import prepare_text_for_arcade
 
 
 class CardDisplay:
@@ -566,8 +567,15 @@ class CardDisplay:
                 font_size = max(1, self.ui_renderer.text_font_size - 1)
                 color = arcade.color.WHITE
             
-            self.ui_renderer.draw_text(
+            # 对文本进行ZWSP处理以支持换行
+            processed_line = prepare_text_for_arcade(
                 line,
+                max_width=int(max_line_width),
+                font_size=font_size
+            )
+            
+            self.ui_renderer.draw_text(
+                processed_line,
                 x, line_y,
                 color,
                 font_size,

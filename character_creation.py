@@ -965,6 +965,25 @@ class CharacterCreationView(arcade.View):
         # 设置职业
         player.career = self.selected_career
         
+        # 初始化玩家牌库系统
+        from player_card_library import PlayerCardLibrary
+        player.card_library = PlayerCardLibrary(owner_name=player.name)
+        
+        # 将初始卡组中的卡牌添加到牌库（此时牌库包含所有获得的卡牌）
+        for card in deck:
+            player.card_library.add_card_to_library(card)
+        
+        # 将所有卡牌从牌库移动到卡组（这样牌库为空，卡组包含所有初始卡牌）
+        # 注意：add_card_to_deck使用pop()移动卡牌，不会复制
+        card_names = list(player.card_library.library.keys())
+        for card_name in card_names:
+            while player.card_library.get_card_count_in_library(card_name) > 0:
+                player.card_library.add_card_to_deck(card_name)
+        
+        # 设置玩家的卡组为牌库中的卡组引用
+        # 这样在战斗中使用的是牌库管理的卡组
+        player.deck = player.card_library.deck
+        
         # 将初始装备同步到 equipment_manager（用于装备界面显示）
         from inventory import InventoryItem, ItemType
         from equipment_manager import EquipmentSlot

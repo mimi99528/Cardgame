@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, Tuple
 from models import Entity, Card
 from narrative_system import NarrativeNode, NarrativeAction, NarrativeResult
 from ui_scale import S
+from chinese_text_helper import prepare_text_for_arcade
 
 
 class NarrativeSceneRenderer:
@@ -112,15 +113,22 @@ class NarrativeSceneRenderer:
         title_y = view_y + view_height - S.py(30)
         
         # 绘制标题（使用 Text 对象以支持更复杂的渲染或后续交互）
-        title_text = arcade.Text(
+        # 对标题文本进行ZWSP处理以支持换行
+        processed_title = prepare_text_for_arcade(
             self.current_node.title,
+            max_width=view_width // 2 - S.px(40),
+            font_size=self.title_font_size
+        )
+        title_text = arcade.Text(
+            processed_title,
             title_x, title_y,
             arcade.color.GOLD,
             self.title_font_size,
             anchor_x="left",
             anchor_y="top",
             bold=True,
-            multiline=False
+            multiline=True,
+            width=int(view_width // 2 - S.px(40))
         )
         title_text.draw()
         
@@ -129,8 +137,15 @@ class NarrativeSceneRenderer:
         desc_y = title_y - S.py(50)
         desc_width = view_width // 2 - S.px(60)  # 增加边距，确保文本不会太宽
         
-        desc_text = arcade.Text(
+        # 对描述文本进行ZWSP处理以支持换行
+        processed_desc = prepare_text_for_arcade(
             self.current_node.description,
+            max_width=int(desc_width),
+            font_size=self.description_font_size
+        )
+        
+        desc_text = arcade.Text(
+            processed_desc,
             desc_x, desc_y,
             arcade.color.WHITE,
             self.description_font_size,
@@ -215,15 +230,23 @@ class NarrativeSceneRenderer:
             # 添加描述
             full_text = f"{option_text} {action.description}"
             
-            arcade.draw_text(
+            # 对选项文本进行ZWSP处理以支持换行
+            processed_option = prepare_text_for_arcade(
                 full_text,
+                max_width=option_width - S.px(20),
+                font_size=self.option_font_size
+            )
+            
+            arcade.draw_text(
+                processed_option,
                 option_x + S.px(10),
                 y_pos + option_height // 2,
                 arcade.color.WHITE,
                 self.option_font_size,
                 anchor_x="left",
                 anchor_y="center",
-                multiline=False
+                multiline=True,
+                width=int(option_width - S.px(20))
             )
     
     def _draw_result(self, view_x: int, view_y: int, view_width: int, view_height: int):
@@ -253,8 +276,15 @@ class NarrativeSceneRenderer:
         # 绘制结果文本
         result_text_y = result_area_y + result_area_height - S.py(20)
         
-        arcade.draw_text(
+        # 对结果文本进行ZWSP处理以支持换行
+        processed_result = prepare_text_for_arcade(
             self.current_result.text,
+            max_width=result_area_width - S.px(20),
+            font_size=self.result_font_size
+        )
+        
+        arcade.draw_text(
+            processed_result,
             result_area_x + S.px(10),
             result_text_y,
             arcade.color.WHITE,

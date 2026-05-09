@@ -244,12 +244,42 @@ class Entity:
         # 初始化装备管理器
         self.equipment_manager = EquipmentManager(owner_name=name)
         
+        # 初始化玩家牌库系统（延迟导入）
+        self.card_library = None  # 类型: Optional['PlayerCardLibrary']
+        
         # 职业系统（心智>4时拥有职业）
         self.career: Optional[Career] = None
         if stats and stats.intelligence > 4:
             # 默认分配流浪者职业，后续可以通过其他方式选择
             self.career = CareerFactory.get_career(CareerType.DRIFTER)
             self._add_career_cards_to_deck()
+        
+        # 等级和经验值系统
+        self.level = 1  # 初始等级为1
+        self.exp = 0  # 当前经验值
+        self.exp_to_next_level = 100  # 升级到下一级所需经验值
+        
+        # 生命骰系统
+        # 如果有职业，使用职业的生命骰类型；否则默认为d8
+        if self.career:
+            self.hit_dice_type = self.career.hit_dice_type
+        else:
+            self.hit_dice_type = 8
+        self.max_hit_dice = 2 + (self.level - 1)  # 最大生命骰数量 = 2 + (等级-1)
+        self.current_hit_dice = self.max_hit_dice  # 当前可用生命骰数量
+    
+    def set_career(self, career):
+        """
+        设置职业并更新生命骰类型
+        
+        Args:
+            career: 职业对象
+        """
+        from career_system import Career
+        if isinstance(career, Career):
+            self.career = career
+            # 更新生命骰类型为职业的类型
+            self.hit_dice_type = career.hit_dice_type
     
     def _calculate_max_ap(self) -> int:
         """计算最大AP（包括护甲AC加成）"""
@@ -322,6 +352,7 @@ class Entity:
         # 将常驻卡牌加入手牌
         for card in self.permanent_cards:
             if card not in self.hand:
+                card.owner = self  # 设置卡牌所有者
                 self.hand.append(card)
         
         # 加载装备卡牌
@@ -336,11 +367,13 @@ class Entity:
             drawn_cards = random.sample(available_cards, initial_draw_count)
             for card in drawn_cards:
                 self.deck.remove(card)
+                card.owner = self  # 设置卡牌所有者
                 self.hand.append(card)
         else:
             # 如果卡组不够，抽所有可用的
             for card in available_cards:
                 self.deck.remove(card)
+                card.owner = self  # 设置卡牌所有者
                 self.hand.append(card)
         
         if DEBUG_MODE:
@@ -392,17 +425,21 @@ class Entity:
                 self.deck.remove(card)
         
         # 新手牌 = 上一回合保留的卡牌 + 新抽的卡牌 + 常驻卡牌 + 装备卡牌
+        # 为新抽的卡牌设置所有者
+        for card in drawn_cards:
+            card.owner = self
         self.hand = non_permanent_in_hand + drawn_cards
         
         # 确保所有常驻卡牌都在手牌中（即使超过hand_size）
         for perm_card in self.permanent_cards:
             if perm_card not in self.hand:
-                # 直接添加常驻卡牌，不占用普通手牌空间
+                perm_card.owner = self  # 设置卡牌所有者
                 self.hand.append(perm_card)
         
         # 确保所有装备卡牌都在手牌中
         for equip_card in self.equipment_cards:
             if equip_card not in self.hand:
+                equip_card.owner = self  # 设置卡牌所有者
                 self.hand.append(equip_card)
         
         # 限制手牌上限（只计算非永久卡牌）
@@ -447,6 +484,9 @@ class Entity:
         
         # 检查是否是常驻卡牌
         is_permanent = card in self.permanent_cards
+        
+        # 设置卡牌所有者
+        card.owner = self
         
         # 扣除AP
         self.ap -= card.ap_cost
@@ -567,6 +607,88 @@ class Entity:
             data={"actual_heal": actual_heal}
         )
     
+    def use_hit_dice(self, num_dice: int = None) -> int:
+        """
+        使用生命骰回血
+        
+        Args:
+            num_dice: 要使用的生命骰数量，默认为当前等级数
+            
+        Returns:
+            实际恢复的生命值
+        """
+        import random
+        
+        if num_dice is None:
+            num_dice = self.level
+        
+        # 检查是否有足够的生命骰
+        if self.current_hit_dice <= 0:
+            return 0
+        
+        # 限制使用的骰子数量不超过当前可用数量
+        actual_dice = min(num_dice, self.current_hit_dice)
+        
+        # 掷骰子计算回血量
+        total_heal = 0
+        for _ in range(actual_dice):
+            roll = random.randint(1, self.hit_dice_type)
+            total_heal += roll
+        
+        # 消耗生命骰
+        self.current_hit_dice -= actual_dice
+        
+        # 应用治疗
+        old_hp = self.hp
+        self.hp = min(self.hp + total_heal, self.max_hp)
+        actual_heal = self.hp - old_hp
+        
+        return actual_heal
+    
+    def gain_exp(self, exp_amount: int) -> bool:
+        """
+        获得经验值，如果升级则返回True
+        
+        Args:
+            exp_amount: 获得的经验值
+            
+        Returns:
+            是否升级
+        """
+        self.exp += exp_amount
+        leveled_up = False
+        
+        # 检查是否可以升级
+        while self.exp >= self.exp_to_next_level:
+            self.level_up()
+            leveled_up = True
+        
+        return leveled_up
+    
+    def level_up(self):
+        """升级"""
+        self.level += 1
+        
+        # 更新最大生命骰数量：2 + (等级-1)
+        old_max = self.max_hit_dice
+        self.max_hit_dice = 2 + (self.level - 1)
+        
+        # 增加当前生命骰数量（升级时补充一个）
+        self.current_hit_dice += 1
+        
+        # 增加最大HP（根据职业的生命骰类型，取平均值）
+        avg_hp_gain = (self.hit_dice_type + 1) // 2
+        self.max_hp += avg_hp_gain
+        self.hp += avg_hp_gain  # 同时恢复等量的HP
+        
+        # 增加下一级所需经验值（简单递增）
+        self.exp_to_next_level = int(self.exp_to_next_level * 1.5)
+        
+        print(f"{self.name} 升级到 {self.level} 级！")
+        print(f"  生命骰: d{self.hit_dice_type}, 数量: {old_max} -> {self.max_hit_dice}")
+        print(f"  最大HP: +{avg_hp_gain}")
+        print(f"  下一级所需经验: {self.exp_to_next_level}")
+    
     def add_block(self, amount: int):
         """增加格挡"""
         self.block += amount
@@ -639,7 +761,7 @@ class Entity:
         }
     
     def to_dict(self) -> Dict[str, Any]:
-        """将实体序列化为字典（包含职业信息）"""
+        """将实体序列化为字典（包含职业信息和牌库）"""
         data = {
             'name': self.name,
             'max_hp': self.max_hp,
@@ -663,7 +785,8 @@ class Entity:
             },
             'control_type': self.control_type.value,
             'position': list(self.position),
-            'career': self.career.to_dict() if self.career else None
+            'career': self.career.to_dict() if self.career else None,
+            'card_library': self.card_library.save_to_dict() if self.card_library else None
         }
         return data
     
@@ -712,6 +835,13 @@ class Entity:
         if career_data:
             from career_system import Career
             entity.career = Career.from_dict(career_data)
+        
+        # 恢复牌库
+        card_library_data = data.get('card_library')
+        if card_library_data:
+            from player_card_library import PlayerCardLibrary
+            entity.card_library = PlayerCardLibrary(owner_name=entity.name)
+            entity.card_library.load_from_dict(card_library_data)
         
         return entity
     
@@ -1030,6 +1160,7 @@ class Card:
                             drawn_cards = random.sample(available_cards, actual_draw)
                             for card in drawn_cards:
                                 attacker.deck.remove(card)
+                                card.owner = attacker  # 设置卡牌所有者
                                 attacker.hand.append(card)
                             
                             results.append((f"{attacker}抽取了{actual_draw}张卡牌", 0, "success"))

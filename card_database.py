@@ -654,6 +654,28 @@ def create_player_character(career_type=None):
         inventory=inventory  # 传入背包
     )
     
+    # 初始化玩家牌库
+    from player_card_library import PlayerCardLibrary
+    player.card_library = PlayerCardLibrary(owner_name=player.name)
+    
+    # 将初始卡组中的卡牌添加到牌库（此时牌库包含所有获得的卡牌）
+    for card in deck:
+        player.card_library.add_card_to_library(card)
+    
+    # 将所有卡牌从牌库移动到卡组（这样牌库为空，卡组包含所有初始卡牌）
+    # 注意：add_card_to_deck使用pop()移动卡牌，不会复制
+    card_names = list(player.card_library.library.keys())
+    for card_name in card_names:
+        # 检查是否可以添加该卡牌到卡组
+        while (player.card_library.get_card_count_in_library(card_name) > 0 and 
+               player.card_library.can_add_to_deck(card_name)):
+            player.card_library.add_card_to_deck(card_name)
+    
+    # 设置玩家的卡组为牌库中的卡组引用
+    # 注意：这里我们将Entity的deck指向PlayerCardLibrary的deck
+    # 这样在战斗中使用的是牌库管理的卡组
+    player.deck = player.card_library.deck
+    
     return player
 
 

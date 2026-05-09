@@ -350,6 +350,7 @@ class InputHandler:
             
             # 如果是常驻卡牌，立即重新加入手牌并触发动画
             if is_permanent:
+                self.selected_card.owner = current_entity  # 设置卡牌所有者
                 current_entity.hand.append(self.selected_card)
                 # 触发上升动画
                 self.card_display.start_rising_animation(self.selected_card, duration=0.5)

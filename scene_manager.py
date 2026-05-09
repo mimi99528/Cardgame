@@ -12,8 +12,9 @@ from ui_scale import S
 class SceneView(arcade.View):
     """场景基类 - 所有游戏场景的父类"""
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, window=None):
+        # 关键修复：传递window参数给父类
+        super().__init__(window=window)
         self.window_width = 1920
         self.window_height = 1080
     
@@ -34,8 +35,8 @@ class SceneView(arcade.View):
 class BattleSceneView(SceneView):
     """战斗场景"""
     
-    def __init__(self, battle: BattleSystem):
-        super().__init__()
+    def __init__(self, battle: BattleSystem, window=None):
+        super().__init__(window=window)
         self.battle = battle
         
         # 导入原有组件
@@ -81,23 +82,28 @@ class BattleSceneView(SceneView):
         """Debug: 直接切换到叙事场景"""
         print("[DEBUG] 切换到叙事场景")
         from narrative_scene import NarrativeSceneView
-        narrative_scene = NarrativeSceneView(self.battle, "gate_guard_001")
+        narrative_scene = NarrativeSceneView(self.battle, "gate_guard_001", window=self.window)
         self.switch_to_scene(narrative_scene)
     
     def switch_to_narrative(self, node_id: str = "gate_guard_001"):
         """战斗胜利后切换到叙事场景"""
         from narrative_scene import NarrativeSceneView
-        narrative_scene = NarrativeSceneView(self.battle, node_id)
+        narrative_scene = NarrativeSceneView(self.battle, node_id, window=self.window)
         self.switch_to_scene(narrative_scene)
 
 
 class NarrativeSceneView(SceneView):
     """叙事场景（大地图场景的雏形）"""
     
-    def __init__(self, battle: BattleSystem, node_id: str):
-        super().__init__()
+    def __init__(self, battle: BattleSystem, node_id: str, window=None):
+        # 关键修复：确保在初始化前设置正确的窗口尺寸
+        super().__init__(window=window)
         self.battle = battle
         self.node_id = node_id
+        
+        print(f"[DEBUG] NarrativeSceneView 初始化")
+        print(f"[DEBUG] self.window = {self.window}")
+        print(f"[DEBUG] window_width = {self.window_width}, window_height = {self.window_height}")
         
         # 导入叙事系统
         from narrative_renderer import NarrativeSceneRenderer
@@ -105,9 +111,15 @@ class NarrativeSceneView(SceneView):
         from card_display import CardDisplay
         from ui_renderers import UIRenderer
         
-        self.ui_renderer = UIRenderer(self.window_width, self.window_height)
+        # 使用实际窗口尺寸初始化UI组件
+        actual_width = self.window.width if self.window else self.window_width
+        actual_height = self.window.height if self.window else self.window_height
+        
+        print(f"[DEBUG] 实际窗口尺寸: {actual_width} x {actual_height}")
+        
+        self.ui_renderer = UIRenderer(actual_width, actual_height)
         self.card_display = CardDisplay(self.ui_renderer)
-        self.narrative_renderer = NarrativeSceneRenderer(self.window_width, self.window_height)
+        self.narrative_renderer = NarrativeSceneRenderer(actual_width, actual_height)
         self.narrative_node_manager = NarrativeNodeManager()
         self.NarrativeResultEngine = NarrativeResultEngine
         
@@ -134,6 +146,9 @@ class NarrativeSceneView(SceneView):
     
     def on_draw(self):
         """绘制叙事场景（清屏效果：完全不绘制战斗UI）"""
+        print(f"[DEBUG] NarrativeSceneView.on_draw called")
+        print(f"[DEBUG] current_node: {self.current_node.title if self.current_node else None}")
+        
         self.clear()
         
         # 只绘制叙事场景，不绘制任何战斗相关UI
@@ -267,7 +282,7 @@ class NarrativeSceneView(SceneView):
         if next_node_id:
             print(f"[叙事] 跳转到下一节点: {next_node_id}")
             # 切换到下一节点（创建新的NarrativeSceneView）
-            new_narrative_scene = NarrativeSceneView(self.battle, next_node_id)
+            new_narrative_scene = NarrativeSceneView(self.battle, next_node_id, window=self.window)
             self.switch_to_scene(new_narrative_scene)
         else:
             print(f"[叙事] 叙事结束（无下一节点）")
@@ -300,8 +315,8 @@ class NarrativeSceneView(SceneView):
 class MapSceneView(SceneView):
     """大地图场景（预留，未来扩展）"""
     
-    def __init__(self, battle: BattleSystem):
-        super().__init__()
+    def __init__(self, battle: BattleSystem, window=None):
+        super().__init__(window=window)
         self.battle = battle
         print("[大地图] 场景已创建（功能开发中）")
     

@@ -1,0 +1,236 @@
+[
+  {
+    "node_id": "gate_guard_001",
+    "title": "城门护卫",
+    "description": "你们终于抵达了城门。塔拉多城巍峨的城墙在地上投出阴影，走近城门，守卫顿了一下手中的戟，厉声道：“特拉多城无通行许可不可入内！”，你们面面相觑，该怎么办呢？",
+    "scene_image": null,
+    "tags": ["城门", "守卫", "社交"],
+    "actions": [
+      {
+        "name": "贿赂",
+        "description": "这里是一点心意，还请您收下。",
+        "tags": ["贿赂", "社交", "魅力"],
+        "check_type": "魅力",
+        "difficulty": "中等",
+        "stat_ratios": {"cha": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "威胁",
+        "description": "要不要尝尝我沙包大的拳头！",
+        "tags": ["威胁", "战斗", "力量"],
+        "check_type": "力量",
+        "difficulty": "困难",
+        "stat_ratios": {"str": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "火焰箭",
+        "description": "将火焰箭射向旁边的草丛,并告诉护卫那里着火了,趁乱溜进去",
+        "tags": ["火焰箭", "法术", "环境互动", "火焰"],
+        "check_type": "复合",
+        "difficulty": "中等",
+        "stat_ratios": {"int": 0.5, "dex": 0.5},
+        "is_hidden": true,
+        "hidden_condition": "需要手牌中有带'火焰'标签的卡牌",
+        "required_tags": ["火焰"]
+      },
+      {
+        "name": "火球术",
+        "description": "用火球术轰击城门附近的草堆,制造大规模混乱",
+        "tags": ["火球术", "法术", "范围", "火焰"],
+        "check_type": "心智",
+        "difficulty": "困难",
+        "stat_ratios": {"int": 1.0},
+        "is_hidden": true,
+        "hidden_condition": "需要手牌中有带'火焰'标签的卡牌",
+        "required_tags": ["火焰"]
+      },
+      {
+        "name": "点火术",
+        "description": "点燃一根火把扔向草丛,制造小型火源吸引守卫注意",
+        "tags": ["点火", "法术", "环境互动", "火焰"],
+        "check_type": "敏捷",
+        "difficulty": "简单",
+        "stat_ratios": {"dex": 1.0},
+        "is_hidden": true,
+        "hidden_condition": "需要手牌中有带'火焰'标签的卡牌",
+        "required_tags": ["火焰"]
+      }
+    ],
+    "results_pool": {
+      "贿赂": [
+        {
+          "outcome_level": "大成功",
+          "text": "守卫眼睛一亮，迅速收下金币，低声说：'快进去，别让人看见。'你顺利进入城内，还获得了守卫的好感。",
+          "effects": [{"type": "gain_reputation", "value": 1}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "守卫掂量了一下金币的分量，点点头让开了道路。你顺利进入城内。",
+          "effects": []
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "守卫收了钱，但还是要求检查你们的行李。经过一番盘查后，你们才得以进入。",
+          "effects": [{"type": "lose_time", "value": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "守卫冷笑一声：'就这点钱？想贿赂我？'他大声呼救，引来了更多守卫。",
+          "effects": [{"type": "trigger_combat", "enemy": "city_guards"}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "守卫大怒：'竟敢贿赂本官！'他立即下令逮捕你们，整个城门都被封锁了。",
+          "effects": [{"type": "trigger_combat", "enemy": "city_guards_elite"}]
+        }
+      ],
+      "威胁": [
+        {
+          "outcome_level": "大成功",
+          "text": "你展现出强大的气势，守卫吓得脸色苍白，连忙让开道路，甚至不敢直视你。",
+          "effects": [{"type": "gain_fear_reputation", "value": 2}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "守卫犹豫了一下，最终还是选择明哲保身，让你们通过了。",
+          "effects": []
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "守卫虽然害怕，但还是坚持原则，要求你们出示证件。僵持片刻后，一位军官过来解围。",
+          "effects": [{"type": "delay_entry", "value": true}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "守卫被激怒了：'好大的胆子！'他吹响哨子，召集同伴准备战斗。",
+          "effects": [{"type": "trigger_combat", "enemy": "city_guards"}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你刚要动手，就被守卫一脚踢中膝盖，摔倒在地。其他守卫蜂拥而上，将你们制服。",
+          "effects": [{"type": "take_damage", "value": 5}, {"type": "trigger_combat", "enemy": "city_guards_elite"}]
+        }
+      ],
+      "火焰箭": [
+        {
+          "outcome_level": "大成功",
+          "text": "火焰箭精准地射中草丛，火势迅速蔓延。守卫们惊慌失措地去救火，你们趁机溜进城门，无人察觉。",
+          "effects": [{"type": "stealth_entry", "value": true}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "火焰箭点燃了草丛，守卫们的注意力被吸引过去。你们抓住机会快速通过城门。",
+          "effects": []
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "火焰箭射中了目标，但火势不够大。一名守卫发现了异常，但在你们解释前，火堆吸引了其他人的注意。",
+          "effects": [{"type": "suspicion_raised", "value": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "火焰箭偏离了目标，落在守卫脚边。他立刻警觉起来，拔出武器质问你们。",
+          "effects": [{"type": "trigger_combat", "enemy": "city_guards"}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "火焰箭意外击中了城门的油桶，引发剧烈爆炸！你和守卫都被卷入火海。",
+          "effects": [{"type": "take_damage", "value": 15}, {"type": "trigger_combat", "enemy": "city_guards_elite"}]
+        }
+      ],
+      "火球术": [
+        {
+          "outcome_level": "大成功",
+          "text": "巨大的火球在城门旁爆炸，火光冲天。所有守卫都被吸引过去救火，你们大摇大摆地走进城门。",
+          "effects": [{"type": "stealth_entry", "value": true}, {"type": "gain_reputation", "value": 1}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "火球术成功点燃了一片区域，守卫们忙于灭火。你们趁机快速通过。",
+          "effects": []
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "火球术威力不足，只点燃了几处小火。一名守卫起疑，但被同伴叫去帮忙灭火。",
+          "effects": [{"type": "suspicion_raised", "value": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "火球术偏离目标，落在了城墙上。守卫们立刻警觉，封锁了城门。",
+          "effects": [{"type": "trigger_combat", "enemy": "city_guards"}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "火球术失控反弹，差点击中你自己！守卫们大笑并立即逮捕了你们。",
+          "effects": [{"type": "take_damage", "value": 10}, {"type": "trigger_combat", "enemy": "city_guards_elite"}]
+        }
+      ],
+      "点火术": [
+        {
+          "outcome_level": "大成功",
+          "text": "你点燃的火把在空中划出完美的弧线，落在草丛中迅速燃烧。守卫们以为发生了意外，纷纷跑去查看。",
+          "effects": [{"type": "stealth_entry", "value": true}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "火把成功点燃了草丛，吸引了守卫的注意力。你们趁机溜了进去。",
+          "effects": []
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "火把点燃了，但火光不够明显。守卫瞥了一眼，但没有太在意。你们得以通过。",
+          "effects": [{"type": "suspicion_raised", "value": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "火把脱手，掉在了你自己脚边。守卫们注意到你们的可疑行为。",
+          "effects": [{"type": "trigger_combat", "enemy": "city_guards"}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你试图点火时不小心点燃了自己的衣服！在慌乱中被守卫制服。",
+          "effects": [{"type": "take_damage", "value": 5}, {"type": "trigger_combat", "enemy": "city_guards"}]
+        }
+      ],
+      "火焰": [
+        {
+          "outcome_level": "大成功",
+          "text": "你的火焰法术完美生效，火势迅速蔓延。守卫们惊慌失措地去救火，你们趁机溜进城门，无人察觉。",
+          "effects": [{"type": "stealth_entry", "value": true}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "火焰法术成功点燃了目标区域，守卫们的注意力被吸引过去。你们抓住机会快速通过城门。",
+          "effects": []
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "火焰法术生效了，但效果不够理想。一名守卫发现了异常，但在你们解释前，火堆吸引了其他人的注意。",
+          "effects": [{"type": "suspicion_raised", "value": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "火焰法术偏离了目标，落在守卫脚边。他立刻警觉起来，拔出武器质问你们。",
+          "effects": [{"type": "trigger_combat", "enemy": "city_guards"}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "火焰法术失控反弹，差点击中你自己！守卫们立即逮捕了你们。",
+          "effects": [{"type": "take_damage", "value": 10}, {"type": "trigger_combat", "enemy": "city_guards_elite"}]
+        }
+      ]
+    },
+    "next_nodes": {
+      "大成功": "city_interior_001",
+      "成功": "city_interior_001",
+      "半成功": "city_gate_delayed",
+      "失败": "combat_city_guards",
+      "大失败": "combat_city_guards_elite"
+    },
+    "is_end_node": false
+  }
+]
