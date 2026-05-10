@@ -49,7 +49,7 @@ class BattleLootSystem:
                 else:
                     loot["equipments"].append(item_or_equip)
         
-        # 2. 随机掉落卡牌（必定掉落1-3张）
+        # 2. 随机掉落卡牌（必定掉落3张）
         card_count = 3
         for _ in range(card_count):
             dropped_card = self._generate_card_drop(defeated_enemy)
