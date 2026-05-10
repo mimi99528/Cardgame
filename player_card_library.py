@@ -102,19 +102,20 @@ class PlayerCardLibrary:
             print(f"[DEBUG] 添加失败：卡组已满（{len(self.deck)}/28）")
             return False
         
-        # 检查同名卡牌数量限制
+        # 从牌库获取卡牌
+        if card_name not in self.library or len(self.library[card_name]) <= index:
+            print(f"[DEBUG] 添加失败：牌库中没有该卡牌（{card_name}，当前库存: {self.get_card_count_in_library(card_name)}）")
+            return False
+        
+        # 关键修复：在移动卡牌之前先计算卡组中的数量
+        # 因为 add_card_to_deck 是从牌库 pop 到卡组，所以 deck 计数会逐渐增加
         card_count_in_deck = sum(1 for c in self.deck if c.name == card_name)
         max_count = self._get_max_card_count_by_name(card_name)
         
-        print(f"[DEBUG] 卡组中同名卡牌数量: {card_count_in_deck}/{max_count}")
+        print(f"[DEBUG] 准备移动前 - 卡组中已有: {card_count_in_deck}/{max_count}")
         
         if card_count_in_deck >= max_count:
             print(f"[DEBUG] 添加失败：同名卡牌已达上限")
-            return False
-        
-        # 从牌库获取卡牌
-        if card_name not in self.library or len(self.library[card_name]) <= index:
-            print(f"[DEBUG] 添加失败：牌库中没有该卡牌（{card_name}）")
             return False
         
         # 从牌库中移除卡牌（移动，不是复制）
@@ -250,13 +251,18 @@ class PlayerCardLibrary:
         Returns:
             最大数量限制
         """
-        # 从牌库中获取卡牌以确定稀有度
+        # 首先尝试从牌库中获取卡牌以确定稀有度
         if card_name in self.library and len(self.library[card_name]) > 0:
             card = self.library[card_name][0]
             rarity = card.rarity
         else:
-            # 默认使用普通卡牌的限制
-            return 3
+            # 如果牌库中没有，从卡组中查找
+            card_in_deck = next((c for c in self.deck if c.name == card_name), None)
+            if card_in_deck:
+                rarity = card_in_deck.rarity
+            else:
+                # 真的找不到才默认返回3（普通卡）
+                return 3
         
         # 四种稀有度的上限：普通3/优秀2/稀有2/传说1
         max_counts = {

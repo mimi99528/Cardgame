@@ -977,7 +977,8 @@ class CharacterCreationView(arcade.View):
         # 注意：add_card_to_deck使用pop()移动卡牌，不会复制
         card_names = list(player.card_library.library.keys())
         for card_name in card_names:
-            while player.card_library.get_card_count_in_library(card_name) > 0:
+            while (player.card_library.get_card_count_in_library(card_name) > 0 and 
+                   player.card_library.can_add_to_deck(card_name)):
                 player.card_library.add_card_to_deck(card_name)
         
         # 设置玩家的卡组为牌库中的卡组引用

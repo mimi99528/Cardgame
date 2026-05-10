@@ -672,17 +672,15 @@ class CardView(arcade.View):
         if not self.current_narrative_node:
             return
         
-        # 检查卡牌是否有叙事动作
-        if hasattr(card, 'narrative_actions') and card.narrative_actions:
-            for action_data in card.narrative_actions:
-                action_name = action_data.get('name', '')
-                
-                # 检查节点中是否有同名动作
-                action = self.current_narrative_node.get_action_by_name(action_name)
-                if action and action.is_hidden:
-                    # 揭示隐藏动作
-                    self.narrative_renderer.reveal_hidden_action(action_name)
-                    print(f"[叙事] 揭示隐藏动作: {action_name}")
+        # 检查卡牌是否有叙事动作（通过卡牌的 tags 来匹配节点的 required_tags）
+        for action in self.current_narrative_node.actions:
+            if action.is_hidden and action.name not in self.narrative_renderer.revealed_hidden_actions:
+                # 获取卡牌的标签值列表
+                card_tag_values = [t.value if hasattr(t, 'value') else str(t) for t in card.tags]
+                # 检查卡牌标签是否匹配隐藏动作所需的标签
+                if any(req_tag in card_tag_values for req_tag in action.required_tags):
+                    self.narrative_renderer.reveal_hidden_action(action.name)
+                    print(f"[叙事] 揭示隐藏动作: {action.name}")
                     
                     # 显示提示
                     self.battle.battle_log.add(f"揭示了隐藏选项: {action_name}", level=0)

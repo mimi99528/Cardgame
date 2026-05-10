@@ -997,12 +997,18 @@ class CardDisplay:
         drag_width = S.px(CONSTANTS.CARD_WIDTH) * 0.6  # 60% 大小
         drag_height = S.py(CONSTANTS.CARD_HEIGHT) * 0.6
         
-        # 卡牌背景（使用稀有度颜色）
+        # 卡牌背景（使用稀有度颜色，增加透明度以便观察下方射程）
         rarity_color = RARITY_COLORS.get(card.rarity, arcade.color.WHITE)
+        # 将 RGB 转换为 RGBA 并设置透明度为 150 (约 60% 透明度)
+        if len(rarity_color) == 3:
+            drag_bg_color = (*rarity_color, 150)
+        else:
+            drag_bg_color = rarity_color
+            
         arcade.draw_lrbt_rectangle_filled(
             x - drag_width / 2, x + drag_width / 2,
             y - drag_height / 2, y + drag_height / 2,
-            rarity_color
+            drag_bg_color
         )
         
         # 卡牌边框

@@ -58,6 +58,8 @@ class TileMap:
             'obstacle': (105, 105, 105),      # 灰色（障碍物）
             'path': (255, 215, 0),            # 金色（路径）
             'move_range': (100, 149, 237),    # 矢车菊蓝（移动范围）
+            'attack_range': (255, 165, 0, 100), # 橙色半透明（攻击范围）
+            'attack_distance': (255, 0, 0, 80), # 红色半透明（射程范围）
         }
         
         # 初始化地图
@@ -299,6 +301,60 @@ class TileMap:
         pixel_y = grid_y * self.tile_size + self.tile_size / 2
         return pixel_x, pixel_y
     
+    def highlight_attack_range_preview(self, center_x: int, center_y: int, attack_distance: int, attack_range_config: dict, hover_x: int = None, hover_y: int = None):
+        """
+        高亮显示攻击范围预览（用于拖动或点击卡牌时）
+        
+        Args:
+            center_x: 使用者中心点x坐标
+            center_y: 使用者中心点y坐标
+            attack_distance: 攻击距离（射程）
+            attack_range_config: 攻击范围形状配置字典
+            hover_x: 鼠标悬停的x坐标（可选）
+            hover_y: 鼠标悬停的y坐标（可选）
+        """
+        # 先重置所有高亮
+        self.reset_highlights()
+        
+        # 1. 高亮射程范围（红色半透明阴影）- 以使用者为中心的圆形区域
+        for y in range(self.height):
+            for x in range(self.width):
+                distance = abs(x - center_x) + abs(y - center_y)
+                if distance <= attack_distance and distance > 0:
+                    tile = self.get_tile(x, y)
+                    if tile:
+                        tile.color = self.colors['attack_distance']
+        
+        # 2. 如果提供了悬停位置，且该位置在射程内，则显示橙色攻击波及范围
+        if hover_x is not None and hover_y is not None:
+            dist_to_hover = abs(hover_x - center_x) + abs(hover_y - center_y)
+            if dist_to_hover <= attack_distance:
+                range_type = attack_range_config.get("type", "circle")
+                
+                if range_type == "circle":
+                    radius = attack_range_config.get("radius", 1)
+                    self._highlight_circle_range_overlay(hover_x, hover_y, radius)
+                elif range_type == "line":
+                    direction = attack_range_config.get("direction", "forward")
+                    length = attack_range_config.get("length", 3)
+                    # 简化：假设直线是相对于使用者方向的，这里简单地在悬停点显示一个点
+                    # 实际游戏中可能需要根据方向计算具体的直线格子
+                    self._highlight_circle_range_overlay(hover_x, hover_y, 0)
+                else:
+                    # 其他类型暂时只显示悬停点本身
+                    self._highlight_circle_range_overlay(hover_x, hover_y, 0)
+
+    def _highlight_circle_range_overlay(self, center_x: int, center_y: int, radius: int):
+        """高亮圆形攻击范围（叠加层，不重置其他高亮）"""
+        for y in range(self.height):
+            for x in range(self.width):
+                distance = abs(x - center_x) + abs(y - center_y)
+                if distance <= radius:
+                    tile = self.get_tile(x, y)
+                    if tile:
+                        # 使用橙色叠加，如果已经是红色射程，则混合显示
+                        tile.color = self.colors['attack_range']
+
     def highlight_range(self, center_x: int, center_y: int, max_distance: int):
         """高亮显示范围内的瓦片（圆形范围）"""
         # 高亮显示范围内的瓦片

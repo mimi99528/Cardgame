@@ -26,6 +26,18 @@ class HitDiceRecoveryView(arcade.View):
         # 选择的骰子数量（初始为0）
         self.selected_dice = 0
         
+        # 滑动条相关
+        self.slider_rect = None  # (x, y, width, height)
+        self.slider_thumb_x = 0  # 滑块当前位置
+        self.is_dragging_slider = False  # 是否正在拖动滑块
+        
+        # 输入框相关
+        self.input_rect = None  # (x, y, width, height)
+        self.input_text = "0"  # 输入框文本
+        self.is_input_active = False  # 输入框是否激活
+        self.input_cursor_visible = True  # 光标是否可见
+        self.input_cursor_timer = 0  # 光标闪烁计时器
+        
         # 按钮区域
         self.confirm_button_rect = None
         self.dice_buttons = []  # [(x, y, width, height, dice_count), ...]
@@ -33,31 +45,75 @@ class HitDiceRecoveryView(arcade.View):
         # 计算面板位置
         self._calculate_panel_position()
     
+    def _update_slider_position(self):
+        """根据 selected_dice 更新滑块位置"""
+        if not self.slider_rect or self.max_dice == 0:
+            return
+        
+        slider_x, slider_y, slider_width, slider_height = self.slider_rect
+        # 计算滑块位置（0到max_dice之间）
+        ratio = self.selected_dice / self.max_dice if self.max_dice > 0 else 0
+        self.slider_thumb_x = slider_x + ratio * slider_width
+    
+    def _update_selected_dice_from_slider(self, mouse_x: float):
+        """根据鼠标位置更新选中的骰子数量"""
+        if not self.slider_rect or self.max_dice == 0:
+            return
+        
+        slider_x, slider_y, slider_width, slider_height = self.slider_rect
+        # 限制鼠标位置在滑动条范围内
+        clamped_x = max(slider_x, min(mouse_x, slider_x + slider_width))
+        # 计算比例并转换为整数
+        ratio = (clamped_x - slider_x) / slider_width
+        new_dice = round(ratio * self.max_dice)
+        
+        if new_dice != self.selected_dice:
+            self.selected_dice = new_dice
+            self.input_text = str(self.selected_dice)
+            self._update_slider_position()
+    
+    def _validate_input(self):
+        """验证并应用输入框的值"""
+        try:
+            value = int(self.input_text)
+            # 限制在有效范围内
+            value = max(0, min(value, self.max_dice))
+            self.selected_dice = value
+            self._update_slider_position()
+        except ValueError:
+            # 如果输入无效，恢复为当前选中的值
+            self.input_text = str(self.selected_dice)
+    
     def _calculate_panel_position(self):
-        """计算面板位置"""
         # 面板尺寸
         self.panel_width = S.px(600)
-        self.panel_height = S.py(400)
+        self.panel_height = S.py(450)  # 增加高度以容纳滑动条和输入框
         
         # 居中显示
         self.panel_x = (self.window_width - self.panel_width) // 2
         self.panel_y = (self.window_height - self.panel_height) // 2
         
-        # 按钮区域
-        button_y = self.panel_y + S.py(80)
-        button_spacing = S.px(120)
-        start_x = self.panel_x + (self.panel_width - (5 * button_spacing)) // 2
-        
-        # 创建0-5个骰子的按钮（最多等级数，但不超过5个以便显示）
+        # 获取当前实体信息
         current_entity = self.recovery_queue[self.current_index]['entity']
-        max_dice = min(current_entity.level, 5)
+        max_dice = min(current_entity.current_hit_dice, current_entity.level)
+        self.max_dice = max_dice  # 保存最大值供其他方法使用
         
-        self.dice_buttons.clear()
-        for i in range(max_dice + 1):  # 0到max_dice
-            x = start_x + i * button_spacing
-            width = S.px(100)
-            height = S.py(60)
-            self.dice_buttons.append((x, button_y, width, height, i))
+        # 滑动条区域（在提示文本下方）
+        slider_y = self.panel_y + S.py(140)
+        slider_width = S.px(400)
+        slider_height = S.py(30)
+        slider_x = self.panel_x + (self.panel_width - slider_width) // 2
+        self.slider_rect = (slider_x, slider_y, slider_width, slider_height)
+        
+        # 初始化滑块位置
+        self._update_slider_position()
+        
+        # 输入框区域（在滑动条右侧）
+        input_width = S.px(80)
+        input_height = S.py(35)
+        input_x = slider_x + slider_width + S.px(20)
+        input_y = slider_y
+        self.input_rect = (input_x, input_y, input_width, input_height)
         
         # 确定按钮
         confirm_width = S.px(150)
@@ -149,36 +205,114 @@ class HitDiceRecoveryView(arcade.View):
             anchor_y="center"
         )
         
-        # 绘制骰子选择按钮
-        for x, y, width, height, dice_count in self.dice_buttons:
-            # 根据是否选中设置颜色
-            if dice_count == self.selected_dice:
-                button_color = (100, 150, 255, 200)  # 选中状态
+        # 绘制滑动条背景
+        if self.slider_rect:
+            slider_x, slider_y, slider_width, slider_height = self.slider_rect
+            # 背景轨道
+            arcade.draw_lrbt_rectangle_filled(
+                slider_x, slider_x + slider_width,
+                slider_y, slider_y + slider_height,
+                (80, 80, 100, 200)
+            )
+            arcade.draw_lrbt_rectangle_outline(
+                slider_x, slider_x + slider_width,
+                slider_y, slider_y + slider_height,
+                arcade.color.WHITE,
+                border_width=2
+            )
+            
+            # 已填充部分
+            if self.selected_dice > 0 and self.max_dice > 0:
+                fill_ratio = self.selected_dice / self.max_dice
+                fill_width = slider_width * fill_ratio
+                arcade.draw_lrbt_rectangle_filled(
+                    slider_x, slider_x + fill_width,
+                    slider_y, slider_y + slider_height,
+                    (100, 150, 255, 200)
+                )
+            
+            # 滑块
+            thumb_size = S.py(35)
+            thumb_x = self.slider_thumb_x - thumb_size // 2
+            arcade.draw_lrbt_rectangle_filled(
+                thumb_x, thumb_x + thumb_size,
+                slider_y - S.py(5), slider_y + slider_height + S.py(5),
+                (150, 200, 255, 230)
+            )
+            arcade.draw_lrbt_rectangle_outline(
+                thumb_x, thumb_x + thumb_size,
+                slider_y - S.py(5), slider_y + slider_height + S.py(5),
+                arcade.color.WHITE,
+                border_width=2
+            )
+            
+            # 最小值和最大值标签
+            arcade.draw_text(
+                "0",
+                slider_x, slider_y - S.py(25),
+                arcade.color.GRAY,
+                S.font(14),
+                anchor_x="center",
+                anchor_y="center"
+            )
+            arcade.draw_text(
+                str(self.max_dice),
+                slider_x + slider_width, slider_y - S.py(25),
+                arcade.color.GRAY,
+                S.font(14),
+                anchor_x="center",
+                anchor_y="center"
+            )
+        
+        # 绘制输入框
+        if self.input_rect:
+            input_x, input_y, input_width, input_height = self.input_rect
+            
+            # 输入框背景
+            if self.is_input_active:
+                input_color = (60, 60, 100, 220)
                 border_color = arcade.color.YELLOW
             else:
-                button_color = (60, 60, 80, 200)  # 未选中状态
+                input_color = (50, 50, 70, 200)
                 border_color = arcade.color.WHITE
             
-            # 绘制按钮背景
-            arcade.draw_lrbt_rectangle_filled(x, x + width, y, y + height, button_color)
+            arcade.draw_lrbt_rectangle_filled(
+                input_x, input_x + input_width,
+                input_y, input_y + input_height,
+                input_color
+            )
+            arcade.draw_lrbt_rectangle_outline(
+                input_x, input_x + input_width,
+                input_y, input_y + input_height,
+                border_color,
+                border_width=2
+            )
             
-            # 绘制按钮边框
-            arcade.draw_lrbt_rectangle_outline(x, x + width, y, y + height, border_color, border_width=2)
-            
-            # 绘制按钮文字
-            if dice_count == 0:
-                label = "跳过"
-            else:
-                label = f"{dice_count}个"
+            # 输入框文字
+            display_text = self.input_text
+            if self.is_input_active and self.input_cursor_visible:
+                display_text += "|"  # 显示光标
             
             arcade.draw_text(
-                label,
-                x + width // 2, y + height // 2,
+                display_text,
+                input_x + input_width // 2,
+                input_y + input_height // 2,
                 arcade.color.WHITE,
-                S.font(18),
+                S.font(20),
                 anchor_x="center",
                 anchor_y="center",
                 bold=True
+            )
+            
+            # 输入框标签
+            arcade.draw_text(
+                "数量",
+                input_x + input_width // 2,
+                input_y + input_height + S.py(15),
+                arcade.color.GRAY,
+                S.font(14),
+                anchor_x="center",
+                anchor_y="center"
             )
         
         # 绘制预计回血量（如果选择了骰子）
@@ -243,12 +377,33 @@ class HitDiceRecoveryView(arcade.View):
         if button != arcade.MOUSE_BUTTON_LEFT:
             return
         
-        # 检查是否点击了骰子选择按钮
-        for btn_x, btn_y, btn_width, btn_height, dice_count in self.dice_buttons:
-            if (btn_x <= x <= btn_x + btn_width and 
-                btn_y <= y <= btn_y + btn_height):
-                self.selected_dice = dice_count
+        # 检查是否点击了滑动条
+        if self.slider_rect:
+            slider_x, slider_y, slider_width, slider_height = self.slider_rect
+            # 扩大点击区域以便于点击
+            expand = S.py(10)
+            if (slider_x - expand <= x <= slider_x + slider_width + expand and 
+                slider_y - expand <= y <= slider_y + slider_height + expand):
+                self.is_dragging_slider = True
+                self._update_selected_dice_from_slider(x)
                 return
+        
+        # 检查是否点击了输入框
+        if self.input_rect:
+            input_x, input_y, input_width, input_height = self.input_rect
+            if (input_x <= x <= input_x + input_width and 
+                input_y <= y <= input_y + input_height):
+                self.is_input_active = True
+                self.input_cursor_visible = True
+                self.input_cursor_timer = 0
+                # 全选文本
+                self.input_text = str(self.selected_dice)
+                return
+        
+        # 点击其他地方取消输入框激活
+        if self.is_input_active:
+            self._validate_input()
+            self.is_input_active = False
         
         # 检查是否点击了确定按钮
         confirm_x, confirm_y, confirm_width, confirm_height = self.confirm_button_rect
@@ -279,13 +434,57 @@ class HitDiceRecoveryView(arcade.View):
         if self.current_index >= len(self.recovery_queue):
             # 所有实体处理完毕，返回游戏视图
             self.on_complete()
-            window = arcade.get_window()
-            if hasattr(window, '_game_view') and window._game_view:
-                window.show_view(window._game_view)
+            # on_complete() 回调已经处理了视图切换（调用 _show_deck_edit()），无需再次 show_view
         else:
             # 重置选择，处理下一个实体
             self.selected_dice = 0
             self._calculate_panel_position()
+    
+    def on_mouse_drag(self, x: float, y: float, dx: float, dy: float, buttons: int, modifiers: int):
+        """鼠标拖动事件"""
+        if self.is_dragging_slider:
+            self._update_selected_dice_from_slider(x)
+    
+    def on_mouse_release(self, x: float, y: float, button: int, modifiers: int):
+        """鼠标释放事件"""
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            self.is_dragging_slider = False
+    
+    def on_key_press(self, key: int, modifiers: int):
+        """键盘按下事件"""
+        if self.is_input_active:
+            if key == arcade.key.ENTER:
+                # 确认输入
+                self._validate_input()
+                self.is_input_active = False
+            elif key == arcade.key.ESCAPE:
+                # 取消输入
+                self.input_text = str(self.selected_dice)
+                self.is_input_active = False
+            elif key == arcade.key.BACKSPACE:
+                # 删除最后一个字符
+                if self.input_text:
+                    self.input_text = self.input_text[:-1]
+            # 数字键处理在 on_text 中处理
+    
+    def on_text(self, text: str):
+        """文本输入事件"""
+        if self.is_input_active:
+            # 只允许数字
+            if text.isdigit():
+                self.input_text += text
+                # 限制最大长度
+                if len(self.input_text) > 3:
+                    self.input_text = self.input_text[:3]
+    
+    def on_update(self, delta_time: float):
+        """更新逻辑"""
+        # 光标闪烁
+        if self.is_input_active:
+            self.input_cursor_timer += delta_time
+            if self.input_cursor_timer > 0.5:  # 每0.5秒切换一次
+                self.input_cursor_visible = not self.input_cursor_visible
+                self.input_cursor_timer = 0
     
     def on_resize(self, width: int, height: int):
         """窗口尺寸变化时更新"""

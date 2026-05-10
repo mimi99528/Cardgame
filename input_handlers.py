@@ -78,6 +78,25 @@ class InputHandler:
         if not self.drag_mode:
             self.card_display.check_hover(x, y)
         
+        # 如果在拖动卡牌模式，动态更新攻击范围预览
+        if self.drag_mode and self.dragged_card_for_target:
+            current_entity = self.battle.current_entity
+            if current_entity and window_width and window_height:
+                grid_x, grid_y = self.tile_map.screen_to_grid(x, y, window_width, window_height)
+                attack_distance = self._get_card_range(self.dragged_card_for_target)
+                attack_range_shape = self.battle.get_card_attack_range_shape(self.dragged_card_for_target)
+                
+                # 重新高亮显示，传入当前的悬停坐标
+                self.tile_map.highlight_attack_range_preview(
+                    current_entity.position[0],
+                    current_entity.position[1],
+                    attack_distance,
+                    attack_range_shape,
+                    hover_x=grid_x,
+                    hover_y=grid_y
+                )
+            return
+
         # 如果在移动卡牌模式，显示路径
         if self.movement_mode and self.current_move_path:
             # 使用相机系统转换坐标
@@ -206,6 +225,18 @@ class InputHandler:
                 self.card_display.start_drag(x, y)
                 self.drag_mode = True
                 self.dragged_card_for_target = card_clicked
+                
+                # 显示攻击范围预览（初始状态，不显示橙色波及范围）
+                if current_entity:
+                    attack_distance = self._get_card_range(card_clicked)
+                    attack_range_shape = self.battle.get_card_attack_range_shape(card_clicked)
+                    self.tile_map.highlight_attack_range_preview(
+                        current_entity.position[0],
+                        current_entity.position[1],
+                        attack_distance,
+                        attack_range_shape
+                    )
+                
                 print(f"开始拖动卡牌: {card_clicked.name}，拖动到目标位置释放")
             else:
                 # 其他卡牌正常点击处理
@@ -274,12 +305,14 @@ class InputHandler:
         else:
             # 其他目标类型，进入目标选择模式
             # 获取攻击范围形状配置
+            attack_distance = self._get_card_range(card)
             attack_range_shape = self.battle.get_card_attack_range_shape(card)
             
-            # 使用新的高亮方法显示攻击范围
-            self.tile_map.highlight_attack_range(
+            # 使用新的高亮方法显示攻击范围预览（红色射程 + 橙色攻击范围）
+            self.tile_map.highlight_attack_range_preview(
                 current_entity.position[0], 
                 current_entity.position[1], 
+                attack_distance,
                 attack_range_shape
             )
             self.target_selection_mode = True
@@ -437,6 +470,7 @@ class InputHandler:
         # 清除拖动状态
         self.drag_mode = False
         self.dragged_card_for_target = None
+        self.tile_map.reset_highlights()
     
     def _handle_tile_click(self, x: float, y: float, map_offset_x: float, 
                           map_offset_y: float, current_entity: Entity,

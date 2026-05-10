@@ -169,23 +169,21 @@ class DiceCheck:
         if self.check_advantage:
             # 解析dlX表达式
             drop_count = int(self.check_advantage[2:]) if len(self.check_advantage) > 2 else 1
+            # 取优势：掷3个骰子，去掉最低的drop_count个，保留较高的
+            dice_results = roll_dice(2 + drop_count, 10)
             if drop_count > 0 and len(dice_results) > drop_count:
                 # dl: 去掉最低值，保留较高的
                 dice_results.sort(reverse=True)  # 降序排序
                 dice_results = dice_results[:len(dice_results) - drop_count]
-                # 补充骰子到2个（因为去掉了1个）
-                while len(dice_results) < 2:
-                    dice_results.append(random.randint(1, 10))
         elif self.check_disadvantage:
             # 解析dhX表达式
             drop_count = int(self.check_disadvantage[2:]) if len(self.check_disadvantage) > 2 else 1
+            # 取劣势：掷3个骰子，去掉最高的drop_count个，保留较低的
+            dice_results = roll_dice(2 + drop_count, 10)
             if drop_count > 0 and len(dice_results) > drop_count:
                 # dh: 去掉最高值，保留较低的
                 dice_results.sort()  # 升序排序
                 dice_results = dice_results[:len(dice_results) - drop_count]
-                # 补充骰子到2个（因为去掉了1个）
-                while len(dice_results) < 2:
-                    dice_results.append(random.randint(1, 10))
         
         total = sum(dice_results)
         final_result = total + self.modifier
