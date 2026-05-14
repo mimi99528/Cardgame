@@ -471,11 +471,19 @@ class DeckEditView(arcade.View):
         )
     
     def _draw_current_deck(self):
-        """绘制右侧当前卡组区域"""
+        """绘制右侧当前卡组区域（排除装备卡牌）"""
         # 标题
         deck_title_y = self.window.height - S.py(120)
+        
+        # 过滤掉装备卡牌
+        from config import CardTag
+        non_equipment_deck = [
+            card for card in self.player.deck
+            if CardTag.EQUIPMENT_GRANTED not in getattr(card, 'tags', [])
+        ]
+        
         arcade.draw_text(
-            f"当前卡组 ({len(self.player.deck)}张)",
+            f"当前卡组 ({len(non_equipment_deck)}张)",
             self.right_panel_x + S.px(20),
             deck_title_y,
             arcade.color.LIGHT_GREEN,
@@ -491,10 +499,10 @@ class DeckEditView(arcade.View):
         
         # 考虑滚动
         visible_start = max(0, self.deck_scroll_offset)
-        visible_end = min(len(self.player.deck), visible_start + 12)  # 最多显示12张
+        visible_end = min(len(non_equipment_deck), visible_start + 12)  # 最多显示12张
         
         for i in range(visible_start, visible_end):
-            card = self.player.deck[i]
+            card = non_equipment_deck[i]
             card_y = start_y - (i - visible_start) * card_spacing_y
             
             # 检查是否悬停 - 修复索引计算
@@ -833,12 +841,19 @@ class DeckEditView(arcade.View):
         return expected
     
     def _draw_deck_stats(self):
-        """绘制卡组统计信息"""
+        """绘制卡组统计信息（排除装备卡牌）"""
         stats_x = self.right_panel_x + S.px(20)
         stats_y = S.py(80)
         
+        # 过滤掉装备卡牌
+        from config import CardTag
+        non_equipment_deck = [
+            card for card in self.player.deck
+            if CardTag.EQUIPMENT_GRANTED not in getattr(card, 'tags', [])
+        ]
+        
         # 卡组大小提示（编辑时不显示警告，只在退出时验证）
-        deck_size = len(self.player.deck)
+        deck_size = len(non_equipment_deck)
         min_size = 12
         max_size = 28
         
@@ -858,7 +873,7 @@ class DeckEditView(arcade.View):
         
         # 稀有度分布
         rarity_counts = {0: 0, 1: 0, 2: 0, 3: 0}
-        for card in self.player.deck:
+        for card in non_equipment_deck:
             if card.rarity.value in rarity_counts:
                 rarity_counts[card.rarity.value] += 1
         
@@ -881,14 +896,20 @@ class DeckEditView(arcade.View):
             )
     
     def _get_all_available_cards(self) -> List[Card]:
-        """获取所有可用卡牌（从玩家的牌库）"""
+        """获取所有可用卡牌（从玩家的牌库，排除装备卡牌）"""
         # 优先使用玩家的牌库系统
         if hasattr(self.player, 'card_library') and self.player.card_library:
             # 只获取牌库中实际存在的卡牌（排除已达上限的）
             available_cards = self.player.card_library.get_available_cards_for_deck()
             if available_cards:  # 如果牌库中有可用卡牌，直接返回
-                print(f"[DEBUG] 从牌库获取 {len(available_cards)} 张可用卡牌")
-                return available_cards
+                # 过滤掉装备提供的卡牌（带有“赋予”标签的卡牌）
+                from config import CardTag
+                filtered_cards = [
+                    card for card in available_cards
+                    if CardTag.EQUIPMENT_GRANTED not in getattr(card, 'tags', [])
+                ]
+                print(f"[DEBUG] 从牌库获取 {len(available_cards)} 张可用卡牌，过滤后 {len(filtered_cards)} 张（排除装备卡牌）")
+                return filtered_cards
             else:
                 print(f"[DEBUG] 牌库中没有可用卡牌")
                 return []
@@ -1042,13 +1063,24 @@ class DeckEditView(arcade.View):
         
         # 点击卡组中的卡牌 - 删除并返回牌库
         elif self.hovered_deck_card_index >= 0:
+            # 过滤掉装备卡牌
+            from config import CardTag
+            non_equipment_deck = [
+                card for card in self.player.deck
+                if CardTag.EQUIPMENT_GRANTED not in getattr(card, 'tags', [])
+            ]
+            
             visible_start = max(0, self.deck_scroll_offset)
             actual_index = visible_start + self.hovered_deck_card_index
             
-            if actual_index < len(self.player.deck):
+            if actual_index < len(non_equipment_deck):
+                # 找到原始卡组中的实际索引
+                card_to_remove = non_equipment_deck[actual_index]
+                original_index = self.player.deck.index(card_to_remove)
+                
                 # 如果玩家有牌库系统，使用牌库的方法删除
                 if hasattr(self.player, 'card_library') and self.player.card_library:
-                    removed_card = self.player.card_library.remove_card_from_deck(actual_index)
+                    removed_card = self.player.card_library.remove_card_from_deck(original_index)
                     if removed_card:
                         self._update_deck_card_counts()
                         self._update_card_sprites()
@@ -1058,7 +1090,7 @@ class DeckEditView(arcade.View):
                         print("无法删除卡牌（索引无效）")
                 else:
                     # 原有逻辑（向后兼容）
-                    removed_card = self.player.deck.pop(actual_index)
+                    removed_card = self.player.deck.pop(original_index)
                     self._update_deck_card_counts()
                     self._update_card_sprites()
                     print(f"已删除卡牌: {removed_card.name}")
@@ -1105,8 +1137,24 @@ class DeckEditView(arcade.View):
         """键盘事件"""
         if key == arcade.key.ESCAPE:
             # 退出编辑前验证卡组
+            from config import CardTag
+            
+            print(f"\n[DEBUG] ESC按下，开始验证卡组")
+            print(f"[DEBUG] 当前卡组大小: {len(self.player.deck)}")
+            
+            # 过滤掉装备提供的卡牌
+            non_equipment_deck = [
+                card for card in self.player.deck
+                if CardTag.EQUIPMENT_GRANTED not in getattr(card, 'tags', [])
+            ]
+            
+            print(f"[DEBUG] 非装备卡组大小: {len(non_equipment_deck)}")
+            print(f"[DEBUG] 非装备卡组列表: {[c.name for c in non_equipment_deck]}")
+            
             if hasattr(self.player, 'card_library') and self.player.card_library:
                 is_valid, errors = self.player.card_library.validate_deck_for_battle()
+                
+                print(f"[DEBUG] 验证结果: is_valid={is_valid}, errors={errors}")
                 
                 if not is_valid:
                     print(f"\n[WARNING] 卡组验证失败：")

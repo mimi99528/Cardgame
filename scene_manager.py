@@ -7,6 +7,8 @@ from typing import Optional
 from battle_system import BattleSystem
 from tile_map import TileMap
 from ui_scale import S
+from map_system import MapSystem
+from map_view import MapView
 
 
 class SceneView(arcade.View):
@@ -35,14 +37,42 @@ class SceneView(arcade.View):
 class BattleSceneView(SceneView):
     """战斗场景"""
     
-    def __init__(self, battle: BattleSystem, window=None):
+    def __init__(self, battle: BattleSystem, window=None, on_battle_end_callback=None):
         super().__init__(window=window)
         self.battle = battle
+        self.on_battle_end_callback = on_battle_end_callback  # 战斗结束回调
         
         # 导入原有组件
         from game_view import CardView
         # 复用原有的CardView逻辑
         self.card_view = CardView(battle)
+        
+        # 设置战斗结束后的回调
+        self._setup_battle_end_callback()
+    
+    def _setup_battle_end_callback(self):
+        """设置战斗结束后的回调"""
+        # 保存原始的on_update方法
+        original_on_update = self.card_view.on_update
+        
+        def wrapped_on_update(delta_time):
+            # 先执行原始的更新逻辑
+            original_on_update(delta_time)
+            
+            # 检查战斗是否结束
+            if self.battle.battle_finished and not hasattr(self, '_battle_end_handled'):
+                self._battle_end_handled = True
+                print("\n[战斗场景] 战斗结束，准备返回大地图")
+                
+                # 如果设置了回调函数，调用它
+                if self.on_battle_end_callback:
+                    self.on_battle_end_callback(self.battle)
+                else:
+                    # 默认行为：返回到大地图场景
+                    self._return_to_map()
+        
+        # 替换on_update方法
+        self.card_view.on_update = wrapped_on_update
     
     def on_resize(self, width: int, height: int):
         super().on_resize(width, height)
@@ -69,27 +99,44 @@ class BattleSceneView(SceneView):
     
     def on_key_press(self, key, modifiers):
         # 处理场景切换快捷键
-        if key == arcade.key.F3 and (modifiers & arcade.key.MOD_SHIFT):
-            # Debug: 切换到叙事场景
-            self._debug_switch_to_narrative()
+        if key == arcade.key.M and (modifiers & arcade.key.MOD_SHIFT):
+            # Shift+M: 切换到地图场景
+            self._switch_to_map()
             return
         self.card_view.on_key_press(key, modifiers)
+    
+    def _switch_to_map(self):
+        """切换到地图场景"""
+        print("[DEBUG] 切换到地图场景")
+        from scene_manager import MapSceneView
+        map_scene = MapSceneView(self.battle, window=self.window)
+        self.switch_to_scene(map_scene)
+    
+    def _return_to_map(self):
+        """战斗结束后返回到大地图场景"""
+        print("[战斗场景] 返回到大地图场景")
+        
+        # 获取玩家实体
+        player_entity = None
+        if self.battle.player_team:
+            player_entity = self.battle.player_team[0]
+        
+        # 创建新的地图场景，并传入更新后的玩家实体
+        from scene_manager import MapSceneView
+        map_scene = MapSceneView(self.battle, window=self.window)
+        
+        # 更新地图场景中的玩家实体
+        if player_entity and hasattr(map_scene.map_view, 'player_entity'):
+            map_scene.map_view.player_entity = player_entity
+            print(f"[战斗场景] 已更新玩家实体: {player_entity.name}")
+        
+        # 切换到地图场景
+        self.switch_to_scene(map_scene)
     
     def on_update(self, delta_time: float):
         self.card_view.on_update(delta_time)
     
-    def _debug_switch_to_narrative(self):
-        """Debug: 直接切换到叙事场景"""
-        print("[DEBUG] 切换到叙事场景")
-        from narrative_scene import NarrativeSceneView
-        narrative_scene = NarrativeSceneView(self.battle, "gate_guard_001", window=self.window)
-        self.switch_to_scene(narrative_scene)
-    
-    def switch_to_narrative(self, node_id: str = "gate_guard_001"):
-        """战斗胜利后切换到叙事场景"""
-        from narrative_scene import NarrativeSceneView
-        narrative_scene = NarrativeSceneView(self.battle, node_id, window=self.window)
-        self.switch_to_scene(narrative_scene)
+
 
 
 class NarrativeSceneView(SceneView):
@@ -311,47 +358,50 @@ class NarrativeSceneView(SceneView):
 
 
 class MapSceneView(SceneView):
-    """大地图场景（预留，未来扩展）"""
+    """大地图场景 - 显示地图节点和连接，支持移动交互"""
     
     def __init__(self, battle: BattleSystem, window=None):
         super().__init__(window=window)
         self.battle = battle
-        print("[大地图] 场景已创建（功能开发中）")
+        
+        # 创建地图系统
+        self.map_system = MapSystem()
+        self.map_system.create_example_map()
+        
+        # 获取玩家实体（从战斗系统中）
+        player_entity = battle.player if battle and hasattr(battle, 'player') else None
+        
+        # 创建地图视图（传入玩家实体用于战斗触发）
+        self.map_view = MapView(
+            self.map_system,
+            window=self.window,
+            player_entity=player_entity
+        )
+        
+        print("[大地图] 场景已创建")
+        if player_entity:
+            print(f"[大地图] 玩家实体: {player_entity.name}")
+        else:
+            print("[大地图] 警告：未找到玩家实体，战斗触发将不可用")
+    
+    def on_resize(self, width: int, height: int):
+        super().on_resize(width, height)
+        self.map_view.on_resize(width, height)
     
     def on_draw(self):
         """绘制大地图场景"""
-        self.clear()
-        
-        # 绘制大地图背景
-        arcade.draw_lrbt_rectangle_filled(
-            0, self.window_width, 0, self.window_height,
-            (50, 80, 50)  # 深绿色背景
-        )
-        
-        # 绘制占位文字
-        arcade.draw_text(
-            "大地图场景（开发中）",
-            self.window_width // 2,
-            self.window_height // 2,
-            arcade.color.WHITE,
-            S.font(36),
-            anchor_x="center",
-            anchor_y="center"
-        )
-        
-        arcade.draw_text(
-            "按 ESC 返回",
-            self.window_width // 2,
-            self.window_height // 2 - 50,
-            arcade.color.YELLOW,
-            S.font(24),
-            anchor_x="center",
-            anchor_y="center"
-        )
+        self.map_view.on_draw()
     
-    def on_key_press(self, key, modifiers):
+    def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
+        self.map_view.on_mouse_motion(x, y, dx, dy)
+    
+    def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
+        self.map_view.on_mouse_press(x, y, button, modifiers)
+    
+    def on_key_press(self, key: int, modifiers: int):
         if key == arcade.key.ESCAPE:
-            self.window.close()
-    
-    def on_update(self, delta_time: float):
-        pass
+            # ESC返回战斗场景
+            print("[大地图] 返回战斗场景")
+            from scene_manager import BattleSceneView
+            battle_scene = BattleSceneView(self.battle, window=self.window)
+            self.switch_to_scene(battle_scene)

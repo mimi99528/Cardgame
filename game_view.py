@@ -452,6 +452,11 @@ class CardView(arcade.View):
             self.debug_overlay_visible = not self.debug_overlay_visible
             return
         
+        # Shift+M: 切换到地图场景
+        if key == arcade.key.M and (modifiers & arcade.key.MOD_SHIFT):
+            self._switch_to_map_scene()
+            return
+        
         # Shift+F3: Debug功能 - 跳过战斗直接胜利以测试叙事场景
         if key == arcade.key.F1 and (modifiers & arcade.key.MOD_SHIFT):
             self._debug_skip_battle_to_victory()
@@ -465,6 +470,13 @@ class CardView(arcade.View):
         should_close = self.input_handler.on_key_press(key, modifiers)
         if should_close:
             self.window.close()
+    
+    def _switch_to_map_scene(self):
+        """切换到地图场景"""
+        print("\n[DEBUG] Shift+M pressed - Switching to map scene")
+        from scene_manager import MapSceneView
+        map_scene = MapSceneView(self.battle, window=self.window)
+        self.window.show_view(map_scene)
     
     def on_update(self, delta_time: float):
         """每帧更新（用于AI逻辑）"""
@@ -771,7 +783,7 @@ class CardView(arcade.View):
         self.window.show_view(recovery_view)
     
     def _return_cards_to_deck(self):
-        """将手牌和弃牌堆中的卡牌全部放回卡组"""
+        """将手牌和弃牌堆中的卡牌全部放回卡组（排除常驻卡牌和装备卡牌）"""
         player = self.battle.player
         if not player:
             print("[ERROR] 玩家不存在，无法回收卡牌")
@@ -799,16 +811,27 @@ class CardView(arcade.View):
             print(f"  - 卡组列表: {[c.name for c in player.deck]}")
         else:
             print(f"  - 卡组列表: (空)")
+        
+        # 显示装备卡牌信息
+        if hasattr(player, 'equipment_cards') and player.equipment_cards:
+            print(f"  - 装备卡牌数量: {len(player.equipment_cards)}")
+            print(f"  - 装备卡牌列表: {[c.name for c in player.equipment_cards]}")
+        else:
+            print(f"  - 装备卡牌数量: 0")
         print("="*60)
         
         cards_returned_count = 0
         
-        # 将手牌中的卡牌放回卡组（排除常驻卡牌）
+        # 将手牌中的卡牌放回卡组（排除常驻卡牌和装备卡牌）
         hand_cards_to_return = []
         for card in player.hand:
             # 检查是否是常驻卡牌
             if hasattr(player, 'permanent_cards') and card in player.permanent_cards:
                 print(f"[DEBUG] 跳过常驻卡牌: {card.name}")
+                continue
+            # 检查是否是装备卡牌
+            if hasattr(player, 'equipment_cards') and card in player.equipment_cards:
+                print(f"[DEBUG] 跳过装备卡牌: {card.name}")
                 continue
             hand_cards_to_return.append(card)
         
@@ -880,6 +903,33 @@ class CardView(arcade.View):
         print(f"[DEBUG] 视图类型: {type(self.window.current_view)}")
         print(f"[DEBUG] 视图是否相同: {self.window.current_view is narrative_scene}")
         print(f"[DEBUG] 已调用 show_view，应该已切换")
+    
+    def _end_battle_and_start_map(self):
+        """结束战斗并切换到地图场景"""
+        print("\n" + "#"*60)
+        print("[系统] 结束战斗，切换到地图场景")
+        print("#"*60)
+        
+        # 标记已经完成所有战后流程（战利品选择 + 卡组编辑）
+        self._deck_edit_shown = True
+        
+        # 再次回收卡牌（编辑完成后手牌可能还有残留）
+        print("\n[DEBUG] 编辑完成后再次回收卡牌...")
+        self._return_cards_to_deck()
+        print("[DEBUG] 第二次回收完成")
+        
+        # 使用场景管理器切换到地图场景，传递窗口引用
+        from scene_manager import MapSceneView
+        map_scene = MapSceneView(self.battle, window=self.window)
+        print(f"[DEBUG] 已创建 MapSceneView: {map_scene}")
+        
+        # 切换到地图场景
+        self.window.show_view(map_scene)
+        
+        # 验证切换是否成功
+        print(f"[DEBUG] 切换后的当前视图: {self.window.current_view}")
+        print(f"[DEBUG] 视图类型: {type(self.window.current_view)}")
+        print(f"[DEBUG] 已切换到地图场景")
     
     def _show_loot_selection(self):
         """显示战利品选择UI"""
@@ -1000,8 +1050,8 @@ class CardView(arcade.View):
             # 清除掉落卡牌数据（如果还有）
             self.battle.dropped_cards_for_selection = []
             
-            # 编辑完成后，自动进入叙事场景
-            self._end_battle_and_start_narrative()
+            # 编辑完成后，自动进入地图场景
+            self._end_battle_and_start_map()
         
         # 导入卡组编辑视图
         from deck_edit_view import DeckEditView

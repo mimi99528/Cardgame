@@ -138,25 +138,18 @@ class CardGame(arcade.Window):
         print(f"  属性: 力量{player.stats.strength}, 敏捷{player.stats.dexterity}, "
               f"心智{player.stats.intelligence}, 魅力{player.stats.charisma}")
         
-        # 创建敌人（使用不同的敌人类型）
-        enemy = create_enemy(enemy_type="warrior")  # 战士型敌人
-        enemy_2 = create_enemy_2(enemy_type="mage")  # 法师型敌人
-        
-        # 创建额外的队友（可选，使用不同职业）
-        ally_ai = create_ally_ai()  # 默认均衡型队友
-        
-        # 创建战斗系统
+        # 不再创建初始战斗，而是直接进入大地图场景
+        # 创建一个空的战斗系统用于后续战斗
+        from battle_system import BattleSystem
         battle = BattleSystem(
-            player_team=[player, ally_ai],
-            enemy_team=[enemy, enemy_2]
+            player_team=[player],
+            enemy_team=[]
         )
         
-        # 开始战斗
-        battle.start_battle()
-        
-        # 创建并显示游戏视图
-        game_view = CardView(battle)
-        self.show_view(game_view)
+        # 创建并显示大地图场景
+        from scene_manager import MapSceneView
+        map_scene = MapSceneView(battle, window=self)
+        self.show_view(map_scene)
 
 
 def main():

@@ -687,6 +687,7 @@ def create_enemy(enemy_type="warrior"):
         enemy_type: 敌人类型 (warrior/mage/tank/assassin)
     """
     from models import Entity
+    from career_system import CareerFactory, CareerType
     
     cards_db = create_card_database()
     weapons_db = create_weapon_database()
@@ -701,9 +702,30 @@ def create_enemy(enemy_type="warrior"):
         "armor": armors_db.get("cloth")
     }
     
+    # 为敌人分配职业（根据敌人类型）
+    enemy_career_map = {
+        "warrior": CareerType.FARMER,      # 战士型 -> 农民（高HP）
+        "mage": CareerType.SCHOLAR,        # 法师型 -> 学者（低HP）
+        "tank": CareerType.ARTISAN,        # 坦克型 -> 手艺人（中HP）
+        "assassin": CareerType.DRIFTER,    # 刺客型 -> 流浪者（中HP）
+    }
+    
+    career_type = enemy_career_map.get(enemy_type, CareerType.PEDLAR)
+    career = CareerFactory.get_career(career_type)
+    
+    # 根据职业设置基础HP
+    base_hp_map = {
+        CareerType.SCHOLAR: 12,
+        CareerType.PEDLAR: 12,
+        CareerType.ARTISAN: 16,
+        CareerType.DRIFTER: 16,
+        CareerType.FARMER: 22,
+    }
+    base_hp = base_hp_map.get(career_type, 10)
+    
     enemy = Entity(
         name="meowcake",
-        max_hp=10,  # 初始血量为10
+        max_hp=base_hp,  # 根据职业设置基础HP
         max_ap=3,
         equipment=equipment,
         cards=deck,
@@ -711,6 +733,10 @@ def create_enemy(enemy_type="warrior"):
         control_type=ControlType.AI,
         position=(17, 7)
     )
+    
+    # 设置职业
+    if career:
+        enemy.set_career(career)
     
     return enemy
 
@@ -723,6 +749,7 @@ def create_ally_ai(career_type=None):
         career_type: 职业类型（可选）
     """
     from models import Entity
+    from career_system import CareerFactory, CareerType
     
     cards_db = create_card_database()
     weapons_db = create_weapon_database()
@@ -753,9 +780,26 @@ def create_ally_ai(career_type=None):
         "armor": armors_db.get("leather")
     }
     
+    # 如果没有指定职业，随机分配一个职业
+    if not career_type:
+        import random
+        career_type = random.choice(list(CareerType))
+    
+    career = CareerFactory.get_career(career_type)
+    
+    # 根据职业设置基础HP
+    base_hp_map = {
+        CareerType.SCHOLAR: 12,
+        CareerType.PEDLAR: 12,
+        CareerType.ARTISAN: 16,
+        CareerType.DRIFTER: 16,
+        CareerType.FARMER: 22,
+    }
+    base_hp = base_hp_map.get(career_type, 10)
+    
     ally = Entity(
         name="AI队友",
-        max_hp=10,  # 初始血量为10
+        max_hp=base_hp,  # 根据职业设置基础HP
         max_ap=3,
         equipment=equipment,
         cards=deck,
@@ -763,6 +807,10 @@ def create_ally_ai(career_type=None):
         control_type=ControlType.AI,
         position=(4, 7)
     )
+    
+    # 设置职业
+    if career:
+        ally.set_career(career)
     
     return ally
 
@@ -775,6 +823,7 @@ def create_enemy_2(enemy_type="mage"):
         enemy_type: 敌人类型 (warrior/mage/tank/assassin)
     """
     from models import Entity
+    from career_system import CareerFactory, CareerType
     
     cards_db = create_card_database()
     weapons_db = create_weapon_database()
@@ -793,9 +842,30 @@ def create_enemy_2(enemy_type="mage"):
         "armor": armors_db.get("plate")
     }
     
+    # 为敌人分配职业（根据敌人类型）
+    enemy_career_map = {
+        "warrior": CareerType.FARMER,      # 战士型 -> 农民（高HP）
+        "mage": CareerType.SCHOLAR,        # 法师型 -> 学者（低HP）
+        "tank": CareerType.ARTISAN,        # 坦克型 -> 手艺人（中HP）
+        "assassin": CareerType.DRIFTER,    # 刺客型 -> 流浪者（中HP）
+    }
+    
+    career_type = enemy_career_map.get(enemy_type, CareerType.PEDLAR)
+    career = CareerFactory.get_career(career_type)
+    
+    # 根据职业设置基础HP
+    base_hp_map = {
+        CareerType.SCHOLAR: 12,
+        CareerType.PEDLAR: 12,
+        CareerType.ARTISAN: 16,
+        CareerType.DRIFTER: 16,
+        CareerType.FARMER: 22,
+    }
+    base_hp = base_hp_map.get(career_type, 10)
+    
     enemy = Entity(
         name="魔法敌人",
-        max_hp=10,  # 初始血量为10
+        max_hp=base_hp,  # 根据职业设置基础HP
         max_ap=4,
         equipment=equipment,
         cards=deck,
@@ -803,5 +873,9 @@ def create_enemy_2(enemy_type="mage"):
         control_type=ControlType.AI,
         position=(15, 5)
     )
+    
+    # 设置职业
+    if career:
+        enemy.set_career(career)
     
     return enemy

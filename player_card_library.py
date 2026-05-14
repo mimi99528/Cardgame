@@ -301,18 +301,26 @@ class PlayerCardLibrary:
         Returns:
             (是否有效, 错误信息列表)
         """
+        from config import CardTag
+        
         errors = []
         
-        # 检查卡组大小
-        deck_size = len(self.deck)
+        # 过滤掉装备提供的卡牌（带有EQUIPMENT_GRANTED标签）
+        non_equipment_deck = [
+            card for card in self.deck
+            if CardTag.EQUIPMENT_GRANTED not in getattr(card, 'tags', [])
+        ]
+        
+        # 检查卡组大小（只计算非装备卡牌）
+        deck_size = len(non_equipment_deck)
         if deck_size < 12:
             errors.append(f"卡组过少：当前{deck_size}张，最少需要12张")
         elif deck_size > 28:
             errors.append(f"卡组过多：当前{deck_size}张，最多允许28张")
         
-        # 检查同名卡牌数量限制
+        # 检查同名卡牌数量限制（只检查非装备卡牌）
         card_counts = {}
-        for card in self.deck:
+        for card in non_equipment_deck:
             name = card.name
             if name not in card_counts:
                 card_counts[name] = 0

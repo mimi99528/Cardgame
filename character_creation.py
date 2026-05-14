@@ -948,10 +948,22 @@ class CharacterCreationView(arcade.View):
         if "基础移动" in cards_db:
             permanent_cards.append(cards_db["基础移动"].copy())
         
+        # 根据职业定位设置基础HP
+        base_hp_map = {
+            CareerType.SCHOLAR: 12,    # 学者：12点基础HP
+            CareerType.PEDLAR: 12,     # 行商：12点基础HP
+            CareerType.ARTISAN: 16,    # 手艺人：16点基础HP
+            CareerType.DRIFTER: 16,    # 流浪者：16点基础HP
+            CareerType.FARMER: 22,     # 农民：22点基础HP
+        }
+        
+        # 获取基础HP，如果职业未定义则使用默认值10
+        base_hp = base_hp_map.get(self.selected_career.career_type, 10)
+        
         # 创建玩家实体
         player = Entity(
             name=self.character_name,
-            max_hp=10,  # 初始血量为10（与预设角色一致）
+            max_hp=base_hp,  # 根据职业设置基础HP
             max_ap=3,
             equipment=equipment,
             cards=deck,  # 使用职业专属卡组

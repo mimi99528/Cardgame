@@ -136,14 +136,16 @@ def create_drifter_career() -> Career:
     # 特殊卡牌
     career.special_cards = ["应急包扎"]
     
-    # 初始卡组配置
+    # 初始卡组配置（1~6号卡分别有3、3、2、2、1、1张，共12张；7~8号Legendary卡不在初始卡组）
     career.set_initial_deck({
-        "精准打击": 3,
-        "刺击": 1,
-        "疾风步": 2,
-        "野外求生": 1,
-        "灵巧闪避": 2,
-        "格挡": 1
+        "疾风步": 3,           # 101 - Common
+        "野外求生": 3,         # 102 - Common
+        "灵巧闪避": 2,         # 103 - Common
+        "精准打击": 2,         # 104 - Uncommon
+        "影遁": 1,             # 105 - Uncommon
+        "荒野直觉": 1          # 106 - Rare
+        # 107 风行斩 (Rare) - 不在初始卡组
+        # 108 流浪者之魂 (Legendary) - 不在初始卡组
     })
     
     return career
@@ -155,7 +157,7 @@ def create_artisan_career() -> Career:
         career_type=CareerType.ARTISAN,
         name="手艺人",
         description="精通装备使用的工匠，善于资源管理",
-        hit_dice_type=6  # d6生命骰
+        hit_dice_type=8  # d8生命骰
     )
     
     # 被动1：物尽其用
@@ -171,14 +173,16 @@ def create_artisan_career() -> Career:
     # 特殊卡牌
     career.special_cards = ["临时加固"]
     
-    # 初始卡组配置
+    # 初始卡组配置（1~6号卡分别有3、3、2、2、1、1张，共12张；7~8号Legendary卡不在初始卡组）
     career.set_initial_deck({
-        "重击": 2,
-        "劈砍": 2,
-        "工具修理": 2,
-        "坚固防御": 2,
-        "格挡": 1,
-        "刺击": 1
+        "坚固防御": 3,         # 201 - Common
+        "重击": 3,             # 202 - Common
+        "工具修理": 2,         # 203 - Common
+        "战地修缮": 2,         # 204 - Uncommon
+        "临时锻造": 1,         # 205 - Uncommon
+        "谨慎防御": 1          # 206 - Rare
+        # 207 符文刻印 (Rare) - 不在初始卡组
+        # 208 大师之作 (Legendary) - 不在初始卡组
     })
     
     return career
@@ -206,13 +210,16 @@ def create_pedlar_career() -> Career:
     # 特殊卡牌
     career.special_cards = ["讨价还价"]
     
-    # 初始卡组配置
+    # 初始卡组配置（1~6号卡分别有3、3、2、2、1、1张，共12张；7~8号Legendary卡不在初始卡组）
     career.set_initial_deck({
-        "洞察弱点": 3,
-        "巧言令色": 2,
-        "贿赂": 1,
-        "格挡": 2,
-        "刺击": 2
+        "巧言令色": 3,         # 301 - Common
+        "洞察弱点": 3,         # 302 - Common
+        "贿赂": 2,             # 303 - Common
+        "外交斡旋": 2,         # 304 - Uncommon
+        "商人直觉": 1,         # 305 - Uncommon
+        "传奇故事": 1          # 306 - Rare
+        # 307 孤注一掷 (Rare) - 不在初始卡组
+        # 308 千人千面 (Legendary) - 不在初始卡组
     })
     
     return career
@@ -240,14 +247,16 @@ def create_farmer_career() -> Career:
     # 特殊卡牌
     career.special_cards = ["粮草调度"]
     
-    # 初始卡组配置
+    # 初始卡组配置（1~6号卡分别有3、3、2、2、1、1张，共12张；7~8号Legendary卡不在初始卡组）
     career.set_initial_deck({
-        "丰收之击": 2,
-        "劈砍": 1,
-        "坚韧不拔": 2,
-        "群体鼓舞": 1,
-        "大地守护": 2,
-        "格挡": 2
+        "坚韧不拔": 3,         # 401 - Common
+        "大地守护": 3,         # 402 - Common
+        "稳健打击": 2,         # 403 - Common
+        "田间陷阱": 2,         # 404 - Uncommon
+        "群体鼓舞": 1,         # 405 - Uncommon
+        "丰收之击": 1          # 406 - Rare
+        # 407 丰收祭典 (Rare) - 不在初始卡组
+        # 408 沃土之魂 (Legendary) - 不在初始卡组
     })
     
     return career
@@ -259,7 +268,7 @@ def create_scholar_career() -> Career:
         career_type=CareerType.SCHOLAR,
         name="游学青年",
         description="博闻强记的学者，擅长知识和法术",
-        hit_dice_type=4  # d4生命骰
+        hit_dice_type=6  # d6生命骰
     )
     
     # 被动1：博闻强记
@@ -275,14 +284,16 @@ def create_scholar_career() -> Career:
     # 特殊卡牌
     career.special_cards = ["应急咒文"]
     
-    # 初始卡组配置
+    # 初始卡组配置（1~6号卡分别有3、3、2、2、1、1张，共12张；7~8号Legendary卡不在初始卡组）
     career.set_initial_deck({
-        "奥术冲击": 3,
-        "心灵震爆": 1,
-        "知识汲取": 2,
-        "思维加速": 1,
-        "法力护盾": 2,
-        "点火术": 1
+        "奥术冲击": 3,         # 501 - Common
+        "知识汲取": 3,         # 502 - Common
+        "思维加速": 2,         # 503 - Common
+        "秘法屏障": 2,         # 504 - Uncommon
+        "精准预言": 1,         # 505 - Uncommon
+        "元素共鸣": 1          # 506 - Rare
+        # 507 心灵震爆 (Rare) - 不在初始卡组
+        # 508 不稳定传送 (Legendary) - 不在初始卡组
     })
     
     return career

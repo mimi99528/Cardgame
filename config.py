@@ -58,6 +58,8 @@ class TargetType(Enum):
     ALL_ENEMIES = "all_enemies"     # 所有敌人
     ALL_ALLIES = "all_allies"       # 所有友军
     ALL = "all"             # 全部（可用于移动等通用场景）
+    ENEMY_LINE = "enemy_line"       # 直线上的敌人
+    ALLY_OR_SELF = "ally_or_self"   # 友方或自身
 
 
 # 卡牌标签枚举 - 基于table-label.csv定义
