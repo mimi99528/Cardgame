@@ -69,6 +69,7 @@ class EffectExecutor:
             "self_block": self._handle_self_block,
             "emy_debuff": self._handle_enemy_debuff,
             "self_buff": self._handle_self_buff,
+            "ally_buff": self._handle_ally_buff,
             "self_resource": self._handle_self_resource,
             "ally_heal": self._handle_ally_heal,
             "aoe_damage": self._handle_aoe_damage,
@@ -263,6 +264,39 @@ class EffectExecutor:
                 log_level=0,
                 color_key="success"
             ))
+        
+        return results
+    
+    def _handle_ally_buff(self, effect: Dict[str, Any], source: Any, targets: List[Any]) -> List[EffectResult]:
+        """处理友方 Buff 效果"""
+        results = []
+        
+        buff_type_str = effect.get("buff_type", "")
+        stacks = effect.get("stacks", 1)
+        duration = effect.get("duration", -1)
+        
+        # 查找对应的 BuffType
+        buff_type = None
+        for bt in BuffType:
+            if bt.value == buff_type_str:
+                buff_type = bt
+                break
+        
+        if not buff_type:
+            return results
+        
+        from models import Buff
+        
+        for target in targets:
+            if hasattr(target, 'apply_buff') and target != source:
+                buff = Buff(buff_type=buff_type, stacks=stacks, duration=duration)
+                target.apply_buff(buff)
+                results.append(EffectResult(
+                    success=True,
+                    message=f"{source.name}对{target.name}施加了{stacks}层{buff_type.name}",
+                    log_level=0,
+                    color_key="success"
+                ))
         
         return results
     

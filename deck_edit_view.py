@@ -115,27 +115,40 @@ class DeckEditView(arcade.View):
             global_index = visible_start + i
             self.card_sprite_map[f"library_{len(self.library_card_sprites) - 1}"] = ('library', global_index)
         
-        # 创建卡组卡牌Sprite
+        # 创建卡组卡牌Sprite（与绘制逻辑一致，过滤装备卡牌）
         deck_title_y = self.window.height - S.py(120)
         deck_start_y = deck_title_y - S.py(70)
         card_spacing_y = self.deck_card_height + S.py(10)
         
+        # 过滤掉装备卡牌
+        from config import CardTag
+        non_equipment_deck = [
+            card for card in self.player.deck
+            if CardTag.EQUIPMENT_GRANTED not in getattr(card, 'tags', [])
+        ]
+        
         visible_start = max(0, self.deck_scroll_offset)
-        visible_end = min(len(self.player.deck), visible_start + 12)
+        visible_end = min(len(non_equipment_deck), visible_start + 12)
+        
+        # 记录非装备卡牌在原始deck中的索引映射
+        non_equipment_to_original = {}
+        ne_idx = 0
+        for orig_idx, card in enumerate(self.player.deck):
+            if CardTag.EQUIPMENT_GRANTED not in getattr(card, 'tags', []):
+                if visible_start <= ne_idx < visible_end:
+                    non_equipment_to_original[ne_idx] = orig_idx
+                ne_idx += 1
         
         for i in range(visible_start, visible_end):
             card_y = deck_start_y - (i - visible_start) * card_spacing_y
             
             # 创建一个不可见的Sprite用于碰撞检测
             sprite = arcade.SpriteSolidColor(int(self.deck_card_width), int(self.deck_card_height), (0, 0, 0, 0))
-            # 修复：Sprite中心点应该与绘制的中心点一致
-            # 绘制时 x 是左边界，但 draw_lrbt_rectangle 使用 x-half_width 到 x+half_width
-            # 所以实际中心点是 x（即 right_panel_x + 20）
             sprite.center_x = self.right_panel_x + S.px(20)
             sprite.center_y = card_y
             self.deck_card_sprites.append(sprite)
             
-            # 映射Sprite索引到卡牌索引
+            # 映射：存储非装备卡组索引（连续索引），后续通过映射找到原始deck索引
             self.card_sprite_map[f"deck_{len(self.deck_card_sprites) - 1}"] = ('deck', i)
     
     def on_draw(self):
@@ -501,14 +514,15 @@ class DeckEditView(arcade.View):
         visible_start = max(0, self.deck_scroll_offset)
         visible_end = min(len(non_equipment_deck), visible_start + 12)  # 最多显示12张
         
-        for i in range(visible_start, visible_end):
-            card = non_equipment_deck[i]
-            card_y = start_y - (i - visible_start) * card_spacing_y
+        for display_idx in range(visible_start, visible_end):
+            card = non_equipment_deck[display_idx]
+            # 找到在原始deck中的索引
+            original_idx = self.player.deck.index(card)
+            card_y = start_y - (display_idx - visible_start) * card_spacing_y
             
-            # 检查是否悬停 - 修复索引计算
-            display_index = i - visible_start
-            is_hovered = (display_index == self.hovered_deck_card_index)
-            is_selected = (i == self.selected_card_index)
+            # 检查是否悬停 - 使用显示索引
+            is_hovered = (display_idx - visible_start == self.hovered_deck_card_index)
+            is_selected = (display_idx == self.selected_card_index)
             
             # 绘制长条卡牌
             self._draw_deck_card_strip(card, self.right_panel_x + S.px(20), card_y, is_hovered, is_selected)
@@ -995,13 +1009,22 @@ class DeckEditView(arcade.View):
                 if map_key in self.card_sprite_map:
                     area_type, card_index = self.card_sprite_map[map_key]
                     if area_type == 'deck':
+                        # card_index 是非装备卡组中的连续索引
                         # 计算相对于可见区域的索引
                         visible_start = max(0, self.deck_scroll_offset)
                         self.hovered_deck_card_index = card_index - visible_start
                         
-                        # 获取对应的卡牌对象
-                        if card_index < len(self.player.deck):
-                            self.tooltip_card = self.player.deck[card_index]
+                        print(f"[DEBUG DECK HOVER] card_index={card_index}, visible_start={visible_start}, hovered_index={self.hovered_deck_card_index}")
+                        
+                        # 获取对应的卡牌对象（从非装备卡组中）
+                        from config import CardTag
+                        non_equipment_deck = [
+                            c for c in self.player.deck
+                            if CardTag.EQUIPMENT_GRANTED not in getattr(c, 'tags', [])
+                        ]
+                        print(f"[DEBUG DECK HOVER] non_equipment_deck size={len(non_equipment_deck)}, card_index={card_index}")
+                        if card_index < len(non_equipment_deck):
+                            self.tooltip_card = non_equipment_deck[card_index]
                             self.tooltip_x = x
                             self.tooltip_y = y
         
@@ -1124,10 +1147,17 @@ class DeckEditView(arcade.View):
             self._update_card_sprites()
         else:
             # 在卡组区域滚动
+            # 使用非装备卡组长度
+            from config import CardTag
+            non_equipment_deck = [
+                card for card in self.player.deck
+                if CardTag.EQUIPMENT_GRANTED not in getattr(card, 'tags', [])
+            ]
+            
             if scroll_y > 0:
                 self.deck_scroll_offset = max(0, self.deck_scroll_offset - 1)
             elif scroll_y < 0:
-                max_offset = max(0, len(self.player.deck) - 12)
+                max_offset = max(0, len(non_equipment_deck) - 12)
                 self.deck_scroll_offset = min(max_offset, self.deck_scroll_offset + 1)
             
             # 更新Sprite列表

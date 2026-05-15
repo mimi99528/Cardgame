@@ -130,7 +130,15 @@ class CardTag(Enum):
 
 # Buff/Debuff 类型
 class BuffType(Enum):
-    POISON = "pot"      # 中毒
+    POISON = "pot"              # 中毒
+    STRENGTHEN = "strengthen"   # 强化
+    ENHANCE = "enhance"         # 增强
+    MORALE = "morale"           # 士气
+    SPEED = "speed"             # 速度
+    STEALTH = "stealth"         # 潜行
+    HASTE = "haste"             # 加速
+    WEAKNESS = "weakness"       # 虚弱
+    DISCOUNT = "discount"       # 折扣
 
 
 # 战斗日志级别

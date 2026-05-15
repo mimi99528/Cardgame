@@ -340,6 +340,18 @@ class Entity:
     
     def reset_for_battle(self):
         """重置状态准备战斗"""
+        import traceback
+        print(f"\n{'='*60}")
+        print(f"[DEBUG reset_for_battle] 开始重置战斗状态")
+        print(f"[DEBUG reset_for_battle] 调用堆栈:")
+        for line in traceback.format_stack()[:-1]:
+            if 'models.py' not in line:
+                print(f"  {line.strip()}")
+        print(f"{'='*60}\n")
+        
+        print(f"[DEBUG reset_for_battle] 重置前卡组大小: {len(self.deck)}")
+        print(f"[DEBUG reset_for_battle] 重置前卡组列表: {[c.name for c in self.deck]}")
+        
         self.hp = self.max_hp
         self.ap = self.max_ap
         self.mp = self.max_mp
@@ -348,6 +360,9 @@ class Entity:
         self.buffs.clear()
         self.hand.clear()
         self.discard_pile.clear()  # 清空弃牌堆
+        
+        print(f"[DEBUG reset_for_battle] 清空手牌和弃牌堆后")
+        print(f"[DEBUG reset_for_battle] 当前卡组大小: {len(self.deck)}")
         
         # 将常驻卡牌加入手牌
         for card in self.permanent_cards:
@@ -358,19 +373,27 @@ class Entity:
         # 加载装备卡牌
         self._load_equipment_cards()
         
+        print(f"[DEBUG reset_for_battle] 加载常驻和装备卡牌后")
+        print(f"[DEBUG reset_for_battle] 手牌数量: {len(self.hand)}")
+        print(f"[DEBUG reset_for_battle] 当前卡组大小: {len(self.deck)}")
+        
         # 初始抽4张牌（防止一开始没牌打）
         import random
         initial_draw_count = 4
         available_cards = [c for c in self.deck if c not in self.permanent_cards]
         
+        print(f"[DEBUG reset_for_battle] 可用卡牌数量: {len(available_cards)}")
+        
         if len(available_cards) >= initial_draw_count:
             drawn_cards = random.sample(available_cards, initial_draw_count)
+            print(f"[DEBUG reset_for_battle] 抽取的卡牌: {[c.name for c in drawn_cards]}")
             for card in drawn_cards:
                 self.deck.remove(card)
                 card.owner = self  # 设置卡牌所有者
                 self.hand.append(card)
         else:
             # 如果卡组不够，抽所有可用的
+            print(f"[DEBUG reset_for_battle] 卡组不足，抽取所有可用卡牌")
             for card in available_cards:
                 self.deck.remove(card)
                 card.owner = self  # 设置卡牌所有者
@@ -378,6 +401,12 @@ class Entity:
         
         if DEBUG_MODE:
             print(f"[DEBUG] {self.name} 战斗开始初始抽牌: 从卡组抽取{min(initial_draw_count, len(available_cards))}张")
+        
+        print(f"[DEBUG reset_for_battle] 抽牌完成后")
+        print(f"[DEBUG reset_for_battle] 最终手牌数量: {len(self.hand)}")
+        print(f"[DEBUG reset_for_battle] 最终卡组大小: {len(self.deck)}")
+        print(f"[DEBUG reset_for_battle] 最终卡组列表: {[c.name for c in self.deck]}")
+        print(f"[DEBUG reset_for_battle] 最终手牌列表: {[c.name for c in self.hand]}\n")
         
         return self
     
@@ -1172,6 +1201,31 @@ class Card:
                         attacker.mp = min(attacker.mp + restore_mp, attacker.max_mp)
                         actual_restore = attacker.mp - old_mp
                         results.append((f"{attacker}恢复了{actual_restore}点MP", 0, "success"))
+                
+                # 友方Buff
+                elif effect_type == "ally_buff":
+                    buff_type_str = effect.get("buff_type", "")
+                    stacks = effect.get("stacks", 1)
+                    duration = effect.get("duration", -1)
+                    
+                    # 查找对应的BuffType
+                    for bt in BuffType:
+                        if bt.value == buff_type_str:
+                            # 检查卡牌目标类型是否为ALL_ALLIES
+                            if hasattr(self, 'target_type') and self.target_type.name == 'ALL_ALLIES':
+                                # 对所有友方单位应用buff（需要通过battle_log或其他方式获取友方列表）
+                                # 这里暂时只对传入的目标应用，后续需要改进
+                                if target and hasattr(target, 'apply_buff'):
+                                    buff = Buff(buff_type=bt, stacks=stacks, duration=duration)
+                                    target.apply_buff(buff)
+                                    results.append((f"{attacker}对{target}施加了{stacks}层{bt.name}", 0, "success"))
+                            else:
+                                # 对单个目标应用buff
+                                if target and hasattr(target, 'apply_buff'):
+                                    buff = Buff(buff_type=bt, stacks=stacks, duration=duration)
+                                    target.apply_buff(buff)
+                                    results.append((f"{attacker}对{target}施加了{stacks}层{bt.name}", 0, "success"))
+                            break
         
         # 触发卡牌打出后事件
         trigger_event(

@@ -50,6 +50,9 @@ class MapView(arcade.View):
             map_system,
             battle_callback=self._on_battle_start
         )
+        
+        # 防止重复触发战斗的标志
+        self._battle_triggered = False
     
     def _on_battle_start(self, player_team, enemy_team, node):
         """
@@ -82,6 +85,9 @@ class MapView(arcade.View):
         def on_battle_end(battle_instance):
             """战斗结束后的回调"""
             print(f"\n[地图] 战斗结束，返回到大地图")
+            
+            # 重置战斗触发标志
+            self._battle_triggered = False
             
             # 如果战斗胜利，标记节点为已清剿
             if battle_instance.winner and battle_instance.winner == battle_instance.player_team:
@@ -514,7 +520,13 @@ class MapView(arcade.View):
             
             # 如果是战斗节点，触发战斗
             if clicked_node.node_type == NodeType.BATTLE_ZONE:
+                # 防止重复触发
+                if self._battle_triggered:
+                    print(f"[地图] 战斗已触发，忽略重复点击")
+                    return
+                
                 if self.player_entity:
+                    self._battle_triggered = True
                     success, message = self.battle_trigger.trigger_battle(
                         clicked_node, 
                         self.player_entity
@@ -524,6 +536,8 @@ class MapView(arcade.View):
                         # 战斗会在回调中处理
                     else:
                         print(f"[地图] 无法触发战斗: {message}")
+                        # 失败时重置标志
+                        self._battle_triggered = False
                 else:
                     print("[地图] 警告：未设置玩家实体，无法触发战斗")
                 return

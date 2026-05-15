@@ -982,16 +982,36 @@ class CharacterCreationView(arcade.View):
         player.card_library = PlayerCardLibrary(owner_name=player.name)
         
         # 将初始卡组中的卡牌添加到牌库（此时牌库包含所有获得的卡牌）
+        print(f"\n[DEBUG] 开始初始化牌库")
+        print(f"[DEBUG] 初始卡组大小: {len(deck)}")
+        print(f"[DEBUG] 初始卡组列表: {[c.name for c in deck]}")
+        
         for card in deck:
             player.card_library.add_card_to_library(card)
+        
+        print(f"[DEBUG] 牌库初始化完成")
+        print(f"[DEBUG] 牌库卡牌统计: {[(name, len(cards)) for name, cards in player.card_library.library.items()]}")
         
         # 将所有卡牌从牌库移动到卡组（这样牌库为空，卡组包含所有初始卡牌）
         # 注意：add_card_to_deck使用pop()移动卡牌，不会复制
         card_names = list(player.card_library.library.keys())
+        print(f"\n[DEBUG] 开始将牌库卡牌移动到卡组")
+        print(f"[DEBUG] 牌库中的卡牌名称: {card_names}")
+        
         for card_name in card_names:
+            initial_count = player.card_library.get_card_count_in_library(card_name)
+            print(f"[DEBUG] 处理 '{card_name}': 牌库中有 {initial_count} 张")
+            
             while (player.card_library.get_card_count_in_library(card_name) > 0 and 
                    player.card_library.can_add_to_deck(card_name)):
-                player.card_library.add_card_to_deck(card_name)
+                result = player.card_library.add_card_to_deck(card_name)
+                if not result:
+                    print(f"[DEBUG]   ✗ 无法添加 '{card_name}' 到卡组")
+                    break
+        
+        print(f"\n[DEBUG] 卡组初始化完成")
+        print(f"[DEBUG] 最终卡组大小: {len(player.card_library.deck)}")
+        print(f"[DEBUG] 最终卡组列表: {[c.name for c in player.card_library.deck]}")
         
         # 设置玩家的卡组为牌库中的卡组引用
         # 这样在战斗中使用的是牌库管理的卡组

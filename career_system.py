@@ -384,8 +384,9 @@ def build_deck_from_config(deck_config: Dict[str, int], cards_db: Dict) -> list:
         >>> deck = build_deck_from_config(config, cards_db)
     """
     deck = []
-    # print(f"\n[DEBUG] 开始构建卡组")
-    # print(f"[DEBUG] 卡组配置: {deck_config}")
+    print(f"\n[DEBUG] 开始构建卡组")
+    print(f"[DEBUG] 卡组配置: {deck_config}")
+    print(f"[DEBUG] 卡牌数据库中共有 {len(cards_db)} 张卡牌")
     
     for card_name, count in deck_config.items():
         if card_name in cards_db:
@@ -393,13 +394,15 @@ def build_deck_from_config(deck_config: Dict[str, int], cards_db: Dict) -> list:
             for i in range(count):
                 card_copy = cards_db[card_name].copy()
                 deck.append(card_copy)
-                # if i == 0:  # 只打印第一次
-                    # print(f"[DEBUG]   ✓ 添加 '{card_name}' x{count}")
+            print(f"[DEBUG]   ✓ 添加 '{card_name}' x{count}")
         else:
-            # print(f"[DEBUG]   ✗ 警告：卡牌 '{card_name}' 不存在于数据库中")
-            pass
+            print(f"[DEBUG]   ✗ 警告：卡牌 '{card_name}' 不存在于数据库中")
+            # 打印相似的卡牌名称帮助调试
+            similar_cards = [name for name in cards_db.keys() if card_name[0] in name]
+            if similar_cards:
+                print(f"[DEBUG]      相似的卡牌: {similar_cards[:5]}")
     
-    # print(f"[DEBUG] 卡组构建完成，共 {len(deck)} 张卡牌")
+    print(f"[DEBUG] 卡组构建完成，共 {len(deck)} 张卡牌")
     return deck
 
 

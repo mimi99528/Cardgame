@@ -119,10 +119,69 @@ class BattleEventTrigger:
         for i in range(enemy_count):
             enemy = self._create_enemy(f"敌人_{i+1}", enemy_career, player_entity.level)
             if enemy:
+                # 为敌人设置位置（距离玩家8-14格）
+                spawn_pos = self._generate_enemy_spawn_position(player_entity)
+                if spawn_pos:
+                    enemy.position = spawn_pos
+                    print(f"[战斗触发] 设置敌人位置: {spawn_pos}")
                 enemies.append(enemy)
         
         print(f"[战斗触发] 生成了 {len(enemies)} 个敌人")
         return enemies
+    
+    def _generate_enemy_spawn_position(self, player_entity: Entity, min_distance: int = 8, max_distance: int = 14) -> Optional[Tuple[int, int]]:
+        """
+        生成敌人生成位置（距离玩家8-14格的随机非障碍物位置）
+        
+        Args:
+            player_entity: 玩家实体
+            min_distance: 最小距离（曼哈顿距离）
+            max_distance: 最大距离（曼哈顿距离）
+            
+        Returns:
+            生成位置坐标，失败返回None
+        """
+        import random
+        from tile_map import TileMap
+        
+        # 获取tile_map（如果存在）
+        tile_map = None
+        if hasattr(self, 'map_system') and self.map_system:
+            # 尝试从map_system获取tile_map
+            if hasattr(self.map_system, 'tile_map'):
+                tile_map = self.map_system.tile_map
+        
+        # 如果没有tile_map，创建一个默认的
+        if not tile_map:
+            tile_map = TileMap(width=20, height=15)
+        
+        player_pos = player_entity.position
+        if not player_pos:
+            player_pos = (10, 7)  # 默认玩家位置
+        
+        # 收集所有符合条件的位置
+        valid_positions = []
+        
+        for y in range(tile_map.height):
+            for x in range(tile_map.width):
+                # 计算曼哈顿距离
+                distance = abs(x - player_pos[0]) + abs(y - player_pos[1])
+                
+                # 检查距离是否在范围内
+                if min_distance <= distance <= max_distance:
+                    # 检查是否为非障碍物
+                    tile = tile_map.get_tile(x, y)
+                    if tile and tile.is_walkable:
+                        valid_positions.append((x, y))
+        
+        # 随机选择一个位置
+        if valid_positions:
+            return random.choice(valid_positions)
+        else:
+            # 如果没有合适的位置，返回一个默认位置（玩家右侧10格）
+            default_x = min(player_pos[0] + 10, tile_map.width - 1)
+            default_y = player_pos[1]
+            return (default_x, default_y)
     
     def _create_enemy(self, name: str, career_name: str, level: int = 1) -> Optional[Entity]:
         """
@@ -138,18 +197,27 @@ class BattleEventTrigger:
         """
         try:
             from models import ControlType
+            from career_system import CareerFactory, CareerType
+            from card_database import get_career_deck
             
             # 根据职业设置基础属性
             career_stats = {
-                "战士": {"hp": 30, "ap": 3, "mp": 5},
-                "流浪者": {"hp": 25, "ap": 4, "mp": 6},
-                "行商": {"hp": 20, "ap": 3, "mp": 8},
-                "农民": {"hp": 22, "ap": 3, "mp": 5},
-                "手艺人": {"hp": 24, "ap": 3, "mp": 7},
-                "学者": {"hp": 18, "ap": 2, "mp": 10}
+                "战士": {"hp": 30, "ap": 3, "mp": 5, "career_type": CareerType.FARMER},
+                "流浪者": {"hp": 25, "ap": 4, "mp": 6, "career_type": CareerType.DRIFTER},
+                "行商": {"hp": 20, "ap": 3, "mp": 8, "career_type": CareerType.PEDLAR},
+                "农民": {"hp": 22, "ap": 3, "mp": 5, "career_type": CareerType.FARMER},
+                "手艺人": {"hp": 24, "ap": 3, "mp": 7, "career_type": CareerType.ARTISAN},
+                "学者": {"hp": 18, "ap": 2, "mp": 10, "career_type": CareerType.SCHOLAR}
             }
             
-            stats = career_stats.get(career_name, {"hp": 20, "ap": 3, "mp": 5})
+            stats = career_stats.get(career_name, {"hp": 20, "ap": 3, "mp": 5, "career_type": CareerType.FARMER})
+            career_type = stats["career_type"]
+            
+            # 获取职业专属卡组
+            deck = get_career_deck(career_type)
+            
+            # 获取职业对象
+            career = CareerFactory.get_career(career_type)
             
             # 创建敌人
             enemy = Entity(
@@ -157,14 +225,19 @@ class BattleEventTrigger:
                 max_hp=stats["hp"] + (level - 1) * 5,
                 max_ap=stats["ap"],
                 equipment={},
-                cards=[],
+                cards=deck,
+                hand_size=7,  # 手牌上限7张（不含常驻牌）
                 control_type=ControlType.AI
             )
             enemy.level = level
             enemy.mp = stats["mp"]
             enemy.max_mp = stats["mp"]
             
-            print(f"[战斗触发] 创建了 {enemy.name} (HP: {enemy.max_hp}, AP: {enemy.ap})")
+            # 设置职业
+            if career:
+                enemy.set_career(career)
+            
+            print(f"[战斗触发] 创建了 {enemy.name} (HP: {enemy.max_hp}, AP: {enemy.ap}, 卡组: {len(deck)}张牌)")
             return enemy
             
         except Exception as e:
