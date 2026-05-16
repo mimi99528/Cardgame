@@ -364,19 +364,29 @@ class MapSceneView(SceneView):
         super().__init__(window=window)
         self.battle = battle
         
+        print(f"[DEBUG] MapSceneView.__init__ called")
+        print(f"[DEBUG]   battle存在: {battle is not None}")
+        if battle:
+            print(f"[DEBUG]   battle.player存在: {hasattr(battle, 'player')}")
+            if hasattr(battle, 'player'):
+                print(f"[DEBUG]   玩家名称: {battle.player.name}")
+        
         # 创建地图系统
         self.map_system = MapSystem()
         self.map_system.create_example_map()
         
         # 获取玩家实体（从战斗系统中）
         player_entity = battle.player if battle and hasattr(battle, 'player') else None
+        print(f"[DEBUG]   player_entity提取结果: {player_entity is not None}")
         
         # 创建地图视图（传入玩家实体用于战斗触发）
+        print(f"[DEBUG]   开始创建MapView...")
         self.map_view = MapView(
             self.map_system,
             window=self.window,
             player_entity=player_entity
         )
+        print(f"[DEBUG]   MapView创建完成")
         
         print("[大地图] 场景已创建")
         if player_entity:
@@ -399,9 +409,13 @@ class MapSceneView(SceneView):
         self.map_view.on_mouse_press(x, y, button, modifiers)
     
     def on_key_press(self, key: int, modifiers: int):
+        print(f"[DEBUG] MapSceneView.on_key_press called: key={key}, modifiers={modifiers}")
+        
         if key == arcade.key.ESCAPE:
-            # ESC返回战斗场景
-            print("[大地图] 返回战斗场景")
-            from scene_manager import BattleSceneView
-            battle_scene = BattleSceneView(self.battle, window=self.window)
-            self.switch_to_scene(battle_scene)
+            # ESC键：退出游戏
+            print("[大地图] 退出游戏")
+            self.window.close()
+        else:
+            # 将其他按键事件传递给MapView
+            print(f"[DEBUG] 将按键事件传递给MapView")
+            self.map_view.on_key_press(key, modifiers)

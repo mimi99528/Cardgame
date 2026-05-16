@@ -6,6 +6,8 @@ import arcade
 from typing import Optional, Tuple
 from map_system import MapSystem, MapNode, NodeType
 from ui_scale import S
+from inventory_renderer import InventoryRenderer
+from equipment_renderer import EquipmentRenderer
 
 
 class MapView(arcade.View):
@@ -16,9 +18,18 @@ class MapView(arcade.View):
         self.map_system = map_system
         self.player_entity = player_entity  # 玩家实体（用于战斗触发）
         
+        print(f"[DEBUG] MapView.__init__ called")
+        print(f"[DEBUG]   window存在: {window is not None}")
+        print(f"[DEBUG]   player_entity存在: {player_entity is not None}")
+        if player_entity:
+            print(f"[DEBUG]   玩家名称: {player_entity.name}")
+            print(f"[DEBUG]   有inventory: {hasattr(player_entity, 'inventory')}")
+            print(f"[DEBUG]   有equipment_manager: {hasattr(player_entity, 'equipment_manager')}")
+        
         # 窗口尺寸
         self.window_width = self.window.width if self.window else 1920
         self.window_height = self.window.height if self.window else 1080
+        print(f"[DEBUG]   窗口尺寸: {self.window_width}x{self.window_height}")
         
         # 视觉配置
         self.node_radius = S.scale(20)  # 节点半径
@@ -44,6 +55,13 @@ class MapView(arcade.View):
         self.show_equipment = False  # 是否显示装备栏
         self.show_inventory = False  # 是否显示背包栏
         
+        # 初始化背包和装备渲染器
+        print(f"[DEBUG]   创建InventoryRenderer...")
+        self.inventory_renderer = InventoryRenderer(self.window_width, self.window_height)
+        print(f"[DEBUG]   创建EquipmentRenderer...")
+        self.equipment_renderer = EquipmentRenderer(self.window_width, self.window_height)
+        print(f"[DEBUG]   渲染器创建完成")
+        
         # 战斗事件触发器
         from battle_event_trigger import BattleEventTrigger
         self.battle_trigger = BattleEventTrigger(
@@ -53,6 +71,8 @@ class MapView(arcade.View):
         
         # 防止重复触发战斗的标志
         self._battle_triggered = False
+        
+        print(f"[DEBUG] MapView初始化完成")
     
     def _on_battle_start(self, player_team, enemy_team, node):
         """
@@ -126,6 +146,42 @@ class MapView(arcade.View):
         
         # 绘制资源状态栏（左上角）
         self._draw_resource_status()
+        
+        # 绘制背包界面（如果在显示状态）
+        if self.show_inventory:
+            print(f"[DEBUG] on_draw: 尝试绘制背包界面")
+            print(f"[DEBUG]   player_entity存在: {self.player_entity is not None}")
+            if self.player_entity:
+                print(f"[DEBUG]   有inventory属性: {hasattr(self.player_entity, 'inventory')}")
+                if hasattr(self.player_entity, 'inventory'):
+                    self.inventory_renderer.current_inventory = self.player_entity.inventory
+                    self.inventory_renderer.inventory_visible = True  # 关键：设置可见标志
+                    print(f"[DEBUG]   inventory_visible设置为True")
+                    print(f"[DEBUG]   调用inventory_renderer.draw()")
+                    self.inventory_renderer.draw()
+                else:
+                    print(f"[DEBUG]   警告: 玩家没有inventory属性")
+            else:
+                print(f"[DEBUG]   警告: player_entity为None")
+        else:
+            # 隐藏时也要设置标志
+            self.inventory_renderer.inventory_visible = False
+        
+        # 绘制装备界面（如果在显示状态）
+        if self.show_equipment:
+            print(f"[DEBUG] on_draw: 尝试绘制装备界面")
+            print(f"[DEBUG]   player_entity存在: {self.player_entity is not None}")
+            if self.player_entity:
+                self.equipment_renderer.current_entity = self.player_entity
+                self.equipment_renderer.visible = True  # 关键：设置可见标志
+                print(f"[DEBUG]   equipment visible设置为True")
+                print(f"[DEBUG]   调用equipment_renderer.draw()")
+                self.equipment_renderer.draw()
+            else:
+                print(f"[DEBUG]   警告: player_entity为None")
+        else:
+            # 隐藏时也要设置标志
+            self.equipment_renderer.visible = False
     
     def _draw_edges(self):
         """绘制所有边（白色虚线）"""
@@ -492,6 +548,17 @@ class MapView(arcade.View):
     
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
         """鼠标移动事件"""
+        # 如果背包或装备界面打开，更新对应的悬停状态
+        if self.show_inventory and self.player_entity and hasattr(self.player_entity, 'inventory'):
+            self.inventory_renderer.current_inventory = self.player_entity.inventory
+            self.inventory_renderer.update_hover(x, y)
+            return
+        
+        if self.show_equipment and self.player_entity:
+            self.equipment_renderer.current_entity = self.player_entity
+            self.equipment_renderer.update_hover(x, y)
+            return
+        
         self.tooltip_x = x
         self.tooltip_y = y
         
@@ -506,6 +573,82 @@ class MapView(arcade.View):
     
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         """鼠标点击事件"""
+        # 如果背包或装备界面打开，处理对应的点击事件
+        if self.show_inventory and self.player_entity and hasattr(self.player_entity, 'inventory'):
+            self.inventory_renderer.current_inventory = self.player_entity.inventory
+            # 右键点击使用物品
+            if button == arcade.MOUSE_BUTTON_RIGHT:
+                clicked_item = self.inventory_renderer.get_item_at_position(x, y)
+                if clicked_item:
+                    success, message = self.inventory_renderer.current_inventory.use_item(
+                        clicked_item, 
+                        user_entity=self.player_entity,
+                        battle_log=None  # 地图模式下没有战斗日志
+                    )
+                    if success:
+                        print(f"[地图] {message}")
+            return
+        
+        if self.show_equipment and self.player_entity:
+            self.equipment_renderer.current_entity = self.player_entity
+            # 处理装备界面的点击
+            if button == arcade.MOUSE_BUTTON_LEFT:
+                # 检查是否点击了背包中的物品
+                item_index = self.equipment_renderer.get_inventory_item_at_pos(x, y)
+                if item_index is not None and hasattr(self.player_entity, 'inventory'):
+                    from inventory import ItemType
+                    from equipment_manager import EquipmentSlot
+                    
+                    inventory = self.player_entity.inventory
+                    equippable_items = [
+                        item for item in inventory.items 
+                        if item.item_type in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY]
+                    ]
+                    
+                    if 0 <= item_index < len(equippable_items):
+                        item = equippable_items[item_index]
+                        # 自动装备到合适的槽位
+                        equip_mgr = self.player_entity.equipment_manager
+                        target_slot = None
+                        
+                        # 根据物品类型确定目标槽位
+                        if item.item_type == ItemType.WEAPON:
+                            target_slot = EquipmentSlot.WEAPON
+                        elif item.item_type == ItemType.ARMOR:
+                            target_slot = EquipmentSlot.BODY
+                        elif item.item_type == ItemType.ACCESSORY:
+                            target_slot = EquipmentSlot.ACCESSORY
+                        
+                        if target_slot and target_slot in equip_mgr.unlocked_slots:
+                            can_equip, reason = equip_mgr.can_equip(item, target_slot, self.player_entity)
+                            if can_equip:
+                                old_item = equip_mgr.get_equipped_item(target_slot)
+                                equip_mgr.equipped_items[target_slot] = item
+                                inventory.remove_item(item)
+                                if old_item:
+                                    inventory.add_item(old_item)
+                                    print(f"[地图] 已装备 {item.name}，{old_item.name} 已放回背包")
+                                else:
+                                    print(f"[地图] 已装备 {item.name}")
+                            else:
+                                print(f"[地图] 无法装备: {reason}")
+                        else:
+                            print(f"[地图] 无法装备到该槽位")
+            
+            # 右键点击卸下装备
+            elif button == arcade.MOUSE_BUTTON_RIGHT:
+                slot = self.equipment_renderer.get_slot_at_pos(x, y)
+                if slot:
+                    equip_mgr = self.player_entity.equipment_manager
+                    success, message, old_item = equip_mgr.unequip_item(slot)
+                    print(f"[地图] {message}")
+                    
+                    # 如果有卸下的物品，放回背包
+                    if old_item and hasattr(self.player_entity, 'inventory'):
+                        self.player_entity.inventory.add_item(old_item)
+                        print(f"[地图] 已将 {old_item.name} 放回背包")
+            return
+        
         if button != arcade.MOUSE_BUTTON_LEFT:
             return
         
@@ -552,25 +695,43 @@ class MapView(arcade.View):
     
     def on_key_press(self, key: int, modifiers: int):
         """键盘事件"""
+        print(f"[DEBUG] MapView.on_key_press called: key={key}, modifiers={modifiers}")
+        
         if key == arcade.key.ESCAPE:
             # ESC返回
             print("[地图] 返回主菜单")
             # TODO: 实现返回逻辑，暂时关闭窗口
             self.window.close()
         
-        elif key == arcade.key.E:
-            # E键切换装备栏显示
+        elif key == arcade.key.TAB:
+            # Tab键切换装备栏显示
+            print(f"[DEBUG] Tab键按下 - 当前状态: show_equipment={self.show_equipment}, show_inventory={self.show_inventory}")
+            print(f"[DEBUG] player_entity存在: {self.player_entity is not None}")
+            if self.player_entity:
+                print(f"[DEBUG] 玩家名称: {self.player_entity.name}")
+                print(f"[DEBUG] 是否有equipment_manager: {hasattr(self.player_entity, 'equipment_manager')}")
+            
             self.show_equipment = not self.show_equipment
             self.show_inventory = False  # 互斥显示
             status = "显示" if self.show_equipment else "隐藏"
             print(f"[地图] {status}装备栏")
+            print(f"[DEBUG] 新状态: show_equipment={self.show_equipment}, show_inventory={self.show_inventory}")
         
-        elif key == arcade.key.I:
-            # I键切换背包栏显示
+        elif key == arcade.key.B:
+            # B键切换背包栏显示
+            print(f"[DEBUG] B键按下 - 当前状态: show_equipment={self.show_equipment}, show_inventory={self.show_inventory}")
+            print(f"[DEBUG] player_entity存在: {self.player_entity is not None}")
+            if self.player_entity:
+                print(f"[DEBUG] 玩家名称: {self.player_entity.name}")
+                print(f"[DEBUG] 是否有inventory: {hasattr(self.player_entity, 'inventory')}")
+                if hasattr(self.player_entity, 'inventory'):
+                    print(f"[DEBUG] 背包物品数量: {len(self.player_entity.inventory.items)}")
+            
             self.show_inventory = not self.show_inventory
             self.show_equipment = False  # 互斥显示
             status = "显示" if self.show_inventory else "隐藏"
             print(f"[地图] {status}背包栏")
+            print(f"[DEBUG] 新状态: show_equipment={self.show_equipment}, show_inventory={self.show_inventory}")
         
         elif key == arcade.key.S:
             # S键保存游戏
