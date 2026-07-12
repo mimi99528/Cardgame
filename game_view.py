@@ -663,12 +663,15 @@ class CardView(arcade.View):
         # 查找下一节点
         next_node_id = self.current_narrative_node.next_nodes.get(outcome_level)
         
-        if next_node_id:
+        # 检查是否是内联结束标记（"__end__" 字符串表示场景直接结束）
+        is_inline_end = next_node_id == "__end__"
+        
+        if next_node_id and not is_inline_end:
             print(f"[叙事] 跳转到下一节点: {next_node_id}")
             # 切换到下一节点
             self._start_narrative_scene(next_node_id)
         else:
-            print(f"[叙事] 叙事结束（无下一节点）")
+            print(f"[叙事] 叙事结束（无下一节点或内联结束）")
             # 退出叙事模式
             self._exit_narrative_mode()
     
