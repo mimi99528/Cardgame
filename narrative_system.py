@@ -60,7 +60,50 @@ class NarrativeAction:
 
 @dataclass
 class NarrativeResult:
-    """叙事结果定义"""
+    """叙事结果定义
+    
+    effects 字段命名规范（Effects Field Schema）：
+    每个 effect 都是一个字典，必须含 "type" 键，其余字段依 type 而定：
+    
+    通用规则：
+      - 主要数值用 "value"（int/float/bool）
+      - 持续回合数用 "duration"（int）
+      - 敌人/物品/位置/buff/debuff 等语义对象 ID 用对应语义字段名（如下）
+    
+    常用 effect 类型及字段：
+      gain_reputation       / value: int          — 获得声誉
+      gain_fear_reputation  / value: int          — 获得威慑声誉
+      gain_infamy           / value: int          — 获得恶名
+      gain_knowledge        / value: int          — 获得知识点
+      gain_experience       / value: int          — 获得经验
+      gain_item             / item: str           — 获得物品（物品ID）
+      lose_item             / item: str           — 失去物品（物品ID）
+      gain_blessing         / blessing: str       — 获得祝福（祝福ID）
+      gain_revelation       / revelation: str     — 获得启示（启示ID）
+      gain_buff             / buff: str, duration: int  — 获得增益状态
+      apply_debuff          / debuff: str, duration: int — 施加减益状态
+      take_damage           / value: int          — 受到伤害
+      heal                  / value: int          — 恢复生命
+      mental_damage         / value: int          — 精神伤害
+      stat_bonus_temp       / stat: str, value: int, duration: int — 临时属性加成
+      trigger_combat        / enemy: str          — 触发战斗（敌人ID）
+      stealth_entry         / value: true         — 隐秘进入
+      suspicion_raised      / value: int          — 引发怀疑
+      delay_entry           / value: true         — 延迟进入
+      lose_time             / value: int          — 消耗时间
+      morale_decrease       / value: int          — 士气下降
+      location_locked       / location: str       — 封锁地点
+      confusion             / duration: int       — 困惑状态
+      village_loss_increase / value: int          — 村庄损失增加
+      temple_damage         / value: int          — 圣地受损
+      friendly_fire         / value: int          — 误伤
+      defender_retreat      / value: int          — 守卫撤退
+      update_obsession_progress / condition_type: str, target_id: str, amount: int
+                            — 更新执念进度（当前API；未来将迁移至涌现式执念系统的 accumulate_signal 接口）
+    
+    TODO: 当"涌现式执念系统"（ObsessionTendency/EmergentObsessionState）合并后，
+    需将 update_obsession_progress 迁移为对应的 signal_type/amount 接口。
+    """
     outcome_level: str                  # 结果等级："大成功", "成功", "半成功", "失败", "大失败"
     text: str                           # 结果文本描述
     effects: List[Dict[str, Any]] = field(default_factory=list)  # 效果列表（如状态变化、物品获得等）
@@ -94,8 +137,9 @@ class NarrativeNode:
     map_node_id: Optional[str] = None   # 对应的地图节点ID（可选）
     actions: List[NarrativeAction] = field(default_factory=list)  # 可用动作列表
     results_pool: Dict[str, List[NarrativeResult]] = field(default_factory=dict)  # 结果池：动作标签 -> 结果列表
-    next_nodes: Dict[str, str] = field(default_factory=dict)  # 下一节点映射：结果等级 -> 节点ID
+    next_nodes: Dict[str, str] = field(default_factory=dict)  # 下一节点映射：结果等级 -> 节点ID（"__end__"表示内联结束）
     is_end_node: bool = False           # 是否为结束节点
+    end_summary: Optional[str] = None  # 内联结束时的收尾文案（新格式）
     
     def get_action_by_name(self, name: str) -> Optional[NarrativeAction]:
         """根据名称获取动作"""
@@ -162,8 +206,16 @@ class NarrativeNode:
         }
     
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> 'NarrativeNode':
-        """从字典反序列化"""
+    def from_dict(data: Dict[str, Any], templates: Dict[str, Any] = None) -> 'NarrativeNode':
+        """从字典反序列化
+        
+        Args:
+            data: 节点数据字典
+            templates: 可选的 outcome_templates 字典，用于解析模板引用
+        """
+        if templates is None:
+            templates = {}
+
         actions = []
         for action_data in data.get("actions", []):
             check_type = None
@@ -194,7 +246,27 @@ class NarrativeNode:
         
         results_pool = {}
         for key, results_data in data.get("results_pool", {}).items():
-            results_pool[key] = [NarrativeResult.from_dict(r) for r in results_data]
+            if isinstance(results_data, list):
+                # 旧格式：[{"outcome_level": ..., "text": ..., "effects": ...}, ...]
+                results_pool[key] = [NarrativeResult.from_dict(r) for r in results_data]
+            elif isinstance(results_data, dict) and "$template" in results_data:
+                # 模板引用格式：{"$template": "template_id", "params": {...}}
+                template_id = results_data["$template"]
+                params = results_data.get("params", {})
+                if template_id in templates:
+                    results_pool[key] = NarrativeNode._resolve_template(templates[template_id], params)
+                else:
+                    results_pool[key] = []
+            elif isinstance(results_data, dict):
+                # 新格式：{"大成功": {"text": ..., "effects": [...]}, ...}
+                results_pool[key] = [
+                    NarrativeResult(
+                        outcome_level=level,
+                        text=level_data["text"],
+                        effects=level_data.get("effects", [])
+                    )
+                    for level, level_data in results_data.items()
+                ]
         
         return NarrativeNode(
             node_id=data["node_id"],
@@ -206,8 +278,29 @@ class NarrativeNode:
             actions=actions,
             results_pool=results_pool,
             next_nodes=data.get("next_nodes", {}),
-            is_end_node=data.get("is_end_node", False)
+            is_end_node=data.get("is_end_node", False),
+            end_summary=data.get("end_summary")
         )
+
+    @staticmethod
+    def _resolve_template(template: Dict[str, Any], params: Dict[str, Any]) -> List[NarrativeResult]:
+        """将 outcome_template 解析为 NarrativeResult 列表，支持参数替换。
+        
+        Args:
+            template: 模板字典，键为结果等级，值为 {"text": ..., "effects": [...]}
+            params: 替换参数，如 {"action_name": "火焰箭"}
+        """
+        results = []
+        for level, result_data in template.items():
+            text = result_data["text"]
+            for param_key, param_val in params.items():
+                text = text.replace(f"{{{param_key}}}", str(param_val))
+            results.append(NarrativeResult(
+                outcome_level=level,
+                text=text,
+                effects=result_data.get("effects", [])
+            ))
+        return results
 
 
 class NarrativeResultEngine:
@@ -419,17 +512,29 @@ class NarrativeNodeManager:
         self.nodes: Dict[str, NarrativeNode] = {}
     
     def load_from_file(self, filepath: str):
-        """从JSON文件加载叙事节点"""
+        """从JSON文件加载叙事节点
+        
+        支持两种格式：
+        1. 新格式（推荐）：{"outcome_templates": {...}, "nodes": [...]}
+        2. 旧格式（兼容）：[{node}, ...] 或单个节点 {node}
+        """
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
-        if isinstance(data, list):
-            # 列表格式
+        if isinstance(data, dict) and "nodes" in data:
+            # 新格式：包含 outcome_templates 和 nodes 的顶层对象
+            templates = data.get("outcome_templates", {})
+            nodes_list = data["nodes"]
+            for node_data in nodes_list:
+                node = NarrativeNode.from_dict(node_data, templates)
+                self.nodes[node.node_id] = node
+        elif isinstance(data, list):
+            # 旧格式：节点列表
             for node_data in data:
                 node = NarrativeNode.from_dict(node_data)
                 self.nodes[node.node_id] = node
         else:
-            # 单个节点
+            # 旧格式：单个节点
             node = NarrativeNode.from_dict(data)
             self.nodes[node.node_id] = node
     
