@@ -212,10 +212,11 @@ class NarrativeNode:
         Args:
             data: 节点数据字典
             templates: 可选的 outcome_templates 字典，用于解析模板引用。
-                       使用 None（而非 {}）作为默认值以避免可变默认参数问题。
+                       默认为 None；Python 最佳实践是用 None 而非 {} 作为可变类型默认值，
+                       以防止多次调用之间意外共享同一个字典对象。
         """
         if templates is None:
-            templates = {}
+            templates = {}  # 在函数内部初始化，确保每次调用都是独立的新字典
 
         actions = []
         for action_data in data.get("actions", []):
