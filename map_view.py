@@ -72,6 +72,15 @@ class MapView(arcade.View):
         # 防止重复触发战斗的标志
         self._battle_triggered = False
         
+        # 防止重复触发叙事节点的标志
+        self._completed_narratives: set = set()  # 记录已完成的叙事节点ID
+        
+        # 执念进度提示相关
+        self.obsession_notification = None  # {'text': str, 'timer': float, 'duration': float}
+
+        # BGM追踪
+        self._last_bgm_node_id: str | None = None
+        
         print(f"[DEBUG] MapView初始化完成")
     
     def _on_battle_start(self, player_team, enemy_team, node):
@@ -147,7 +156,68 @@ class MapView(arcade.View):
         # 绘制资源状态栏（左上角）
         self._draw_resource_status()
         
-        # 绘制背包界面（如果在显示状态）
+        # 绘制执念进度提示（屏幕中央大字）
+        self._draw_obsession_notification()
+    
+    def _draw_obsession_notification(self):
+        """绘制执念进度改变的屏幕中央提示"""
+        if not self.obsession_notification:
+            return
+        
+        print(f"[DEBUG] 正在绘制地图视图执念通知: {self.obsession_notification['text']}")
+        notification = self.obsession_notification
+        elapsed = notification['timer']
+        duration = notification['duration']
+        
+        if elapsed >= duration:
+            self.obsession_notification = None
+            return
+        
+        # 计算透明度：前0.5秒淡入，中间保持，最后0.5秒淡出
+        fade_time = 0.5
+        if elapsed < fade_time:
+            alpha = int(255 * (elapsed / fade_time))
+        elif elapsed > duration - fade_time:
+            alpha = int(255 * ((duration - elapsed) / fade_time))
+        else:
+            alpha = 255
+        
+        text = notification['text']
+        
+        # 绘制背景光晕
+        center_x = self.window_width // 2
+        center_y = self.window_height // 2
+        
+        # 绘制文字（带描边效果）
+        for offset_x, offset_y, color in [
+            (-2, 0, (0, 0, 0, alpha)),
+            (2, 0, (0, 0, 0, alpha)),
+            (0, -2, (0, 0, 0, alpha)),
+            (0, 2, (0, 0, 0, alpha)),
+        ]:
+            arcade.draw_text(
+                text,
+                center_x + offset_x,
+                center_y + offset_y,
+                color,
+                S.font(48),
+                anchor_x="center",
+                anchor_y="center",
+                bold=True
+            )
+        
+        # 主文字
+        main_color = (255, 215, 0, alpha)  # GOLD with alpha
+        arcade.draw_text(
+            text,
+            center_x,
+            center_y,
+            main_color,
+            S.font(48),
+            anchor_x="center",
+            anchor_y="center",
+            bold=True
+        )
         if self.show_inventory:
             print(f"[DEBUG] on_draw: 尝试绘制背包界面")
             print(f"[DEBUG]   player_entity存在: {self.player_entity is not None}")
@@ -403,7 +473,11 @@ class MapView(arcade.View):
         
         # 背景框尺寸
         box_width = S.px(280)
-        box_height = S.py(80)
+        base_box_height = S.py(80)
+        
+        # 计算执念进度条高度
+        obsession_height = S.py(40) if self.player_entity and self.player_entity.obsession else 0
+        box_height = base_box_height + obsession_height
         
         # 绘制半透明背景
         arcade.draw_lrbt_rectangle_filled(
@@ -469,6 +543,56 @@ class MapView(arcade.View):
             anchor_x="left",
             anchor_y="top"
         )
+        
+        # 绘制执念进度
+        if self.player_entity and self.player_entity.obsession:
+            obsession = self.player_entity.obsession
+            progress_pct = obsession.get_progress_percentage()
+            
+            obs_y = start_y - box_height + S.py(5)
+            
+            # 执念名称
+            arcade.draw_text(
+                f"🔥 执念: {obsession.name}",
+                start_x + S.px(15),
+                obs_y + S.py(15),
+                arcade.color.ORANGE,
+                S.font(14),
+                anchor_x="left",
+                anchor_y="top"
+            )
+            
+            # 进度条背景
+            bar_x = start_x + S.px(15)
+            bar_y = obs_y
+            bar_width = box_width - S.px(30)
+            bar_height = S.py(10)
+            
+            arcade.draw_lrbt_rectangle_filled(
+                bar_x, bar_x + bar_width,
+                bar_y, bar_y + bar_height,
+                (60, 60, 60)
+            )
+            
+            # 进度条前景
+            filled_width = bar_width * (progress_pct / 100.0)
+            color = arcade.color.GREEN if progress_pct == 100 else arcade.color.GOLD
+            arcade.draw_lrbt_rectangle_filled(
+                bar_x, bar_x + filled_width,
+                bar_y, bar_y + bar_height,
+                color
+            )
+            
+            # 进度百分比文字
+            arcade.draw_text(
+                f"{progress_pct:.0f}%",
+                bar_x + bar_width / 2,
+                bar_y + bar_height / 2,
+                arcade.color.WHITE,
+                S.font(12),
+                anchor_x="center",
+                anchor_y="center"
+            )
     
     def _node_to_screen(self, node_pos: Tuple[float, float]) -> Tuple[float, float]:
         """将节点逻辑坐标转换为屏幕坐标"""
@@ -685,7 +809,36 @@ class MapView(arcade.View):
                     print("[地图] 警告：未设置玩家实体，无法触发战斗")
                 return
             
-            # 尝试移动到新节点
+            # 如果是叙事节点，触发叙事场景
+            if clicked_node.node_type == NodeType.NARRATIVE_ZONE:
+                print(f"[地图] 检测到叙事节点: {clicked_node.name}")
+                
+                # 根据节点的标签或名称匹配对应的叙事节点ID
+                narrative_node_id = self._find_matching_narrative_node(clicked_node)
+                
+                if narrative_node_id:
+                    # 检查是否已经触发过（防止重复触发）
+                    if self.map_system.is_narrative_completed(narrative_node_id):
+                        print(f"[地图] 叙事节点 {narrative_node_id} 已完成，不可重复触发")
+                        return
+                    
+                    print(f"[地图] 找到匹配的叙事节点: {narrative_node_id}")
+                    # 尝试移动到新节点
+                    success, message = self.map_system.move_to_node(clicked_node.node_id)
+                    
+                    if success:
+                        print(f"[地图] {message}")
+                        # 标记叙事节点为已完成（防止重复触发）
+                        self.map_system.mark_narrative_completed(narrative_node_id)
+                        # 移动成功后，触发叙事场景
+                        self._trigger_narrative_for_node(clicked_node, narrative_node_id)
+                    else:
+                        print(f"[地图] 无法移动: {message}")
+                else:
+                    print(f"[地图] 警告：未找到匹配的叙事节点")
+                return
+            
+            # 尝试移动到新节点（安全节点等）
             success, message = self.map_system.move_to_node(clicked_node.node_id)
             
             if success:
@@ -738,6 +891,163 @@ class MapView(arcade.View):
             self.map_system.save_to_file("save.json")
             print("[地图] 游戏已保存")
     
+    def _trigger_narrative_for_node(self, node: MapNode, narrative_node_id: str = None):
+        """
+        为节点触发叙事场景
+        
+        Args:
+            node: 目标叙事节点
+            narrative_node_id: 叙事节点ID（可选，如果提供则直接使用，否则自动匹配）
+        """
+        print(f"[地图] 触发叙事场景: {node.name}")
+        
+        # 如果没有提供叙事节点ID，则根据节点的标签或名称匹配
+        if not narrative_node_id:
+            narrative_node_id = self._find_matching_narrative_node(node)
+        
+        if narrative_node_id:
+            print(f"[地图] 找到匹配的叙事节点: {narrative_node_id}")
+            # 切换到叙事场景
+            self._switch_to_narrative_scene(narrative_node_id)
+        else:
+            print(f"[地图] 警告：未找到匹配的叙事节点，使用默认节点")
+            # 如果没有匹配的节点，可以尝试使用节点ID作为叙事节点ID
+            # 或者显示一个默认的叙事场景
+    
+    def _find_matching_narrative_node(self, map_node: MapNode) -> Optional[str]:
+        """
+        根据地图节点查找匹配的叙事节点ID
+        
+        Args:
+            map_node: 地图节点
+            
+        Returns:
+            匹配的叙事节点ID，如果没有则返回None
+        """
+        # 定义映射关系：地图节点标签/名称 -> 叙事节点ID
+        # 可以根据节点的tags或name来匹配
+        
+        # 检查节点标签
+        for tag in map_node.tags:
+            if "祭坛" in tag or "altar" in tag.lower():
+                return "altar_site_001"
+            elif "遗迹" in tag or "ruins" in tag.lower():
+                return "ancient_ruins_001"
+            elif "村庄" in tag or "village" in tag.lower():
+                return "village_crisis_001"
+            elif "试炼" in tag or "arena" in tag.lower() or "强者" in tag:
+                return "boss_arena_001"
+            elif "圣地" in tag or "temple" in tag.lower() or "守护" in tag:
+                return "sacred_temple_defense_001"
+        
+        # 检查节点名称
+        node_name_lower = map_node.name.lower()
+        if "祭坛" in map_node.name or "altar" in node_name_lower:
+            return "altar_site_001"
+        elif "遗迹" in map_node.name or "ruins" in node_name_lower:
+            return "ancient_ruins_001"
+        elif "村庄" in map_node.name or "village" in node_name_lower:
+            return "village_crisis_001"
+        elif "试炼" in map_node.name or "arena" in node_name_lower or "强者" in map_node.name:
+            return "boss_arena_001"
+        elif "圣地" in map_node.name or "temple" in node_name_lower or "守护" in map_node.name:
+            return "sacred_temple_defense_001"
+        
+        # 检查节点ID
+        node_id_lower = map_node.node_id.lower()
+        if "altar" in node_id_lower:
+            return "altar_site_001"
+        elif "ruins" in node_id_lower:
+            return "ancient_ruins_001"
+        elif "village" in node_id_lower:
+            return "village_crisis_001"
+        elif "arena" in node_id_lower or "boss" in node_id_lower:
+            return "boss_arena_001"
+        elif "temple" in node_id_lower or "defense" in node_id_lower:
+            return "sacred_temple_defense_001"
+        
+        return None
+    
+    def _switch_to_narrative_scene(self, node_id: str):
+        """
+        切换到叙事场景
+        
+        Args:
+            node_id: 叙事节点ID
+        """
+        from scene_manager import NarrativeSceneView
+        from battle_system import BattleSystem
+        
+        # 创建一个临时的战斗系统（用于承载叙事场景）
+        # 注意：这里需要玩家实体，从player_entity获取
+        if not self.player_entity:
+            print("[地图] 警告：没有玩家实体，无法启动叙事场景")
+            return
+        
+        # 创建简单的战斗系统实例（仅用于叙事）
+        battle = BattleSystem(
+            player_team=[self.player_entity],
+            enemy_team=[]
+        )
+        
+        # 创建叙事场景视图
+        narrative_scene = NarrativeSceneView(battle, node_id, window=self.window)
+        
+        # 切换到叙事场景
+        self.window.show_view(narrative_scene)
+        print(f"[地图] 已切换到叙事场景: {node_id}")
+    
     def on_update(self, delta_time: float):
         """更新逻辑"""
-        pass
+        # 更新执念提示计时器
+        if self.obsession_notification:
+            self.obsession_notification['timer'] += delta_time
+
+        # BGM: 检测玩家是否在新手村
+        self._update_bgm()
+
+    def _update_bgm(self):
+        """更新BGM - 检测当前节点决定播放village或停止"""
+        if self.map_system.current_node_id is None:
+            return
+
+        current = self.map_system.get_node(self.map_system.current_node_id)
+        if current is None:
+            return
+
+        # 避免重复切换
+        if current.node_id == self._last_bgm_node_id:
+            return
+        self._last_bgm_node_id = current.node_id
+
+        from bgm_manager import BgmManager
+        if current.node_type == NodeType.SAFE_ZONE:
+            BgmManager().play_bgm("village")
+        else:
+            BgmManager().stop()
+
+    def show_obsession_progress_change(self, old_progress: float, new_progress: float, obsession_name: str, is_completed: bool = False):
+        """
+        显示执念进度改变提示
+        
+        Args:
+            old_progress: 旧进度百分比
+            new_progress: 新进度百分比
+            obsession_name: 执念名称
+            is_completed: 是否完成
+        """
+        if is_completed:
+            text = f"✨ 执念「{obsession_name}」已完成！"
+        else:
+            diff = new_progress - old_progress
+            if diff > 0:
+                text = f"🔥 执念「{obsession_name}」进度 +{diff:.0f}% ({new_progress:.0f}%)"
+            else:
+                text = f"🔥 执念「{obsession_name}」进度: {new_progress:.0f}%"
+        
+        print(f"[DEBUG] 设置地图视图执念通知: {text}")
+        self.obsession_notification = {
+            'text': text,
+            'timer': 0.0,
+            'duration': 3.0  # 持续3秒
+        }

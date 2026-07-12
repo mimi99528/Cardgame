@@ -122,6 +122,9 @@ class MapSystem:
         self.edges: Dict[Tuple[str, str], MapEdge] = {}
         self.current_node_id: Optional[str] = None
         
+        # 叙事节点触发记录（防止重复触发）
+        self.completed_narratives: set = set()  # 记录已完成的叙事节点ID
+        
         # 玩家资源管理
         from map_resource_manager import PlayerResources, MapResourceManager
         self.player_resources = PlayerResources()
@@ -243,6 +246,19 @@ class MapSystem:
         old_node_id = self.current_node_id
         self.set_current_node(target_node_id)
         
+        # 触发节点移动事件（用于执念系统等）
+        from event_system import trigger_event, GameEventType
+        trigger_event(
+            GameEventType.NODE_TRAVEL,
+            source=self.nodes.get(old_node_id),
+            target=target_node,
+            data={
+                "old_node_id": old_node_id,
+                "new_node_id": target_node_id,
+                "node_type": target_node.node_type.value
+            }
+        )
+        
         return True, f"从 {self.nodes[old_node_id].name} 移动到 {target_node.name} | {message}"
     
     def get_shortest_path(self, target_node_id: str) -> Optional[List[str]]:
@@ -283,8 +299,34 @@ class MapSystem:
         
         return True
     
+    def mark_narrative_completed(self, node_id: str) -> bool:
+        """
+        标记叙事节点为已完成（防止重复触发）
+        
+        Args:
+            node_id: 叙事节点ID（如 altar_site_001）
+            
+        Returns:
+            是否成功标记
+        """
+        self.completed_narratives.add(node_id)
+        print(f"[地图] 叙事节点 {node_id} 已标记为完成，不可重复触发")
+        return True
+    
+    def is_narrative_completed(self, node_id: str) -> bool:
+        """
+        检查叙事节点是否已完成
+        
+        Args:
+            node_id: 叙事节点ID
+            
+        Returns:
+            是否已完成
+        """
+        return node_id in self.completed_narratives
+    
     def save_to_file(self, filepath: str):
-        """保存地图到JSON文件（包括玩家资源状态）"""
+        """保存地图到JSON文件（包括玩家资源状态和叙事节点完成状态）"""
         import json
         
         data = {
@@ -299,16 +341,18 @@ class MapSystem:
                 "current_time": self.player_resources.current_time,
                 "gold": self.player_resources.gold,
                 "luck_points": self.player_resources.luck_points
-            }
+            },
+            # 保存叙事节点完成状态
+            "completed_narratives": list(self.completed_narratives)
         }
         
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         
-        print(f"[地图] 已保存地图和资源状态到 {filepath}")
+        print(f"[地图] 已保存地图、资源状态和叙事进度到 {filepath}")
     
     def load_from_file(self, filepath: str):
-        """从 JSON文件加载地图（包括玩家资源状态）"""
+        """从 JSON文件加载地图（包括玩家资源状态和叙事节点完成状态）"""
         import json
             
         with open(filepath, 'r', encoding='utf-8') as f:
@@ -346,6 +390,14 @@ class MapSystem:
             print(f"[地图] 已加载玩家资源状态")
         else:
             print(f"[地图] 未找到玩家资源数据，使用默认值")
+        
+        # 加载叙事节点完成状态
+        completed_narratives_data = data.get("completed_narratives", [])
+        if completed_narratives_data:
+            self.completed_narratives = set(completed_narratives_data)
+            print(f"[地图] 已加载 {len(self.completed_narratives)} 个已完成的叙事节点: {self.completed_narratives}")
+        else:
+            print(f"[地图] 未找到叙事节点完成状态数据")
     
     def create_example_map(self):
         """创建示例地图（3-5个节点）"""

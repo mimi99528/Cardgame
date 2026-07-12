@@ -267,6 +267,9 @@ class Entity:
             self.hit_dice_type = 8
         self.max_hit_dice = 2 + (self.level - 1)  # 最大生命骰数量 = 2 + (等级-1)
         self.current_hit_dice = self.max_hit_dice  # 当前可用生命骰数量
+        
+        # 执念系统
+        self.obsession: Optional['Obsession'] = None  # 类型: Optional['Obsession']
     
     def set_career(self, career):
         """
@@ -280,6 +283,17 @@ class Entity:
             self.career = career
             # 更新生命骰类型为职业的类型
             self.hit_dice_type = career.hit_dice_type
+    
+    def set_obsession(self, obsession):
+        """
+        设置角色的执念
+        
+        Args:
+            obsession: 执念对象
+        """
+        from obsession_system import Obsession
+        if isinstance(obsession, Obsession):
+            self.obsession = obsession
     
     def _calculate_max_ap(self) -> int:
         """计算最大AP（包括护甲AC加成）"""
@@ -815,7 +829,8 @@ class Entity:
             'control_type': self.control_type.value,
             'position': list(self.position),
             'career': self.career.to_dict() if self.career else None,
-            'card_library': self.card_library.save_to_dict() if self.card_library else None
+            'card_library': self.card_library.save_to_dict() if self.card_library else None,
+            'obsession': self.obsession.to_dict() if self.obsession else None
         }
         return data
     
@@ -871,6 +886,12 @@ class Entity:
             from player_card_library import PlayerCardLibrary
             entity.card_library = PlayerCardLibrary(owner_name=entity.name)
             entity.card_library.load_from_dict(card_library_data)
+        
+        # 恢复执念
+        obsession_data = data.get('obsession')
+        if obsession_data:
+            from obsession_system import Obsession
+            entity.obsession = Obsession.from_dict(obsession_data)
         
         return entity
     

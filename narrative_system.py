@@ -91,6 +91,7 @@ class NarrativeNode:
     description: str                    # 节点描述
     scene_image: Optional[str] = None   # 场景图片路径（可选）
     tags: List[str] = field(default_factory=list)  # 节点标签列表
+    map_node_id: Optional[str] = None   # 对应的地图节点ID（可选）
     actions: List[NarrativeAction] = field(default_factory=list)  # 可用动作列表
     results_pool: Dict[str, List[NarrativeResult]] = field(default_factory=dict)  # 结果池：动作标签 -> 结果列表
     next_nodes: Dict[str, str] = field(default_factory=dict)  # 下一节点映射：结果等级 -> 节点ID
@@ -137,6 +138,7 @@ class NarrativeNode:
             "description": self.description,
             "scene_image": self.scene_image,
             "tags": self.tags,
+            "map_node_id": self.map_node_id,
             "actions": [
                 {
                     "name": a.name,
@@ -200,6 +202,7 @@ class NarrativeNode:
             description=data["description"],
             scene_image=data.get("scene_image"),
             tags=data.get("tags", []),
+            map_node_id=data.get("map_node_id"),
             actions=actions,
             results_pool=results_pool,
             next_nodes=data.get("next_nodes", {}),
@@ -209,6 +212,26 @@ class NarrativeNode:
 
 class NarrativeResultEngine:
     """五级结果引擎 - 根据动作和检定结果生成叙事输出"""
+    
+    # 开发者作弊模式：开启后所有检定都为大成功
+    _debug_god_mode: bool = False
+    
+    @staticmethod
+    def enable_debug_god_mode():
+        """开启开发者作弊模式（所有检定大成功）"""
+        NarrativeResultEngine._debug_god_mode = True
+        print("\n[开发者] ⚡ 作弊模式已开启！所有检定将自动大成功！")
+    
+    @staticmethod
+    def disable_debug_god_mode():
+        """关闭开发者作弊模式"""
+        NarrativeResultEngine._debug_god_mode = False
+        print("\n[开发者] 作弊模式已关闭")
+    
+    @staticmethod
+    def is_debug_god_mode_enabled() -> bool:
+        """检查作弊模式是否开启"""
+        return NarrativeResultEngine._debug_god_mode
     
     @staticmethod
     def check_hand_for_tags(hand, required_tags: List[str]) -> bool:
@@ -325,7 +348,19 @@ class NarrativeResultEngine:
         """
         from dice_system import roll_dice_sum
         
-        # 掷2d10
+        # 检查是否开启作弊模式
+        if NarrativeResultEngine._debug_god_mode:
+            # 作弊模式：直接返回大成功
+            dn = action.get_dn()
+            # 设置一个足够高的骰子值，确保必定大成功（dn + 8 以上）
+            dice_total = dn + 10  # 保证超过大成功阈值
+            stat_bonus = 0
+            final_result = dice_total + stat_bonus
+            outcome_level = "大成功"
+            print(f"[开发者] ⚡ 作弊模式生效！强制大成功！")
+            return dice_total, stat_bonus, final_result, outcome_level
+        
+        # 正常模式：掷2d10
         dice_total = roll_dice_sum(2, 10)
         
         # 计算属性加值

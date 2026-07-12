@@ -232,5 +232,908 @@
       "大失败": "combat_city_guards_elite"
     },
     "is_end_node": false
+  },
+  {
+    "node_id": "altar_site_001",
+    "title": "古老祭坛",
+    "description": "你来到了一座古老的祭坛前。石台上刻满了神秘的符文，空气中弥漫着神圣的气息。祭坛中央有一个凹槽，似乎可以放置某种物品。你感受到一股强大的力量在召唤着你。",
+    "scene_image": null,
+    "tags": ["祭坛", "神秘", "检定", "执念"],
+    "map_node_id": "altar_001",
+    "actions": [
+      {
+        "name": "解读符文",
+        "description": "尝试解读祭坛上的神秘符文，了解其含义。",
+        "tags": ["解读", "心智", "知识"],
+        "check_type": "心智",
+        "difficulty": "困难",
+        "stat_ratios": {"int": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "献祭物品",
+        "description": "将一件珍贵物品放入祭坛凹槽，寻求神的指引。",
+        "tags": ["献祭", "魅力", "牺牲"],
+        "check_type": "魅力",
+        "difficulty": "中等",
+        "stat_ratios": {"cha": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "祈祷冥想",
+        "description": "在祭坛前虔诚祈祷，等待神谕降临。",
+        "tags": ["祈祷", "幸运", "信仰"],
+        "check_type": "幸运",
+        "difficulty": "中等",
+        "stat_ratios": {"luck": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "强行破坏",
+        "description": "用武力破坏祭坛，夺取其中的力量。",
+        "tags": ["破坏", "力量", "亵渎"],
+        "check_type": "力量",
+        "difficulty": "极难",
+        "stat_ratios": {"str": 1.0},
+        "is_hidden": true,
+        "hidden_condition": "需要角色具有邪恶或混乱倾向",
+        "required_tags": []
+      }
+    ],
+    "results_pool": {
+      "解读符文": [
+        {
+          "outcome_level": "大成功",
+          "text": "你完美地解读了符文，获得了古代智慧的启示。你的思维变得清晰，对世界的理解更加深刻。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "complete_check", "target_id": "altar_intelligence_check", "amount": 1}, {"type": "stat_bonus_temp", "stat": "intelligence", "value": 2, "duration": 3}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你解读了部分符文，获得了一些有价值的信息。虽然不够完整，但足以让你有所收获。",
+          "effects": [{"type": "gain_knowledge", "value": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你勉强解读了几个符文，但大部分内容仍然模糊不清。你感到有些困惑。",
+          "effects": [{"type": "confusion", "duration": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "符文太过复杂，你无法理解其含义。头痛欲裂，精神受到轻微创伤。",
+          "effects": [{"type": "take_damage", "value": 3}, {"type": "mental_damage", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你错误地解读了符文，触发了祭坛的防御机制。一股强大的能量冲击将你击飞。",
+          "effects": [{"type": "take_damage", "value": 10}, {"type": "trigger_combat", "enemy": "altar_guardian"}]
+        }
+      ],
+      "献祭物品": [
+        {
+          "outcome_level": "大成功",
+          "text": "祭坛接受了你的献祭，发出耀眼的光芒。你感受到了神的眷顾，内心充满了力量。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "make_choice", "target_id": "altar_sacrifice", "amount": 1}, {"type": "heal", "value": 20}, {"type": "gain_blessing", "blessing": "divine_protection"}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "祭坛接受了献祭，你感到一阵温暖的力量流过全身。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "make_choice", "target_id": "altar_sacrifice", "amount": 1}, {"type": "heal", "value": 10}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "祭坛似乎对你的献祭不太满意，但还是给予了一点回应。",
+          "effects": [{"type": "heal", "value": 5}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "祭坛拒绝了你的献祭，物品被弹了回来。你感到一阵失落。",
+          "effects": [{"type": "lose_item", "item": "sacrificed_item"}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "祭坛愤怒地拒绝了你的献祭，并降下诅咒。你感到一股邪恶的力量侵蚀着你的身体。",
+          "effects": [{"type": "take_damage", "value": 8}, {"type": "apply_debuff", "debuff": "curse", "duration": 5}]
+        }
+      ],
+      "祈祷冥想": [
+        {
+          "outcome_level": "大成功",
+          "text": "你的祈祷得到了回应，一道神圣的光芒笼罩着你。你听到了神的声音，获得了宝贵的指引。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "altar_site", "amount": 1}, {"type": "gain_revelation", "revelation": "divine_guidance"}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你感受到了神的存在，内心平静下来。虽然没有明确的指引，但你获得了精神上的慰藉。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "altar_site", "amount": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你努力祈祷，但感觉神明并没有注意到你。不过你还是感到了一丝平静。",
+          "effects": []
+        },
+        {
+          "outcome_level": "失败",
+          "text": "无论你怎么祈祷，都没有任何回应。你开始怀疑自己的信仰。",
+          "effects": [{"type": "morale_decrease", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你的祈祷引来了邪神的注意，一股黑暗的力量试图侵蚀你的意志。",
+          "effects": [{"type": "take_damage", "value": 5}, {"type": "apply_debuff", "debuff": "dark_whispers", "duration": 3}]
+        }
+      ],
+      "强行破坏": [
+        {
+          "outcome_level": "大成功",
+          "text": "你用强大的力量摧毁了祭坛，释放了其中封印的能量。虽然方式粗暴，但你确实获得了力量。",
+          "effects": [{"type": "stat_bonus_temp", "stat": "strength", "value": 3, "duration": 2}, {"type": "gain_infamy", "value": 2}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你成功破坏了祭坛，但释放的能量难以控制。你获得了一些力量，但也付出了代价。",
+          "effects": [{"type": "take_damage", "value": 5}, {"type": "stat_bonus_temp", "stat": "strength", "value": 2, "duration": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你只能部分破坏祭坛，效果不如预期。祭坛的守卫被惊醒了。",
+          "effects": [{"type": "trigger_combat", "enemy": "altar_guardian"}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "祭坛坚不可摧，你的攻击毫无效果。祭坛的防御机制被触发。",
+          "effects": [{"type": "take_damage", "value": 8}, {"type": "trigger_combat", "enemy": "altar_guardian"}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你触发了祭坛的终极防御，强大的能量反噬将你重伤。",
+          "effects": [{"type": "take_damage", "value": 20}, {"type": "apply_debuff", "debuff": "energy_backlash", "duration": 5}]
+        }
+      ]
+    },
+    "next_nodes": {
+      "大成功": "altar_site_001_end",
+      "成功": "altar_site_001_end",
+      "半成功": "altar_site_001_end",
+      "失败": "altar_site_001_end",
+      "大失败": "altar_site_001_end"
+    },
+    "is_end_node": false
+  },
+  {
+    "node_id": "altar_site_001_end",
+    "title": "祭坛探索结束",
+    "description": "你在祭坛的探索告一段落。无论结果如何，你都获得了一些宝贵的经验和启示。现在是时候继续你的旅程了。",
+    "scene_image": null,
+    "tags": ["祭坛", "结束"],
+    "map_node_id": "altar_001",
+    "actions": [],
+    "results_pool": {},
+    "next_nodes": {},
+    "is_end_node": true
+  },
+  {
+    "node_id": "ancient_ruins_001",
+    "title": "古代遗迹入口",
+    "description": "你来到了一座被藤蔓覆盖的古代遗迹前。石墙上刻满了早已失传的文字，空气中弥漫着神秘的气息。遗迹的大门紧闭，门上有一个复杂的机关锁。你可以感受到其中蕴含的强大力量。",
+    "scene_image": null,
+    "tags": ["遗迹", "古代", "探索", "执念", "求知"],
+    "map_node_id": "ruins_001",
+    "actions": [
+      {
+        "name": "破解机关",
+        "description": "运用智慧破解门上的机关锁，打开通往遗迹的道路。",
+        "tags": ["破解", "心智", "机关"],
+        "check_type": "心智",
+        "difficulty": "困难",
+        "stat_ratios": {"int": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "寻找线索",
+        "description": "仔细观察周围环境，寻找开启大门的线索或钥匙。",
+        "tags": ["搜索", "幸运", "观察"],
+        "check_type": "幸运",
+        "difficulty": "中等",
+        "stat_ratios": {"luck": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "强行破门",
+        "description": "用武力强行破坏大门，不顾可能触发的陷阱。",
+        "tags": ["破坏", "力量", "鲁莽"],
+        "check_type": "力量",
+        "difficulty": "极难",
+        "stat_ratios": {"str": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "解读古文",
+        "description": "尝试解读墙上的古代文字，了解开启大门的正确方法。",
+        "tags": ["解读", "心智", "知识", "古代"],
+        "check_type": "心智",
+        "difficulty": "极难",
+        "stat_ratios": {"int": 1.0},
+        "is_hidden": true,
+        "hidden_condition": "需要角色拥有'古代语言'相关知识或道具",
+        "required_tags": ["古代"]
+      }
+    ],
+    "results_pool": {
+      "破解机关": [
+        {
+          "outcome_level": "大成功",
+          "text": "你完美地破解了机关，大门缓缓打开。不仅如此，你还发现了隐藏的安全机制，避免了所有陷阱。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "ancient_ruins", "amount": 1}, {"type": "gain_knowledge", "value": 2}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你成功破解了机关，大门打开了。虽然触发了一些小陷阱，但你及时躲开了。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "ancient_ruins", "amount": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你勉强打开了大门，但触发了警报机关。遗迹内部可能会产生一些意外。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "ancient_ruins", "amount": 1}, {"type": "suspicion_raised", "value": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "机关破解失败，触发了防御陷阱。你受到了一些伤害，大门依然紧闭。",
+          "effects": [{"type": "take_damage", "value": 8}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你错误地触发了终极防御机制，强大的能量冲击将你击飞，遗迹入口被永久封锁。",
+          "effects": [{"type": "take_damage", "value": 15}, {"type": "location_locked", "location": "ancient_ruins"}]
+        }
+      ],
+      "寻找线索": [
+        {
+          "outcome_level": "大成功",
+          "text": "你在附近的石碑下找到了一把古老的钥匙，还发现了一本记载遗迹历史的笔记。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "ancient_ruins", "amount": 1}, {"type": "gain_item", "item": "ancient_key"}, {"type": "update_obsession_progress", "condition_type": "collect_item", "target_id": "ancient_tome", "amount": 1}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你找到了开启大门的线索——一组隐藏在浮雕中的密码。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "ancient_ruins", "amount": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你发现了一些模糊的痕迹，但不确定是否有用。最终还是靠运气打开了门。",
+          "effects": []
+        },
+        {
+          "outcome_level": "失败",
+          "text": "你浪费了时间寻找线索，但一无所获。天色渐暗，必须另想办法。",
+          "effects": [{"type": "lose_time", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你在寻找线索时不小心触发了隐藏陷阱，被困在了一个坑洞中。",
+          "effects": [{"type": "take_damage", "value": 5}, {"type": "trigger_combat", "enemy": "ruins_trap_monster"}]
+        }
+      ],
+      "强行破门": [
+        {
+          "outcome_level": "大成功",
+          "text": "你用惊人的力量摧毁了大门，虽然方式粗暴，但确实有效。门后的景象让你震撼。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "ancient_ruins", "amount": 1}, {"type": "gain_infamy", "value": 1}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "经过一番努力，你终于破坏了门锁。大门吱呀作响地打开了。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "ancient_ruins", "amount": 1}, {"type": "take_damage", "value": 3}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你只能部分破坏大门，勉强挤了进去，但衣服被划破了。",
+          "effects": [{"type": "take_damage", "value": 5}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "大门纹丝不动，你的攻击反而震伤了自己。",
+          "effects": [{"type": "take_damage", "value": 8}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "大门突然释放出反噬能量，将你重重击飞。同时触发了遗迹的守卫机制。",
+          "effects": [{"type": "take_damage", "value": 15}, {"type": "trigger_combat", "enemy": "ruins_guardian"}]
+        }
+      ],
+      "解读古文": [
+        {
+          "outcome_level": "大成功",
+          "text": "你流畅地解读了古文，不仅打开了大门，还获得了关于古代文明的珍贵知识。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "ancient_ruins", "amount": 1}, {"type": "update_obsession_progress", "condition_type": "complete_check", "target_id": "intelligence_check_hard", "amount": 1}, {"type": "update_obsession_progress", "condition_type": "collect_item", "target_id": "ancient_tome", "amount": 1}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你解读了大部分文字，找到了开启大门的方法。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "visit_location", "target_id": "ancient_ruins", "amount": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你勉强理解了一些内容，但不太确定是否正确。门打开了，但你感到不安。",
+          "effects": [{"type": "confusion", "duration": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "古文太过晦涩，你无法理解。头痛欲裂，精神受到创伤。",
+          "effects": [{"type": "take_damage", "value": 5}, {"type": "mental_damage", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你错误地解读了禁忌文字，触发了诅咒。黑暗的力量开始侵蚀你的意识。",
+          "effects": [{"type": "take_damage", "value": 10}, {"type": "apply_debuff", "debuff": "ancient_curse", "duration": 5}]
+        }
+      ]
+    },
+    "next_nodes": {
+      "大成功": "ancient_ruins_001_end",
+      "成功": "ancient_ruins_001_end",
+      "半成功": "ancient_ruins_001_end",
+      "失败": "ancient_ruins_001_end",
+      "大失败": "ancient_ruins_001_end"
+    },
+    "is_end_node": false
+  },
+  {
+    "node_id": "ancient_ruins_001_end",
+    "title": "遗迹探索结束",
+    "description": "你对古代遗迹的探索告一段落。无论结果如何，你都获得了一些关于古代文明的 knowledge。现在是时候继续你的旅程了。",
+    "scene_image": null,
+    "tags": ["遗迹", "结束"],
+    "map_node_id": "ruins_001",
+    "actions": [],
+    "results_pool": {},
+    "next_nodes": {},
+    "is_end_node": true
+  },
+  {
+    "node_id": "village_crisis_001",
+    "title": "村庄危机",
+    "description": "你路过一个小村庄，发现村民们正陷入恐慌。一群强盗正在洗劫村庄，抢夺粮食和财物。孩子们哭泣着，老人们无助地站在一旁。村长向你求助，希望你能伸出援手。",
+    "scene_image": null,
+    "tags": ["村庄", "救援", "道德", "执念", "救赎"],
+    "map_node_id": "village_001",
+    "actions": [
+      {
+        "name": "挺身而出",
+        "description": "勇敢地站出来对抗强盗，保护村民的安全。",
+        "tags": ["战斗", "力量", "正义"],
+        "check_type": "力量",
+        "difficulty": "困难",
+        "stat_ratios": {"str": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "谈判周旋",
+        "description": "尝试与强盗头目谈判，用智慧和魅力化解危机。",
+        "tags": ["谈判", "魅力", "社交"],
+        "check_type": "魅力",
+        "difficulty": "困难",
+        "stat_ratios": {"cha": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "暗中救助",
+        "description": "趁乱帮助村民转移物资和人员，减少损失。",
+        "tags": ["潜行", "敏捷", "援助"],
+        "check_type": "敏捷",
+        "difficulty": "中等",
+        "stat_ratios": {"dex": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "召集援军",
+        "description": "快速前往附近的城镇寻求官方援助。",
+        "tags": ["速度", "幸运", "组织"],
+        "check_type": "幸运",
+        "difficulty": "中等",
+        "stat_ratios": {"luck": 1.0},
+        "is_hidden": true,
+        "hidden_condition": "需要附近有可求援的城镇",
+        "required_tags": []
+      }
+    ],
+    "results_pool": {
+      "挺身而出": [
+        {
+          "outcome_level": "大成功",
+          "text": "你以压倒性的实力击败了所有强盗，村民们欢呼雀跃。你成为了他们心中的英雄。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 5}, {"type": "update_obsession_progress", "condition_type": "complete_quest", "target_id": "rescue_mission", "amount": 1}, {"type": "gain_reputation", "value": 3}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你成功击退了强盗，保护了村庄。村民们感激不尽。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 3}, {"type": "update_obsession_progress", "condition_type": "complete_quest", "target_id": "rescue_mission", "amount": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你赶走了大部分强盗，但仍有一些漏网之鱼。村庄遭受了一定损失。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 2}, {"type": "take_damage", "value": 5}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "强盗人数太多，你寡不敌众，被迫撤退。村庄被洗劫一空。",
+          "effects": [{"type": "take_damage", "value": 10}, {"type": "morale_decrease", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你被强盗们围攻重伤，他们嘲笑你的不自量力后扬长而去。",
+          "effects": [{"type": "take_damage", "value": 20}, {"type": "apply_debuff", "debuff": "wounded", "duration": 3}]
+        }
+      ],
+      "谈判周旋": [
+        {
+          "outcome_level": "大成功",
+          "text": "你的言辞打动了强盗头目，他不仅放弃了抢劫，还留下了一些物资作为补偿。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 5}, {"type": "update_obsession_progress", "condition_type": "complete_quest", "target_id": "rescue_mission", "amount": 1}, {"type": "gain_item", "item": "bandit_supplies"}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "强盗们同意离开，不再骚扰村庄。危机解除。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 3}, {"type": "update_obsession_progress", "condition_type": "complete_quest", "target_id": "rescue_mission", "amount": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "强盗们答应只拿走一半物资就离开。虽然不是最理想的结果，但至少保住了部分财产。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 2}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "强盗们对你的话嗤之以鼻，继续他们的暴行。谈判破裂。",
+          "effects": [{"type": "trigger_combat", "enemy": "bandits"}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "强盗头目被激怒，下令立即攻击你。情况变得更加危险。",
+          "effects": [{"type": "trigger_combat", "enemy": "bandits_leader"}]
+        }
+      ],
+      "暗中救助": [
+        {
+          "outcome_level": "大成功",
+          "text": "你巧妙地帮助大部分村民撤离，并藏起了重要物资。强盗们一无所获。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 4}, {"type": "update_obsession_progress", "condition_type": "complete_quest", "target_id": "rescue_mission", "amount": 1}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你帮助一部分村民成功撤离，减少了损失。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 2}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你尽力帮助村民，但强盗警觉性很高，效果有限。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "你的行动被强盗发现，他们加强了警戒。你不得不撤退。",
+          "effects": [{"type": "suspicion_raised", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你被强盗抓住，他们利用你威胁村民交出更多财物。",
+          "effects": [{"type": "take_damage", "value": 8}, {"type": "village_loss_increase", "value": 1}]
+        }
+      ],
+      "召集援军": [
+        {
+          "outcome_level": "大成功",
+          "text": "你迅速带回了一支精锐部队，强盗们被一网打尽。村庄得到了彻底的保护。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 5}, {"type": "update_obsession_progress", "condition_type": "complete_quest", "target_id": "rescue_mission", "amount": 1}, {"type": "gain_reputation", "value": 2}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "援军及时赶到，赶走了强盗。村庄得以保全。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 3}, {"type": "update_obsession_progress", "condition_type": "complete_quest", "target_id": "rescue_mission", "amount": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "援军来得有些晚，村庄已经遭受损失，但强盗最终还是被赶走了。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "help_npc", "target_id": "villager", "amount": 2}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "当你返回时，强盗已经洗劫完毕离开了。为时已晚。",
+          "effects": [{"type": "morale_decrease", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你在求援途中迷路，返回时村庄已成废墟。你深感自责。",
+          "effects": [{"type": "morale_decrease", "value": 2}, {"type": "apply_debuff", "debuff": "guilt", "duration": 5}]
+        }
+      ]
+    },
+    "next_nodes": {
+      "大成功": "village_crisis_001_end",
+      "成功": "village_crisis_001_end",
+      "半成功": "village_crisis_001_end",
+      "失败": "village_crisis_001_end",
+      "大失败": "village_crisis_001_end"
+    },
+    "is_end_node": false
+  },
+  {
+    "node_id": "village_crisis_001_end",
+    "title": "村庄事件结束",
+    "description": "村庄的事件已经告一段落。无论结果如何，你都尽力了。现在是时候继续你的旅程了。",
+    "scene_image": null,
+    "tags": ["村庄", "结束"],
+    "map_node_id": "village_001",
+    "actions": [],
+    "results_pool": {},
+    "next_nodes": {},
+    "is_end_node": true
+  },
+  {
+    "node_id": "boss_arena_001",
+    "title": "强者试炼场",
+    "description": "你听说在这片区域的深处有一位传说中的强者，他设立了一个试炼场，只有真正强大的人才能通过挑战。站在试炼场入口，你能感受到其中散发出的强大威压。这是证明自己的绝佳机会。",
+    "scene_image": null,
+    "tags": ["试炼", "强者", "战斗", "执念", "力量"],
+    "map_node_id": "cave_001",
+    "actions": [
+      {
+        "name": "接受挑战",
+        "description": "直接进入试炼场，与守护者进行正面战斗。",
+        "tags": ["战斗", "力量", "勇气"],
+        "check_type": "力量",
+        "difficulty": "极难",
+        "stat_ratios": {"str": 0.6, "dex": 0.4},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "观察分析",
+        "description": "先观察试炼场的结构和守护者的战斗方式，寻找弱点。",
+        "tags": ["观察", "心智", "策略"],
+        "check_type": "心智",
+        "difficulty": "困难",
+        "stat_ratios": {"int": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "准备充分",
+        "description": "花时间做好万全准备，补充状态，制定详细计划。",
+        "tags": ["准备", "幸运", "谨慎"],
+        "check_type": "幸运",
+        "difficulty": "中等",
+        "stat_ratios": {"luck": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "挑衅对手",
+        "description": "用言语挑衅守护者，试图扰乱其心态。",
+        "tags": ["挑衅", "魅力", "心理战"],
+        "check_type": "魅力",
+        "difficulty": "困难",
+        "stat_ratios": {"cha": 1.0},
+        "is_hidden": true,
+        "hidden_condition": "需要角色具有较高的自信或傲慢特质",
+        "required_tags": []
+      }
+    ],
+    "results_pool": {
+      "接受挑战": [
+        {
+          "outcome_level": "大成功",
+          "text": "你以压倒性的实力击败了守护者，展现了真正的强者风范。试炼场的所有秘密都向你敞开。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "boss_enemy", "amount": 1}, {"type": "update_obsession_progress", "condition_type": "win_battle", "target_id": "difficult_battle", "amount": 1}, {"type": "gain_reputation", "value": 3}, {"type": "gain_item", "item": "champion_badge"}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "经过激烈的战斗，你艰难地战胜了守护者。你的实力得到了认可。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "boss_enemy", "amount": 1}, {"type": "update_obsession_progress", "condition_type": "win_battle", "target_id": "difficult_battle", "amount": 1}, {"type": "take_damage", "value": 10}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你和守护者打成平手，双方都精疲力竭。他认可了你的潜力，但认为你还需磨练。",
+          "effects": [{"type": "take_damage", "value": 15}, {"type": "gain_experience", "value": 2}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "你被守护者击败，但他没有下杀手。'还不够强'，他冷冷地说道。",
+          "effects": [{"type": "take_damage", "value": 20}, {"type": "morale_decrease", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你被守护者一招击溃，身受重伤。他轻蔑地看着你：'弱者不配进入这里。'",
+          "effects": [{"type": "take_damage", "value": 30}, {"type": "apply_debuff", "debuff": "humiliated", "duration": 5}, {"type": "location_locked", "location": "boss_arena"}]
+        }
+      ],
+      "观察分析": [
+        {
+          "outcome_level": "大成功",
+          "text": "你发现了守护者的所有弱点和战斗模式。接下来的战斗中你将占据巨大优势。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "boss_enemy", "amount": 1}, {"type": "update_obsession_progress", "condition_type": "win_battle", "target_id": "difficult_battle", "amount": 1}, {"type": "gain_buff", "buff": "tactical_advantage", "duration": 1}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你观察到了一些有用的信息，对守护者的战斗风格有了初步了解。",
+          "effects": [{"type": "gain_buff", "buff": "knowledge_advantage", "duration": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你获得了一些零散的信息，但不够完整。需要在战斗中继续观察。",
+          "effects": []
+        },
+        {
+          "outcome_level": "失败",
+          "text": "守护者察觉到了你的观察，加快了行动节奏。你没能获取有用信息。",
+          "effects": [{"type": "suspicion_raised", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你在观察时被守护者发现，他立即发动突袭。你措手不及。",
+          "effects": [{"type": "take_damage", "value": 15}, {"type": "trigger_combat", "enemy": "arena_guardian_surprise"}]
+        }
+      ],
+      "准备充分": [
+        {
+          "outcome_level": "大成功",
+          "text": "你做了完美的准备，状态达到巅峰。所有的装备和补给都恰到好处。",
+          "effects": [{"type": "heal", "value": 999}, {"type": "gain_buff", "buff": "fully_prepared", "duration": 1}, {"type": "gain_item", "item": "special_potion"}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你做好了充分的准备，状态良好。有信心面对挑战。",
+          "effects": [{"type": "heal", "value": 20}, {"type": "gain_buff", "buff": "well_prepared", "duration": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你准备了一些东西，但感觉还不够完美。心里有些忐忑。",
+          "effects": [{"type": "heal", "value": 10}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "你花费了太多时间准备，错过了最佳时机。守护者已经不耐烦了。",
+          "effects": [{"type": "lose_time", "value": 2}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你的准备过程中出现了意外，消耗了大量资源却没什么效果。",
+          "effects": [{"type": "lose_item", "item": "preparation_materials"}, {"type": "morale_decrease", "value": 1}]
+        }
+      ],
+      "挑衅对手": [
+        {
+          "outcome_level": "大成功",
+          "text": "你的挑衅让守护者失去了冷静，他的攻击变得杂乱无章。你抓住了破绽。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "boss_enemy", "amount": 1}, {"type": "gain_buff", "buff": "enemy_off_balance", "duration": 1}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "守护者被你激怒，攻击更加猛烈但也更容易预测。",
+          "effects": [{"type": "gain_buff", "buff": "predictable_pattern", "duration": 1}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "守护者对你的挑衅不屑一顾，但没有因此分心。",
+          "effects": []
+        },
+        {
+          "outcome_level": "失败",
+          "text": "守护者完全不受影响，反而认为你是个跳梁小丑。",
+          "effects": [{"type": "morale_decrease", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你的挑衅彻底激怒了守护者，他以雷霆之势向你袭来。",
+          "effects": [{"type": "take_damage", "value": 20}, {"type": "trigger_combat", "enemy": "arena_guardian_enraged"}]
+        }
+      ]
+    },
+    "next_nodes": {
+      "大成功": "boss_arena_001_end",
+      "成功": "boss_arena_001_end",
+      "半成功": "boss_arena_001_end",
+      "失败": "boss_arena_001_end",
+      "大失败": "boss_arena_001_end"
+    },
+    "is_end_node": false
+  },
+  {
+    "node_id": "boss_arena_001_end",
+    "title": "试炼场挑战结束",
+    "description": "你在试炼场的挑战已经结束。无论胜负，你都从这次经历中获得了宝贵的经验。现在是时候继续你的旅程了。",
+    "scene_image": null,
+    "tags": ["试炼", "结束"],
+    "map_node_id": "cave_001",
+    "actions": [],
+    "results_pool": {},
+    "next_nodes": {},
+    "is_end_node": true
+  },
+  {
+    "node_id": "sacred_temple_defense_001",
+    "title": "圣地保卫战",
+    "description": "你守护的圣地正遭受敌人的猛烈进攻。这是一座古老而神圣的寺庙，承载着重要的历史和信仰。敌人数量众多，攻势凶猛。你必须做出选择：如何保卫这片圣地？",
+    "scene_image": null,
+    "tags": ["圣地", "防守", "守护", "执念", "保护"],
+    "map_node_id": "camp_001",
+    "actions": [
+      {
+        "name": "坚守阵地",
+        "description": "在圣地入口处建立防线，誓死阻挡敌人前进。",
+        "tags": ["防守", "力量", "坚定"],
+        "check_type": "力量",
+        "difficulty": "极难",
+        "stat_ratios": {"str": 0.7, "dex": 0.3},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "战术部署",
+        "description": "巧妙布置防御工事和陷阱，最大化利用地形优势。",
+        "tags": ["策略", "心智", "防御"],
+        "check_type": "心智",
+        "difficulty": "困难",
+        "stat_ratios": {"int": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "祈求神助",
+        "description": "在圣地中央虔诚祈祷，请求神明赐予力量和保护。",
+        "tags": ["祈祷", "幸运", "信仰"],
+        "check_type": "幸运",
+        "difficulty": "中等",
+        "stat_ratios": {"luck": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      },
+      {
+        "name": "鼓舞士气",
+        "description": "激励其他守卫者和信徒，提升整体战斗力。",
+        "tags": ["领导", "魅力", "激励"],
+        "check_type": "魅力",
+        "difficulty": "困难",
+        "stat_ratios": {"cha": 1.0},
+        "is_hidden": false,
+        "hidden_condition": null
+      }
+    ],
+    "results_pool": {
+      "坚守阵地": [
+        {
+          "outcome_level": "大成功",
+          "text": "你如同一座不可逾越的山峰，独自挡住了敌人的全部攻势。圣地安然无恙，你的名字将被永远铭记。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 3}, {"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "temple_invader", "amount": 5}, {"type": "gain_reputation", "value": 5}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你成功守住了阵地，击退了敌人的进攻。圣地暂时安全了。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 2}, {"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "temple_invader", "amount": 3}, {"type": "take_damage", "value": 10}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "你勉强守住了主要区域，但外围已经被突破。需要尽快支援其他地方。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 1}, {"type": "take_damage", "value": 15}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "敌人突破了你的防线，涌入圣地内部。情况危急。",
+          "effects": [{"type": "take_damage", "value": 20}, {"type": "temple_damage", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你的防线彻底崩溃，敌人如潮水般涌入。圣地面临毁灭的危险。",
+          "effects": [{"type": "take_damage", "value": 30}, {"type": "temple_damage", "value": 3}, {"type": "trigger_combat", "enemy": "temple_invaders_wave"}]
+        }
+      ],
+      "战术部署": [
+        {
+          "outcome_level": "大成功",
+          "text": "你的防御布局堪称完美，敌人陷入重重陷阱，损失惨重。圣地固若金汤。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 3}, {"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "temple_invader", "amount": 5}, {"type": "gain_buff", "buff": "fortified_defense", "duration": 3}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你的战术部署发挥了作用，有效减缓了敌人的进攻速度。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 2}, {"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "temple_invader", "amount": 2}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "部分陷阱起到了作用，但敌人很快适应了你的战术。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "你的战术被敌人识破，他们绕过了陷阱直接进攻。",
+          "effects": [{"type": "suspicion_raised", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你的陷阱意外触发，伤到了自己人。敌人趁机发动猛攻。",
+          "effects": [{"type": "take_damage", "value": 15}, {"type": "friendly_fire", "value": 1}]
+        }
+      ],
+      "祈求神助": [
+        {
+          "outcome_level": "大成功",
+          "text": "神明回应了你的祈祷，一道神圣的光芒笼罩圣地。敌人在光芒中溃不成军。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 3}, {"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "temple_invader", "amount": 5}, {"type": "heal", "value": 30}, {"type": "gain_blessing", "blessing": "divine_shield"}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "你感受到了神明的力量，内心充满勇气和信心。守卫者们也受到鼓舞。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 2}, {"type": "gain_buff", "buff": "divine_courage", "duration": 2}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "祈祷带来了一丝平静，但神明的回应并不明显。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "无论你怎么祈祷，都没有任何回应。你开始怀疑自己的信仰。",
+          "effects": [{"type": "morale_decrease", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你的祈祷引来了邪神的注意，黑暗的力量开始侵蚀圣地。",
+          "effects": [{"type": "take_damage", "value": 10}, {"type": "apply_debuff", "debuff": "dark_corruption", "duration": 3}, {"type": "temple_damage", "value": 2}]
+        }
+      ],
+      "鼓舞士气": [
+        {
+          "outcome_level": "大成功",
+          "text": "你的演讲振奋人心，所有守卫者都充满了斗志。他们爆发出惊人的战斗力。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 3}, {"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "temple_invader", "amount": 4}, {"type": "gain_buff", "buff": "morale_boost", "duration": 2}]
+        },
+        {
+          "outcome_level": "成功",
+          "text": "守卫者们受到你的鼓舞，士气大增。防线变得更加稳固。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 2}, {"type": "update_obsession_progress", "condition_type": "defeat_enemy", "target_id": "temple_invader", "amount": 2}]
+        },
+        {
+          "outcome_level": "半成功",
+          "text": "部分守卫者受到鼓舞，但整体效果有限。",
+          "effects": [{"type": "update_obsession_progress", "condition_type": "defend_location", "target_id": "sacred_temple", "amount": 1}]
+        },
+        {
+          "outcome_level": "失败",
+          "text": "你的话语没有起到作用，守卫者们依然恐惧和混乱。",
+          "effects": [{"type": "morale_decrease", "value": 1}]
+        },
+        {
+          "outcome_level": "大失败",
+          "text": "你的演讲适得其反，守卫者们更加恐慌。有人甚至开始逃跑。",
+          "effects": [{"type": "morale_decrease", "value": 2}, {"type": "defender_retreat", "value": 1}]
+        }
+      ]
+    },
+    "next_nodes": {
+      "大成功": "sacred_temple_defense_001_end",
+      "成功": "sacred_temple_defense_001_end",
+      "半成功": "sacred_temple_defense_001_end",
+      "失败": "sacred_temple_defense_001_end",
+      "大失败": "sacred_temple_defense_001_end"
+    },
+    "is_end_node": false
+  },
+  {
+    "node_id": "sacred_temple_defense_001_end",
+    "title": "圣地保卫战结束",
+    "description": "圣地的保卫战已经告一段落。无论结果如何，你都为守护这片神圣之地付出了努力。现在是时候继续你的旅程了。",
+    "scene_image": null,
+    "tags": ["圣地", "结束"],
+    "actions": [],
+    "results_pool": {},
+    "next_nodes": {},
+    "is_end_node": true
   }
 ]

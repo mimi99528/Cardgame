@@ -24,7 +24,12 @@ class SceneView(arcade.View):
         """窗口尺寸变化"""
         self.window_width = width
         self.window_height = height
-    
+
+    def on_update(self, delta_time: float):
+        """每帧更新 - 处理BGM循环"""
+        from bgm_manager import BgmManager
+        BgmManager().on_update(delta_time)
+
     def on_draw(self):
         """绘制场景（子类必须实现）"""
         raise NotImplementedError("子类必须实现on_draw方法")
@@ -41,7 +46,11 @@ class BattleSceneView(SceneView):
         super().__init__(window=window)
         self.battle = battle
         self.on_battle_end_callback = on_battle_end_callback  # 战斗结束回调
-        
+
+        # 播放战斗BGM
+        from bgm_manager import BgmManager
+        BgmManager().play_bgm("battle1")
+
         # 导入原有组件
         from game_view import CardView
         # 复用原有的CardView逻辑
@@ -134,8 +143,9 @@ class BattleSceneView(SceneView):
         self.switch_to_scene(map_scene)
     
     def on_update(self, delta_time: float):
+        super().on_update(delta_time)
         self.card_view.on_update(delta_time)
-    
+
 
 
 
@@ -172,18 +182,28 @@ class NarrativeSceneView(SceneView):
         
         # 加载叙事节点
         try:
+            print(f"[DEBUG] 开始加载叙事节点文件: narrative_nodes.json")
             self.narrative_node_manager.load_from_file("narrative_nodes.json")
+            print(f"[DEBUG] 节点文件加载成功，共 {len(self.narrative_node_manager.get_all_nodes())} 个节点")
+            
+            print(f"[DEBUG] 尝试获取节点: {node_id}")
             self.current_node = self.narrative_node_manager.get_node(node_id)
+            
             if self.current_node:
+                print(f"[DEBUG] 成功找到节点: {self.current_node.title}")
                 player = self.battle.player
                 if player:
                     self.narrative_renderer.set_node(self.current_node, player)
                 print(f"[叙事] 场景 '{self.current_node.title}' 已加载")
             else:
                 print(f"[警告] 未找到节点: {node_id}")
+                print(f"[DEBUG] 可用的节点ID列表: {[n.node_id for n in self.narrative_node_manager.get_all_nodes()]}")
                 self.current_node = None
         except Exception as e:
             print(f"[错误] 加载叙事节点失败: {e}")
+            import traceback
+            print(f"[DEBUG] 详细错误信息:")
+            traceback.print_exc()
             self.current_node = None
     
     def on_resize(self, width: int, height: int):
@@ -242,11 +262,14 @@ class NarrativeSceneView(SceneView):
             # 检查是否点击了选项
             action = self.narrative_renderer.handle_option_click(x, y)
             if action:
+                print(f"[DEBUG] 点击了选项: {action.name}")
                 self._handle_narrative_action(action)
                 return
             
             # 检查是否点击了确定按钮
-            if self.narrative_renderer.handle_confirm_click(x, y):
+            confirm_clicked = self.narrative_renderer.handle_confirm_click(x, y)
+            print(f"[DEBUG] 确定按钮点击检测: {confirm_clicked}, 坐标: ({x}, {y})")
+            if confirm_clicked:
                 self._handle_narrative_confirm()
                 return
     
@@ -269,6 +292,15 @@ class NarrativeSceneView(SceneView):
     
     def on_key_press(self, key, modifiers):
         """键盘事件"""
+        # 开发者作弊模式：Ctrl+F3 切换全部大成功
+        if key == arcade.key.F3 and (modifiers & arcade.key.MOD_CTRL):
+            from narrative_system import NarrativeResultEngine
+            if NarrativeResultEngine.is_debug_god_mode_enabled():
+                NarrativeResultEngine.disable_debug_god_mode()
+            else:
+                NarrativeResultEngine.enable_debug_god_mode()
+            return
+        
         if key == arcade.key.ESCAPE:
             # ESC退出叙事场景，返回战斗场景或主菜单
             print("[叙事] 退出叙事场景")
@@ -279,10 +311,22 @@ class NarrativeSceneView(SceneView):
     
     def on_update(self, delta_time: float):
         """更新逻辑"""
+        super().on_update(delta_time)
         self.card_display.update_animations()
+        
+        # 更新执念提示计时器
+        if hasattr(self.narrative_renderer, 'obsession_notification') and self.narrative_renderer.obsession_notification:
+            old_timer = self.narrative_renderer.obsession_notification['timer']
+            self.narrative_renderer.obsession_notification['timer'] += delta_time
+            print(f"[DEBUG] 叙事视图执念通知计时器更新: {old_timer:.2f} -> {self.narrative_renderer.obsession_notification['timer']:.2f}")
     
     def _handle_narrative_action(self, action):
         """处理叙事动作选择"""
+        # 防止重复检定：如果已经有结果了，不允许再次选择动作
+        if self.narrative_renderer.current_result:
+            print("[叙事] 已经进行过检定，请先点击确定按钮")
+            return
+        
         print(f"\n[叙事] 选择动作: {action.name}")
         self.narrative_renderer.selected_action = action
         
@@ -315,28 +359,79 @@ class NarrativeSceneView(SceneView):
     def _handle_narrative_confirm(self):
         """处理确定按钮点击"""
         print("\n[叙事] 点击确定按钮")
+        print(f"[DEBUG] 当前节点: {self.current_node.node_id if self.current_node else None}")
+        print(f"[DEBUG] is_end_node: {self.current_node.is_end_node if self.current_node else False}")
+        
+        # 如果是结束节点，直接返回大地图
+        if self.current_node and self.current_node.is_end_node:
+            print("[叙事] 结束节点，返回大地图")
+            player = self.battle.player
+            
+            # 获取对应的地图节点ID（如果存在）
+            map_node_id = self.current_node.map_node_id
+            print(f"[DEBUG] 结束节点 {self.current_node.node_id} 对应的 map_node_id: {map_node_id}")
+            
+            from scene_manager import MapSceneView
+            # 关键修复：确保传入 target_node_id，这样 MapSceneView 会调用 set_current_node
+            map_scene = MapSceneView(player, window=self.window, target_node_id=map_node_id)
+            self.switch_to_scene(map_scene)
+            return
+        
+        # 正常的检定结果处理
+        print(f"[DEBUG] current_result存在: {self.narrative_renderer.current_result is not None}")
         
         if not self.narrative_renderer.current_result:
             print("警告：没有当前结果")
             return
         
+        # 执行叙事结果中的效果（包括执念效果）
+        player = self.battle.player
+        if player and self.narrative_renderer.current_result.effects:
+            from obsession_effect_executor import execute_obsession_effects
+            obsession_results = execute_obsession_effects(
+                self.narrative_renderer.current_result.effects,
+                player
+            )
+            for result_msg in obsession_results:
+                print(result_msg)
+        
         # 获取结果等级
         outcome_level = self.narrative_renderer.current_result.outcome_level
+        print(f"[DEBUG] 结果等级: {outcome_level}")
         
         # 查找下一节点
         next_node_id = self.current_node.next_nodes.get(outcome_level)
+        print(f"[DEBUG] 下一节点ID: {next_node_id}")
         
         if next_node_id:
             print(f"[叙事] 跳转到下一节点: {next_node_id}")
             # 切换到下一节点（创建新的NarrativeSceneView）
+            # 关键修复：保存当前的执念通知状态
+            saved_notification = None
+            if hasattr(self.narrative_renderer, 'obsession_notification'):
+                saved_notification = self.narrative_renderer.obsession_notification
+            
             new_narrative_scene = NarrativeSceneView(self.battle, next_node_id, window=self.window)
+            
+            # 将执念通知状态恢复到新场景
+            if saved_notification and hasattr(new_narrative_scene.narrative_renderer, 'obsession_notification'):
+                new_narrative_scene.narrative_renderer.obsession_notification = saved_notification
+                print(f"[DEBUG] 已将执念通知传递到下一场景: {saved_notification['text']}")
+            
             self.switch_to_scene(new_narrative_scene)
         else:
             print(f"[叙事] 叙事结束（无下一节点）")
-            # 叙事结束，可以返回主菜单或继续大地图探索
-            # 暂时关闭窗口
-            print("[叙事] 叙事流程结束，游戏将继续开发大地图功能...")
-            self.window.close()
+            # 叙事结束，返回到大地图
+            print("[叙事] 叙事流程结束，返回大地图")
+            from scene_manager import MapSceneView
+            
+            # 获取对应的地图节点ID（如果存在）
+            map_node_id = self.current_node.map_node_id
+            if map_node_id:
+                print(f"[叙事] 对应的地图节点: {map_node_id}")
+            
+            map_scene = MapSceneView(player, window=self.window, target_node_id=map_node_id)
+            self.switch_to_scene(map_scene)
     
     def _handle_card_drop_on_narrative(self, card):
         """处理卡牌拖放到叙事场景"""
@@ -360,37 +455,63 @@ class NarrativeSceneView(SceneView):
 class MapSceneView(SceneView):
     """大地图场景 - 显示地图节点和连接，支持移动交互"""
     
-    def __init__(self, battle: BattleSystem, window=None):
+    def __init__(self, player, window=None, target_node_id: str = None):
+        """
+        初始化大地图场景
+        
+        Args:
+            player: 玩家实体
+            window: 游戏窗口
+            target_node_id: 目标节点ID（可选，如果提供则将玩家位置设置到该节点）
+        """
         super().__init__(window=window)
-        self.battle = battle
+        self.player = player
+        self.battle = None  # 战斗系统将在实际触发时创建
         
         print(f"[DEBUG] MapSceneView.__init__ called")
-        print(f"[DEBUG]   battle存在: {battle is not None}")
-        if battle:
-            print(f"[DEBUG]   battle.player存在: {hasattr(battle, 'player')}")
-            if hasattr(battle, 'player'):
-                print(f"[DEBUG]   玩家名称: {battle.player.name}")
+        print(f"[DEBUG]   player存在: {player is not None}")
+        print(f"[DEBUG]   target_node_id: {target_node_id}")
+        if player:
+            print(f"[DEBUG]   玩家名称: {player.name}")
         
         # 创建地图系统
         self.map_system = MapSystem()
-        self.map_system.create_example_map()
         
-        # 获取玩家实体（从战斗系统中）
-        player_entity = battle.player if battle and hasattr(battle, 'player') else None
-        print(f"[DEBUG]   player_entity提取结果: {player_entity is not None}")
+        # 尝试从存档加载地图状态（包括叙事节点完成状态）
+        import os
+        if os.path.exists("save.json"):
+            print("[地图] 检测到存档文件，尝试加载...")
+            try:
+                self.map_system.load_from_file("save.json")
+                print("[地图] 成功加载存档")
+            except Exception as e:
+                print(f"[地图] 加载存档失败: {e}，使用新地图")
+                self.map_system.create_example_map()
+        else:
+            print("[地图] 未找到存档，创建新地图")
+            self.map_system.create_example_map()
+        
+        # 如果提供了目标节点ID，将玩家位置设置到该节点
+        if target_node_id:
+            print(f"[地图] 设置玩家位置到节点: {target_node_id}")
+            try:
+                self.map_system.set_current_node(target_node_id)
+                print(f"[地图] 玩家位置已设置为: {self.map_system.get_node(target_node_id).name}")
+            except ValueError as e:
+                print(f"[地图] 警告：无法设置位置到节点 {target_node_id}: {e}")
         
         # 创建地图视图（传入玩家实体用于战斗触发）
         print(f"[DEBUG]   开始创建MapView...")
         self.map_view = MapView(
             self.map_system,
             window=self.window,
-            player_entity=player_entity
+            player_entity=player
         )
         print(f"[DEBUG]   MapView创建完成")
         
         print("[大地图] 场景已创建")
-        if player_entity:
-            print(f"[大地图] 玩家实体: {player_entity.name}")
+        if player:
+            print(f"[大地图] 玩家实体: {player.name}")
         else:
             print("[大地图] 警告：未找到玩家实体，战斗触发将不可用")
     
@@ -408,9 +529,14 @@ class MapSceneView(SceneView):
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         self.map_view.on_mouse_press(x, y, button, modifiers)
     
+    def on_update(self, delta_time: float):
+        """每帧更新"""
+        super().on_update(delta_time)
+        self.map_view.on_update(delta_time)
+
     def on_key_press(self, key: int, modifiers: int):
         print(f"[DEBUG] MapSceneView.on_key_press called: key={key}, modifiers={modifiers}")
-        
+
         if key == arcade.key.ESCAPE:
             # ESC键：退出游戏
             print("[大地图] 退出游戏")

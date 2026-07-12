@@ -39,6 +39,9 @@ class NarrativeSceneRenderer:
         # 按钮区域（用于点击检测）
         self.option_buttons: List[Dict] = []
         self.confirm_button: Optional[Dict] = None
+        
+        # 执念进度提示相关
+        self.obsession_notification = None  # {'text': str, 'timer': float, 'duration': float}
     
     def on_resize(self, width: int, height: int):
         """窗口尺寸变化时更新"""
@@ -158,10 +161,17 @@ class NarrativeSceneRenderer:
         
         # 如果没有选择动作，显示选项列表
         if not self.selected_action:
-            self._draw_options(view_x, view_y, view_width, view_height)
+            # 如果是结束节点，显示结束信息
+            if self.current_node.is_end_node:
+                self._draw_end_node(view_x, view_y, view_width, view_height)
+            else:
+                self._draw_options(view_x, view_y, view_width, view_height)
         else:
             # 显示检定结果
             self._draw_result(view_x, view_y, view_width, view_height)
+        
+        # 绘制执念进度提示（屏幕中央大字）
+        self._draw_obsession_notification()
     
     def _draw_options(self, view_x: int, view_y: int, view_width: int, view_height: int):
         """绘制选项列表"""
@@ -249,10 +259,35 @@ class NarrativeSceneRenderer:
                 width=int(option_width - S.px(20))
             )
     
+    def _draw_end_node(self, view_x: int, view_y: int, view_width: int, view_height: int):
+        """绘制结束节点（没有选项和检定结果，只有描述和确定按钮）"""
+        # 清除选项按钮
+        self.option_buttons.clear()
+        
+        # 显示提示文本
+        hint_y = view_y + view_height // 2
+        hint_text = "点击确定按钮返回大地图"
+        
+        arcade.draw_text(
+            hint_text,
+            view_x + view_width // 2,
+            hint_y + S.py(40),
+            arcade.color.LIGHT_GREEN,
+            self.description_font_size,
+            anchor_x="center",
+            anchor_y="center"
+        )
+        
+        # 绘制确定按钮
+        self._draw_confirm_button(view_x, view_y, view_width, view_height)
+    
     def _draw_result(self, view_x: int, view_y: int, view_width: int, view_height: int):
         """绘制检定结果"""
         if not self.current_result:
             return
+        
+        # 清除选项按钮，防止与确定按钮冲突
+        self.option_buttons.clear()
         
         # 结果显示区域
         result_area_y = view_y + S.py(80)
@@ -338,6 +373,86 @@ class NarrativeSceneRenderer:
             bold=True
         )
     
+    def _draw_obsession_notification(self):
+        """绘制执念进度改变的屏幕中央提示"""
+        if not self.obsession_notification:
+            return
+        
+        print(f"[DEBUG] 正在绘制叙事视图执念通知: {self.obsession_notification['text']}")
+        notification = self.obsession_notification
+        elapsed = notification['timer']
+        duration = notification['duration']
+        
+        if elapsed >= duration:
+            self.obsession_notification = None
+            return
+        
+        # 计算透明度：前0.5秒淡入，中间保持，最后0.5秒淡出
+        fade_time = 0.5
+        if elapsed < fade_time:
+            alpha = int(255 * (elapsed / fade_time))
+        elif elapsed > duration - fade_time:
+            alpha = int(255 * ((duration - elapsed) / fade_time))
+        else:
+            alpha = 255
+        
+        text = notification['text']
+        
+        # 绘制背景光晕
+        center_x = self.window_width // 2
+        center_y = self.window_height // 2
+        
+        # 绘制文字（带描边效果）
+        for offset_x, offset_y, color in [
+            (-2, 0, (0, 0, 0, alpha)),
+            (2, 0, (0, 0, 0, alpha)),
+            (0, -2, (0, 0, 0, alpha)),
+            (0, 2, (0, 0, 0, alpha)),
+        ]:
+            arcade.draw_text(
+                text,
+                center_x + offset_x,
+                center_y + offset_y,
+                color,
+                S.font(48),
+                anchor_x="center",
+                anchor_y="center",
+                bold=True
+            )
+        
+        # 主文字
+        main_color = (255, 215, 0, alpha)  # GOLD with alpha
+        arcade.draw_text(
+            text,
+            center_x,
+            center_y,
+            main_color,
+            S.font(48),
+            anchor_x="center",
+            anchor_y="center",
+            bold=True
+        )
+    
+    def update_obsession_progress_change(self, old_progress: float, new_progress: float, obsession_name: str, is_completed: bool = False):
+        """
+        更新并显示执念进度改变提示
+        """
+        if is_completed:
+            text = f"✨ 执念「{obsession_name}」已完成！"
+        else:
+            diff = new_progress - old_progress
+            if diff > 0:
+                text = f"🔥 执念「{obsession_name}」进度 +{diff:.0f}% ({new_progress:.0f}%)"
+            else:
+                text = f"🔥 执念「{obsession_name}」进度: {new_progress:.0f}%"
+        
+        print(f"[DEBUG] 设置叙事视图执念通知: {text}")
+        self.obsession_notification = {
+            'text': text,
+            'timer': 0.0,
+            'duration': 3.0  # 持续3秒
+        }
+
     def handle_option_click(self, x: float, y: float) -> Optional[NarrativeAction]:
         """
         处理选项点击

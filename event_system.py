@@ -51,6 +51,18 @@ class GameEventType(Enum):
     SOCIAL_CHECK_BEFORE = "social_check_before"  # 社交检定前
     ENCOUNTER_START = "encounter_start"          # 遭遇开始
     NODE_TRAVEL = "node_travel"                  # 节点移动
+    
+    # 执念相关事件
+    BATTLE_VICTORY = "battle_victory"            # 战斗胜利
+    ENEMY_DEFEATED = "enemy_defeated"            # 击败敌人
+    LOCATION_VISITED = "location_visited"        # 访问地点
+    ITEM_COLLECTED = "item_collected"            # 收集物品
+    SOCIAL_CHECK_COMPLETED = "social_check_completed"  # 社交检定完成
+    INTELLECT_CHECK_COMPLETED = "intellect_check_completed"  # 心智检定完成
+    PROTECTION_ACTION = "protection_action"      # 守护行为
+    NPC_HELPED = "npc_helped"                    # 帮助NPC
+    QUEST_COMPLETED = "quest_completed"          # 任务完成
+    LEVEL_UP = "level_up"                        # 等级提升
 
 
 @dataclass

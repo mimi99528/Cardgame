@@ -138,17 +138,10 @@ class CardGame(arcade.Window):
         print(f"  属性: 力量{player.stats.strength}, 敏捷{player.stats.dexterity}, "
               f"心智{player.stats.intelligence}, 魅力{player.stats.charisma}")
         
-        # 不再创建初始战斗，而是直接进入大地图场景
-        # 创建一个空的战斗系统用于后续战斗
-        from battle_system import BattleSystem
-        battle = BattleSystem(
-            player_team=[player],
-            enemy_team=[]
-        )
-        
-        # 创建并显示大地图场景
+        # 直接传递玩家实体到大地图场景，不创建空的战斗系统
+        # 战斗系统将在实际触发战斗时才初始化
         from scene_manager import MapSceneView
-        map_scene = MapSceneView(battle, window=self)
+        map_scene = MapSceneView(player, window=self)
         self.show_view(map_scene)
 
 
@@ -185,6 +178,12 @@ def main():
     setup_scholar_passives()
     
     print("✓ 职业系统和被动效果已初始化")
+    
+    # 初始化执念事件处理器
+    from obsession_event_handler import setup_obsession_events
+    setup_obsession_events()
+    
+    print("✓ 执念事件处理器已初始化")
     
     # 演示卡牌序列化功能
     demo_serialization()

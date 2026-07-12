@@ -27,7 +27,7 @@ class CharacterCreationView(arcade.View):
         # 确保缩放单例与当前窗口同步
         update_scale(self.window_width, self.window_height)
         
-        # 创建阶段: 0=职业选择, 1=属性分配, 2=装备选择
+        # 创建阶段: 0=职业选择, 1=属性分配, 2=装备选择, 3=执念选择
         self.creation_stage = 0
         
         # 角色数据
@@ -49,12 +49,23 @@ class CharacterCreationView(arcade.View):
         # 选择的初始装备套装
         self.selected_equipment_set = 0  # 0=轻甲+刺剑, 1=中甲+匕首, 2=法袍
         
+        # 选择的执念
+        self.selected_obsession_id: Optional[str] = None
+        
         # UI元素位置
         self._calculate_layout()
         
         # 悬停状态
         self.hovered_career_index = -1
         self.hovered_equipment_index = -1
+        self.hovered_obsession_index = -1
+        
+        # 执念管理器
+        from obsession_system import ObsessionManager, create_example_obsessions
+        self.obsession_manager = ObsessionManager()
+        obsessions = create_example_obsessions()
+        for obsession in obsessions:
+            self.obsession_manager.add_obsession(obsession)
     
     def _calculate_layout(self):
         """计算UI布局（所有绝对像素值通过 UIScale 换算，支持 4K/高 DPI）"""
@@ -82,10 +93,21 @@ class CharacterCreationView(arcade.View):
         self.window_height = height
         self._calculate_layout()
     
+    def on_show_view(self):
+        """视图显示时播放BGM"""
+        super().on_show_view()
+        from bgm_manager import BgmManager
+        BgmManager().play_bgm("intro")
+
+    def on_update(self, delta_time: float):
+        """每帧更新"""
+        from bgm_manager import BgmManager
+        BgmManager().on_update(delta_time)
+
     def on_draw(self):
         """绘制角色创建界面"""
         self.clear()
-        
+
         # 绘制背景
         arcade.set_background_color(arcade.color.EERIE_BLACK)
         
@@ -96,6 +118,8 @@ class CharacterCreationView(arcade.View):
             self._draw_stat_allocation()
         elif self.creation_stage == 2:
             self._draw_equipment_selection()
+        elif self.creation_stage == 3:
+            self._draw_obsession_selection()
     
     def _draw_career_selection(self):
         """绘制职业选择界面"""
@@ -689,6 +713,239 @@ class CharacterCreationView(arcade.View):
             bold=True
         )
     
+    def _draw_obsession_selection(self):
+        """绘制执念选择界面"""
+        # 标题
+        arcade.draw_text(
+            "选择你的执念",
+            self.layout_center_x,
+            self.window_height * 0.9,
+            arcade.color.GOLD,
+            S.font(48),
+            anchor_x="center",
+            anchor_y="center",
+            bold=True
+        )
+        
+        # 说明文字
+        arcade.draw_text(
+            "执念是角色内心深处的渴望，将影响你的冒险旅程",
+            self.layout_center_x,
+            self.window_height * 0.84,
+            arcade.color.LIGHT_GRAY,
+            S.font(20),
+            anchor_x="center",
+            anchor_y="center"
+        )
+        
+        # 获取所有执念
+        obsessions = self.obsession_manager.get_all_obsessions()
+        
+        # 绘制执念列表（左侧）
+        obsession_list_x = self.window_width * 0.25
+        obsession_list_y_start = self.window_height * 0.7
+        obsession_item_height = S.py(60)
+        
+        for i, obsession in enumerate(obsessions):
+            y_pos = obsession_list_y_start - i * obsession_item_height
+            
+            # 检查是否悬停或选中
+            is_hovered = (i == self.hovered_obsession_index)
+            is_selected = (obsession.obsession_id == self.selected_obsession_id)
+            
+            # 绘制背景
+            if is_selected:
+                bg_color = arcade.color.DARK_GREEN
+            elif is_hovered:
+                bg_color = arcade.color.DARK_SLATE_GRAY
+            else:
+                bg_color = (40, 40, 40)  # 深灰色
+            
+            arcade.draw_lrbt_rectangle_filled(
+                obsession_list_x - S.px(150),
+                obsession_list_x + S.px(150),
+                y_pos - S.py(25),
+                y_pos + S.py(25),
+                bg_color
+            )
+            
+            # 绘制执念名称
+            if is_selected:
+                name_color = arcade.color.YELLOW
+            elif is_hovered:
+                name_color = arcade.color.LIGHT_BLUE
+            else:
+                name_color = arcade.color.WHITE
+            
+            arcade.draw_text(
+                obsession.name,
+                obsession_list_x,
+                y_pos,
+                name_color,
+                S.font(22),
+                anchor_x="center",
+                anchor_y="center",
+                bold=is_selected or is_hovered
+            )
+        
+        # 绘制执念描述（右侧）
+        obsession_description_x = self.window_width * 0.55
+        obsession_description_y = self.window_height * 0.5
+        
+        if self.hovered_obsession_index >= 0 and self.hovered_obsession_index < len(obsessions):
+            obsession = obsessions[self.hovered_obsession_index]
+            
+            # 执念名称
+            arcade.draw_text(
+                obsession.name,
+                obsession_description_x,
+                obsession_description_y + S.py(120),
+                arcade.color.GOLD,
+                S.font(36),
+                anchor_x="center",
+                anchor_y="center",
+                bold=True
+            )
+            
+            # 执念类型
+            type_text = f"类型: {obsession.obsession_type.value}"
+            arcade.draw_text(
+                type_text,
+                obsession_description_x,
+                obsession_description_y + S.py(90),
+                arcade.color.LIGHT_BLUE,
+                S.font(20),
+                anchor_x="center",
+                anchor_y="center"
+            )
+            
+            # 执念描述
+            desc_lines = self._wrap_text(obsession.description, 50)
+            desc_y = obsession_description_y + S.py(60)
+            for line in desc_lines:
+                arcade.draw_text(
+                    line,
+                    obsession_description_x,
+                    desc_y,
+                    arcade.color.WHITE,
+                    S.font(18),
+                    anchor_x="center",
+                    anchor_y="center"
+                )
+                desc_y -= S.py(25)
+            
+            # 完成条件
+            condition_y = desc_y - S.py(20)
+            arcade.draw_text(
+                "完成条件:",
+                obsession_description_x,
+                condition_y,
+                arcade.color.LIGHT_GREEN,
+                S.font(22),
+                anchor_x="center",
+                anchor_y="center",
+                bold=True
+            )
+            
+            condition_y -= S.py(35)
+            for i, condition in enumerate(obsession.conditions):
+                condition_text = f"• {condition.description}"
+                arcade.draw_text(
+                    condition_text,
+                    obsession_description_x,
+                    condition_y,
+                    arcade.color.WHITE,
+                    S.font(16),
+                    anchor_x="center",
+                    anchor_y="center"
+                )
+                condition_y -= S.py(25)
+            
+            # 奖励
+            reward_y = condition_y - S.py(20)
+            arcade.draw_text(
+                "完成奖励:",
+                obsession_description_x,
+                reward_y,
+                arcade.color.YELLOW,
+                S.font(22),
+                anchor_x="center",
+                anchor_y="center",
+                bold=True
+            )
+            
+            reward_y -= S.py(35)
+            for reward in obsession.rewards:
+                reward_text = f"• {reward.description}"
+                arcade.draw_text(
+                    reward_text,
+                    obsession_description_x,
+                    reward_y,
+                    arcade.color.ORANGE,
+                    S.font(16),
+                    anchor_x="center",
+                    anchor_y="center"
+                )
+                reward_y -= S.py(25)
+        
+        # 提示文字
+        arcade.draw_text(
+            "点击执念进行选择，然后点击右下角的'开始游戏'",
+            self.layout_center_x,
+            S.py(50),
+            arcade.color.GRAY,
+            S.font(16),
+            anchor_x="center",
+            anchor_y="center"
+        )
+        
+        # 上一步和开始游戏按钮
+        # 上一步
+        button_x = self.window_width * 0.15
+        button_y = S.py(80)
+        arcade.draw_lrbt_rectangle_filled(
+            button_x - S.px(75), button_x + S.px(75),
+            button_y - S.py(25), button_y + S.py(25),
+            arcade.color.BLUE
+        )
+        arcade.draw_text(
+            "上一步",
+            button_x,
+            button_y,
+            arcade.color.WHITE,
+            S.font(20),
+            anchor_x="center",
+            anchor_y="center",
+            bold=True
+        )
+        
+        # 开始游戏
+        button_x = self.window_width * 0.85
+        button_y = S.py(80)
+        
+        if self.selected_obsession_id:
+            button_color = arcade.color.GREEN
+            text_color = arcade.color.WHITE
+        else:
+            button_color = arcade.color.DARK_GRAY
+            text_color = arcade.color.GRAY
+        
+        arcade.draw_lrbt_rectangle_filled(
+            button_x - S.px(75), button_x + S.px(75),
+            button_y - S.py(25), button_y + S.py(25),
+            button_color
+        )
+        arcade.draw_text(
+            "开始游戏",
+            button_x,
+            button_y,
+            text_color,
+            S.font(20),
+            anchor_x="center",
+            anchor_y="center",
+            bold=True
+        )
+    
     def _get_stat_cost(self, current_value: int) -> int:
         """获取提升属性的花费（DND 18点购买规则）"""
         # 18点购买系统的成本表
@@ -809,6 +1066,22 @@ class CharacterCreationView(arcade.View):
                     abs(y - y_pos) < box_height / 2):
                     self.hovered_equipment_index = i
                     break
+        
+        elif self.creation_stage == 3:
+            # 执念选择阶段的悬停检测
+            obsessions = self.obsession_manager.get_all_obsessions()
+            self.hovered_obsession_index = -1
+            
+            obsession_list_x = self.window_width * 0.25
+            obsession_list_y_start = self.window_height * 0.7
+            obsession_item_height = S.py(60)
+            
+            for i, obsession in enumerate(obsessions):
+                y_pos = obsession_list_y_start - i * obsession_item_height
+                if (abs(x - obsession_list_x) < S.px(150) and 
+                    abs(y - y_pos) < S.py(25)):
+                    self.hovered_obsession_index = i
+                    break
     
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         """鼠标点击事件"""
@@ -818,6 +1091,8 @@ class CharacterCreationView(arcade.View):
             self._handle_stat_allocation_click(x, y)
         elif self.creation_stage == 2:
             self._handle_equipment_selection_click(x, y)
+        elif self.creation_stage == 3:
+            self._handle_obsession_selection_click(x, y)
     
     def _handle_career_selection_click(self, x: float, y: float):
         """处理职业选择界面的点击"""
@@ -903,7 +1178,40 @@ class CharacterCreationView(arcade.View):
         button_x = self.window_width * 0.85
         button_y = S.py(80)
         if (abs(x - button_x) < S.px(75) and abs(y - button_y) < S.py(25)):
-            self._create_character_and_start()
+            # 进入执念选择阶段
+            self.creation_stage = 3
+    
+    def _handle_obsession_selection_click(self, x: float, y: float):
+        """处理执念选择界面的点击"""
+        # 获取所有执念
+        obsessions = self.obsession_manager.get_all_obsessions()
+        
+        # 检查是否点击了执念选项
+        obsession_list_x = self.window_width * 0.25
+        obsession_list_y_start = self.window_height * 0.7
+        obsession_item_height = S.py(60)
+        
+        for i, obsession in enumerate(obsessions):
+            y_pos = obsession_list_y_start - i * obsession_item_height
+            
+            if (abs(x - obsession_list_x) < S.px(150) and
+                abs(y - y_pos) < S.py(25)):
+                self.selected_obsession_id = obsession.obsession_id
+                return
+        
+        # 检查上一步按钮
+        button_x = self.window_width * 0.15
+        button_y = S.py(80)
+        if (abs(x - button_x) < S.px(75) and abs(y - button_y) < S.py(25)):
+            self.creation_stage = 2
+            return
+        
+        # 检查开始游戏按钮
+        button_x = self.window_width * 0.85
+        button_y = S.py(80)
+        if (abs(x - button_x) < S.px(75) and abs(y - button_y) < S.py(25)):
+            if self.selected_obsession_id:
+                self._create_character_and_start()
     
     def _create_character_and_start(self):
         """创建角色并开始游戏"""
@@ -1048,6 +1356,13 @@ class CharacterCreationView(arcade.View):
             )
             # 装备到躯干槽位
             player.equipment_manager.equip_item(armor_item, EquipmentSlot.BODY)
+        
+        # 设置执念
+        if self.selected_obsession_id:
+            obsession = self.obsession_manager.get_obsession(self.selected_obsession_id)
+            if obsession:
+                player.set_obsession(obsession)
+                print(f"[执念] 角色获得执念: {obsession.name}")
         
         # 调用回调函数，传递创建好的角色
         self.on_character_created(player)
