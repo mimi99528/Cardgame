@@ -206,12 +206,13 @@ class NarrativeNode:
         }
     
     @staticmethod
-    def from_dict(data: Dict[str, Any], templates: Dict[str, Any] = None) -> 'NarrativeNode':
+    def from_dict(data: Dict[str, Any], templates: Optional[Dict[str, Any]] = None) -> 'NarrativeNode':
         """从字典反序列化
         
         Args:
             data: 节点数据字典
-            templates: 可选的 outcome_templates 字典，用于解析模板引用
+            templates: 可选的 outcome_templates 字典，用于解析模板引用。
+                       使用 None（而非 {}）作为默认值以避免可变默认参数问题。
         """
         if templates is None:
             templates = {}
@@ -288,7 +289,10 @@ class NarrativeNode:
         
         Args:
             template: 模板字典，键为结果等级，值为 {"text": ..., "effects": [...]}
-            params: 替换参数，如 {"action_name": "火焰箭"}
+            params: 替换参数字典，如 {"action_name": "火焰箭"}。
+                    模板文本中使用 {param_key} 占位符；params 为空时直接使用原文本。
+                    例：模板文本 "{action_name}点燃了草丛" + params {"action_name": "火球术"}
+                        → "火球术点燃了草丛"
         """
         results = []
         for level, result_data in template.items():

@@ -59,7 +59,7 @@
           "失败": {"text": "守卫被激怒了：'好大的胆子！'他吹响哨子，召集同伴准备战斗。", "effects": [{"type": "trigger_combat","enemy": "city_guards"}]},
           "大失败": {"text": "你刚要动手，就被守卫一脚踢中膝盖，摔倒在地。其他守卫蜂拥而上，将你们制服。", "effects": [{"type": "take_damage","value": 5}, {"type": "trigger_combat","enemy": "city_guards_elite"}]}
         },
-        "火焰": {"$template": "fire_distraction"}
+        "点燃类": {"$template": "fire_distraction"}
       },
       "next_nodes": {
         "大成功": "city_interior_001",
